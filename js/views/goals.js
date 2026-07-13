@@ -131,6 +131,32 @@ function syncInputModeVisibility(form) {
   });
 }
 
+function resetGoalForm(form) {
+  const cardBody = form.closest(".card-body");
+  form.reset();
+  form.elements.startDate.value = todayIsoDate();
+  delete form.dataset.editingGoalId;
+  cardBody.querySelector("[data-form-title]").textContent = "Ziel erstellen";
+  form.querySelector("[data-submit-label]").textContent = "Ziel speichern";
+  syncInputModeVisibility(form);
+}
+
+function setGoalFormValues(form, goal) {
+  const cardBody = form.closest(".card-body");
+  form.elements.type.value = goal.type;
+  form.elements.inputMode.value = goal.inputMode || "targetValue";
+  form.elements.startDate.value = goal.startDate;
+  form.elements.startValue.value = goal.startValue ?? "";
+  form.elements.targetValue.value = goal.inputMode === "changeOverWeeks" ? "" : goal.targetValue ?? "";
+  form.elements.targetDate.value = goal.inputMode === "changeOverWeeks" ? "" : goal.targetDate ?? "";
+  form.elements.requestedChange.value = goal.requestedChange ?? "";
+  form.elements.requestedWeeks.value = goal.requestedWeeks ?? "";
+  form.dataset.editingGoalId = goal.id;
+  cardBody.querySelector("[data-form-title]").textContent = "Ziel bearbeiten";
+  form.querySelector("[data-submit-label]").textContent = "Aenderungen speichern";
+  syncInputModeVisibility(form);
+}
+
 function renderTrendDetail(key, trend, goal, analysis) {
   const changeUnit = changeUnitLabel(goal.type);
 
@@ -258,6 +284,7 @@ function renderGoalCard(goal, dailyEntries, bodyFatEntries) {
         ${renderGoalDetails(goal, analysis)}
         ${analysis.warnings.length ? `<div class="alert danger">${analysis.warnings.map((warning) => `<p>${warning}</p>`).join("")}</div>` : ""}
         <div class="entry-actions">
+          <button class="icon-button" type="button" data-action="edit-goal">Bearbeiten</button>
           <button class="icon-button" type="button" data-action="complete-goal">Abschliessen</button>
           <button class="icon-button danger" type="button" data-action="cancel-goal">Abbrechen</button>
         </div>
@@ -305,6 +332,7 @@ async function refreshGoals(container) {
     ? activeGoals.map((goal) => renderGoalCard(goal, dailyEntries, bodyFatEntries)).join("")
     : `<section class="card empty-state"><h2>Noch keine aktiven Ziele</h2><p>Lege ein Gewichtsziel oder KFA-Ziel an.</p></section>`;
   historySlot.innerHTML = renderGoalHistory(goals);
+  return goals;
 }
 
 function updateDerivedFields(container, dailyEntries, bodyFatEntries) {
@@ -334,13 +362,14 @@ async function initializeGoals(container) {
   const status = container.querySelector("[data-status]");
   let dailyEntries = [];
   let bodyFatEntries = [];
+  let goals = [];
 
   try {
     [dailyEntries, bodyFatEntries] = await Promise.all([getDailyEntries(), getBodyFatEntries()]);
     form.elements.startDate.value = todayIsoDate();
     syncInputModeVisibility(form);
     updateDerivedFields(container, dailyEntries, bodyFatEntries);
-    await refreshGoals(container);
+    goals = await refreshGoals(container);
   } catch (error) {
     console.error(error);
     status.innerHTML = renderStatus("Ziele konnten nicht geladen werden.", "danger");
@@ -355,6 +384,12 @@ async function initializeGoals(container) {
     updateDerivedFields(container, dailyEntries, bodyFatEntries);
   });
 
+  form.querySelector("[data-reset-goal-form]").addEventListener("click", () => {
+    resetGoalForm(form);
+    updateDerivedFields(container, dailyEntries, bodyFatEntries);
+    status.innerHTML = "";
+  });
+
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const values = getGoalFormValues(form, dailyEntries, bodyFatEntries);
@@ -366,7 +401,9 @@ async function initializeGoals(container) {
     }
 
     try {
+      const wasEditing = Boolean(form.dataset.editingGoalId);
       await saveGoal({
+        id: form.dataset.editingGoalId || undefined,
         type: values.type,
         inputMode: values.inputMode,
         startDate: values.startDate,
@@ -376,11 +413,9 @@ async function initializeGoals(container) {
         requestedChange: values.requestedChange,
         requestedWeeks: values.requestedWeeks
       });
-      form.reset();
-      form.elements.startDate.value = todayIsoDate();
-      syncInputModeVisibility(form);
-      status.innerHTML = renderStatus("Ziel gespeichert.");
-      await refreshGoals(container);
+      resetGoalForm(form);
+      status.innerHTML = renderStatus(wasEditing ? "Ziel aktualisiert." : "Ziel gespeichert.");
+      goals = await refreshGoals(container);
       updateDerivedFields(container, dailyEntries, bodyFatEntries);
     } catch (error) {
       console.error(error);
@@ -395,6 +430,20 @@ async function initializeGoals(container) {
     if (!button || !card) return;
 
     const action = button.dataset.action;
+    if (action === "edit-goal") {
+      const goal = goals.find((item) => item.id === card.dataset.goalId);
+      if (!goal) {
+        status.innerHTML = renderStatus("Ziel wurde nicht gefunden.", "danger");
+        return;
+      }
+
+      setGoalFormValues(form, goal);
+      updateDerivedFields(container, dailyEntries, bodyFatEntries);
+      status.innerHTML = renderStatus("Ziel im Formular geladen.");
+      form.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
     const statusValue = action === "complete-goal" ? "completed" : "cancelled";
     const confirmed = window.confirm(action === "complete-goal" ? "Ziel abschliessen?" : "Ziel abbrechen?");
     if (!confirmed) return;
@@ -402,7 +451,7 @@ async function initializeGoals(container) {
     try {
       await updateGoalStatus(card.dataset.goalId, statusValue);
       status.innerHTML = renderStatus(action === "complete-goal" ? "Ziel abgeschlossen." : "Ziel abgebrochen.");
-      await refreshGoals(container);
+      goals = await refreshGoals(container);
     } catch (error) {
       console.error(error);
       status.innerHTML = renderStatus("Zielstatus konnte nicht geaendert werden.", "danger");
@@ -417,7 +466,7 @@ export function renderGoals() {
   container.innerHTML = `
     <section class="card">
       <div class="card-body">
-        <h2 class="section-title">Ziel erstellen</h2>
+        <h2 class="section-title" data-form-title>Ziel erstellen</h2>
         <div data-status></div>
         <form class="form-grid" data-goal-form>
           <label class="field">
@@ -461,7 +510,8 @@ export function renderGoals() {
           <p class="muted field-full" data-start-value-info></p>
           <div class="field-full" data-goal-preview></div>
           <div class="form-actions field-full">
-            <button class="button" type="submit">Ziel speichern</button>
+            <button class="button" type="submit" data-submit-label>Ziel speichern</button>
+            <button class="button secondary" type="button" data-reset-goal-form>Zuruecksetzen</button>
           </div>
         </form>
       </div>
