@@ -1,11 +1,12 @@
 import { createId } from "./utils.js";
 
 const DB_NAME = "fitness-tracker-db";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORES = {
   dailyEntries: "dailyEntries",
   bodyFatEntries: "bodyFatEntries",
-  settings: "settings"
+  settings: "settings",
+  goals: "goals"
 };
 
 let databasePromise;
@@ -45,6 +46,13 @@ function openDatabase() {
 
       if (!db.objectStoreNames.contains(STORES.settings)) {
         db.createObjectStore(STORES.settings, { keyPath: "id" });
+      }
+
+      if (!db.objectStoreNames.contains(STORES.goals)) {
+        const goalsStore = db.createObjectStore(STORES.goals, { keyPath: "id" });
+        goalsStore.createIndex("type", "type", { unique: false });
+        goalsStore.createIndex("status", "status", { unique: false });
+        goalsStore.createIndex("typeStatus", ["type", "status"], { unique: false });
       }
     });
 
@@ -205,6 +213,86 @@ export async function saveSettings(settingsData) {
 
   await requestToPromise(store.put(settings));
   return settings;
+}
+
+export async function getGoals() {
+  const store = await getStore(STORES.goals);
+  return requestToPromise(store.getAll());
+}
+
+export async function getGoalById(id) {
+  const store = await getStore(STORES.goals);
+  return requestToPromise(store.get(id));
+}
+
+export async function getActiveGoals() {
+  const store = await getStore(STORES.goals);
+  const index = store.index("status");
+  return requestToPromise(index.getAll("active"));
+}
+
+export async function saveGoal(goalData) {
+  const now = new Date().toISOString();
+  const existingGoal = goalData.id ? await getGoalById(goalData.id) : null;
+  const goal = {
+    id: goalData.id || createId("goal"),
+    type: goalData.type,
+    startDate: goalData.startDate,
+    targetDate: goalData.targetDate,
+    startValue: goalData.startValue,
+    targetValue: goalData.targetValue,
+    direction: goalData.targetValue < goalData.startValue ? "decrease" : "increase",
+    inputMode: goalData.inputMode,
+    requestedChange: goalData.requestedChange ?? null,
+    requestedWeeks: goalData.requestedWeeks ?? null,
+    status: goalData.status || "active",
+    createdAt: existingGoal?.createdAt || goalData.createdAt || now,
+    updatedAt: now,
+    completedAt: goalData.completedAt || null
+  };
+  const activeGoals = goal.status === "active" ? await getActiveGoals() : [];
+  const db = await openDatabase();
+  const transaction = db.transaction(STORES.goals, "readwrite");
+  const store = transaction.objectStore(STORES.goals);
+
+  if (goal.status === "active") {
+    activeGoals
+      .filter((activeGoal) => activeGoal.type === goal.type && activeGoal.id !== goal.id)
+      .forEach((activeGoal) => {
+        store.put({
+          ...activeGoal,
+          status: "cancelled",
+          updatedAt: now
+        });
+      });
+  }
+
+  store.put(goal);
+  await transactionDone(transaction);
+  return goal;
+}
+
+export async function updateGoalStatus(id, status) {
+  const goal = await getGoalById(id);
+  if (!goal) {
+    throw new Error("Ziel wurde nicht gefunden.");
+  }
+
+  return saveGoal({
+    ...goal,
+    status,
+    completedAt: status === "completed" ? new Date().toISOString() : goal.completedAt
+  });
+}
+
+export async function replaceGoals(goals) {
+  const db = await openDatabase();
+  const transaction = db.transaction(STORES.goals, "readwrite");
+  const store = transaction.objectStore(STORES.goals);
+
+  store.clear();
+  goals.forEach((goal) => store.put(goal));
+  await transactionDone(transaction);
 }
 
 export async function clearAllData() {

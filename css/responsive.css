@@ -31,6 +31,19 @@
   .summary-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .goal-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .goal-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trend-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 360px) {

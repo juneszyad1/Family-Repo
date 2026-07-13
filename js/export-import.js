@@ -2,9 +2,11 @@ import {
   clearAllData,
   getBodyFatEntries,
   getDailyEntries,
+  getGoals,
   getSettings,
   replaceBodyFatEntries,
   replaceDailyEntries,
+  replaceGoals,
   saveSettings
 } from "./database.js";
 import { createId } from "./utils.js";
@@ -69,6 +71,25 @@ function normalizeBodyFatEntry(entry) {
   };
 }
 
+function normalizeGoal(goal) {
+  return {
+    id: goal.id || createId("goal"),
+    type: goal.type,
+    startDate: goal.startDate,
+    targetDate: goal.targetDate,
+    startValue: goal.startValue,
+    targetValue: goal.targetValue,
+    direction: goal.direction || (goal.targetValue < goal.startValue ? "decrease" : "increase"),
+    inputMode: goal.inputMode || "targetValue",
+    requestedChange: goal.requestedChange ?? null,
+    requestedWeeks: goal.requestedWeeks ?? null,
+    status: goal.status || "active",
+    createdAt: goal.createdAt || new Date().toISOString(),
+    updatedAt: goal.updatedAt || new Date().toISOString(),
+    completedAt: goal.completedAt || null
+  };
+}
+
 function validateImportData(data) {
   if (!data || typeof data !== "object") {
     throw new Error("Die Datei ist kein gueltiges JSON-Backup.");
@@ -80,6 +101,10 @@ function validateImportData(data) {
 
   if (!Array.isArray(data.dailyEntries) || !Array.isArray(data.bodyFatEntries)) {
     throw new Error("Das Backup enthaelt keine gueltigen Datenlisten.");
+  }
+
+  if (data.goals !== undefined && !Array.isArray(data.goals)) {
+    throw new Error("Das Backup enthaelt keine gueltige Zielliste.");
   }
 
   const dailyEntriesValid = data.dailyEntries.every((entry) => entry && typeof entry.date === "string");
@@ -105,17 +130,19 @@ function mergeByDate(existingEntries, importedEntries, conflictMode) {
 }
 
 export async function exportJsonBackup() {
-  const [settings, dailyEntries, bodyFatEntries] = await Promise.all([
+  const [settings, dailyEntries, bodyFatEntries, goals] = await Promise.all([
     getSettings(),
     getDailyEntries(),
-    getBodyFatEntries()
+    getBodyFatEntries(),
+    getGoals()
   ]);
   const payload = {
     version: EXPORT_VERSION,
     exportDate: new Date().toISOString(),
     settings,
     dailyEntries,
-    bodyFatEntries
+    bodyFatEntries,
+    goals
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   downloadBlob(blob, backupFilename("json"));
@@ -149,17 +176,20 @@ export async function importBackup(data, options) {
   const settings = validatedData.settings || {};
   const importedDaily = validatedData.dailyEntries.map(normalizeDailyEntry);
   const importedBodyFat = validatedData.bodyFatEntries.map(normalizeBodyFatEntry);
+  const importedGoals = (validatedData.goals || []).map(normalizeGoal);
 
   if (options.mode === "replace") {
     await replaceDailyEntries(importedDaily);
     await replaceBodyFatEntries(importedBodyFat);
+    await replaceGoals(importedGoals);
     await saveSettings(settings);
     return;
   }
 
-  const [existingDaily, existingBodyFat] = await Promise.all([
+  const [existingDaily, existingBodyFat, existingGoals] = await Promise.all([
     getDailyEntries(),
-    getBodyFatEntries()
+    getBodyFatEntries(),
+    getGoals()
   ]);
   const mergedDaily = mergeByDate(existingDaily, importedDaily, options.conflictMode);
   const mergedBodyFat = options.conflictMode === "imported"
@@ -168,6 +198,7 @@ export async function importBackup(data, options) {
 
   await replaceDailyEntries(mergedDaily);
   await replaceBodyFatEntries(mergedBodyFat);
+  await replaceGoals([...existingGoals, ...importedGoals]);
   await saveSettings(settings);
 }
 

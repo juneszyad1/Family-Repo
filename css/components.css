@@ -225,6 +225,59 @@
   margin: 0 0 14px;
 }
 
+.goal-card .card-body {
+  display: grid;
+  gap: 14px;
+}
+
+.goal-header {
+  display: grid;
+  gap: 10px;
+}
+
+.status-pill {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 30px;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+  color: var(--primary-strong);
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
+.goal-facts {
+  display: grid;
+  gap: 8px;
+}
+
+.goal-facts p,
+.goal-projection p {
+  margin: 0;
+}
+
+.trend-strip {
+  display: grid;
+  gap: 8px;
+}
+
+.trend-strip div {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  padding: 10px;
+}
+
+.trend-strip span,
+.trend-strip small {
+  color: var(--text-secondary);
+}
+
 .alert {
   display: grid;
   gap: 4px;
