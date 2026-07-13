@@ -27,6 +27,12 @@ const STATUS_LABELS = {
   [GOAL_STATUS.OVERDUE]: "Zieltermin erreicht"
 };
 
+const CONFIDENCE_LABELS = {
+  low: "gering",
+  medium: "mittel",
+  good: "gut"
+};
+
 function addWeeks(date, weeks) {
   const result = new Date(`${date}T00:00:00`);
   result.setDate(result.getDate() + weeks * 7);
@@ -43,6 +49,22 @@ function unitLabel(type) {
 
 function changeUnitLabel(type) {
   return type === GOAL_TYPES.BODY_FAT ? "Prozentpunkte" : "kg";
+}
+
+function trendName(key) {
+  if (key === "days7") return "7-Tage-Trend";
+  if (key === "days14") return "14-Tage-Trend";
+  if (key === "days30") return "30-Tage-Trend";
+  return "Trend";
+}
+
+function formatSigned(value, options = {}) {
+  if (value === null || value === undefined) {
+    return "--";
+  }
+
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${formatNumber(value, options)}`;
 }
 
 function entriesForType(type, dailyEntries, bodyFatEntries) {
@@ -109,6 +131,79 @@ function syncInputModeVisibility(form) {
   });
 }
 
+function renderTrendDetail(key, trend, goal, analysis) {
+  const changeUnit = changeUnitLabel(goal.type);
+
+  if (!trend.available) {
+    return `
+      <article class="trend-detail muted-panel">
+        <h3>${trendName(key)}</h3>
+        <p>${trend.reason}</p>
+        <p>Datenbasis: ${trend.measurementCount} Messungen, ${trend.spanDays} Tage Spannweite.</p>
+      </article>
+    `;
+  }
+
+  const projectedDeviation = trend.projectedValueAtTargetDate === null
+    ? null
+    : (trend.projectedValueAtTargetDate - goal.targetValue) * (goal.targetValue < goal.startValue ? -1 : 1);
+  const projectedDate = trend.projectedGoalDate?.date ? formatDate(trend.projectedGoalDate.date) : "nicht berechenbar";
+  const dateOffset = trend.projectedGoalDate?.daysFromTarget;
+  const dateOffsetText = dateOffset === null || dateOffset === undefined
+    ? ""
+    : dateOffset === 0
+      ? "genau zum geplanten Zieltermin"
+      : `${Math.abs(dateOffset)} Tage ${dateOffset > 0 ? "spaeter" : "frueher"} als geplant`;
+
+  return `
+    <article class="trend-detail">
+      <div class="trend-detail-header">
+        <h3>${trendName(key)}</h3>
+        <span class="status-pill">${STATUS_LABELS[trend.status]}</span>
+      </div>
+      <div class="detail-grid">
+        <p><strong>Trend</strong><span>${formatSigned(trend.weeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</span></p>
+        <p><strong>Benoetigt</strong><span>${formatSigned(analysis.requiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</span></p>
+        <p><strong>Tempo-Verhaeltnis</strong><span>${formatNumber(trend.paceRatio, { maximumFractionDigits: 2 })}x</span></p>
+        <p><strong>Datenbasis</strong><span>${trend.measurementCount} Messungen ueber ${trend.spanDays} Tage</span></p>
+        <p><strong>Aussagekraft</strong><span>${CONFIDENCE_LABELS[trend.confidence] || trend.confidence}</span></p>
+        <p><strong>Prognose Zieltermin</strong><span>${formatNumber(trend.projectedValueAtTargetDate, { maximumFractionDigits: 1 })} ${unitLabel(goal.type)}</span></p>
+        <p><strong>Prognose-Abweichung</strong><span>${projectedDeviation === null ? "--" : `${formatNumber(Math.abs(projectedDeviation), { maximumFractionDigits: 1 })} ${changeUnit} ${projectedDeviation >= 0 ? "vor Ziel" : "hinter Ziel"}`}</span></p>
+        <p><strong>Erreichungsdatum</strong><span>${projectedDate}${dateOffsetText ? ` · ${dateOffsetText}` : ""}</span></p>
+      </div>
+    </article>
+  `;
+}
+
+function renderGoalDetails(goal, analysis) {
+  const unit = unitLabel(goal.type);
+  const changeUnit = changeUnitLabel(goal.type);
+  const primaryTrendText = analysis.primaryTrend ? trendName(analysis.primaryTrend) : "Kein Trend verfuegbar";
+  const scheduleDeviationText = analysis.scheduleDeviation === null
+    ? "Noch nicht berechenbar"
+    : `${formatNumber(Math.abs(analysis.scheduleDeviation), { maximumFractionDigits: 1 })} ${changeUnit} ${analysis.scheduleDeviation >= 0 ? "vor dem Plan" : "hinter dem Plan"}`;
+
+  return `
+    <details class="goal-details">
+      <summary>Zieldetails anzeigen</summary>
+      <div class="goal-detail-stack">
+        <section class="muted-panel">
+          <h3>Gesamtbewertung</h3>
+          <div class="detail-grid">
+            <p><strong>Grundlage</strong><span>${primaryTrendText}</span></p>
+            <p><strong>Aktueller Wert</strong><span>${formatNumber(analysis.currentValue, { maximumFractionDigits: 1 })} ${unit}</span></p>
+            <p><strong>Sollwert heute</strong><span>${formatNumber(analysis.expectedValueToday, { maximumFractionDigits: 1 })} ${unit}</span></p>
+            <p><strong>Planabweichung</strong><span>${scheduleDeviationText}</span></p>
+            <p><strong>Urspruenglich benoetigt</strong><span>${formatSigned(analysis.requiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</span></p>
+            <p><strong>Ab heute benoetigt</strong><span>${formatSigned(analysis.remainingRequiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</span></p>
+          </div>
+        </section>
+        ${["days7", "days14", "days30"].map((key) => renderTrendDetail(key, analysis.trends[key], goal, analysis)).join("")}
+      </div>
+    </details>
+  `;
+}
+
 function renderGoalCard(goal, dailyEntries, bodyFatEntries) {
   const entries = entriesForType(goal.type, dailyEntries, bodyFatEntries);
   const analysis = analyzeGoal(goal, entries, new Date());
@@ -117,6 +212,9 @@ function renderGoalCard(goal, dailyEntries, bodyFatEntries) {
   const changeUnit = changeUnitLabel(goal.type);
   const progress = analysis.valueProgress === null ? "--" : `${formatNumber(analysis.valueProgress * 100, { maximumFractionDigits: 0 })}%`;
   const time = analysis.timeProgress === null ? "--" : `${formatNumber(analysis.timeProgress * 100, { maximumFractionDigits: 0 })}%`;
+  const scheduleDeviationText = analysis.scheduleDeviation === null
+    ? "Noch nicht berechenbar"
+    : `${formatNumber(Math.abs(analysis.scheduleDeviation), { maximumFractionDigits: 1 })} ${changeUnit} ${analysis.scheduleDeviation >= 0 ? "vor dem Plan" : "hinter dem Plan"}`;
 
   return `
     <article class="card goal-card" data-goal-id="${goal.id}">
@@ -132,7 +230,7 @@ function renderGoalCard(goal, dailyEntries, bodyFatEntries) {
           <p><strong>Aktuell:</strong> ${formatNumber(analysis.currentValue, { maximumFractionDigits: 1 })} ${unit}</p>
           <p><strong>Zieldatum:</strong> ${formatDate(goal.targetDate)}</p>
           <p><strong>Soll heute:</strong> ${formatNumber(analysis.expectedValueToday, { maximumFractionDigits: 1 })} ${unit}</p>
-          <p><strong>Planabweichung:</strong> ${formatNumber(Math.abs(analysis.scheduleDeviation), { maximumFractionDigits: 1 })} ${changeUnit} ${analysis.scheduleDeviation >= 0 ? "vor dem Plan" : "hinter dem Plan"}</p>
+          <p><strong>Planabweichung:</strong> ${scheduleDeviationText}</p>
           <p><strong>Ziel-Fortschritt:</strong> ${progress}</p>
           <p><strong>Verbrauchte Zeit:</strong> ${time}</p>
           <p><strong>Benoetigt:</strong> ${formatNumber(analysis.requiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</p>
@@ -157,6 +255,7 @@ function renderGoalCard(goal, dailyEntries, bodyFatEntries) {
             <p><strong>Voraussichtliches Erreichen:</strong> ${primary.projectedGoalDate?.date ? formatDate(primary.projectedGoalDate.date) : "nicht berechenbar"}</p>
           </div>
         ` : ""}
+        ${renderGoalDetails(goal, analysis)}
         ${analysis.warnings.length ? `<div class="alert danger">${analysis.warnings.map((warning) => `<p>${warning}</p>`).join("")}</div>` : ""}
         <div class="entry-actions">
           <button class="icon-button" type="button" data-action="complete-goal">Abschliessen</button>

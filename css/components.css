@@ -307,6 +307,66 @@
   color: var(--text-secondary);
 }
 
+.goal-details {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+}
+
+.goal-details summary {
+  min-height: 44px;
+  padding: 12px;
+  cursor: pointer;
+  font-weight: 850;
+}
+
+.goal-detail-stack {
+  display: grid;
+  gap: 12px;
+  padding: 0 12px 12px;
+}
+
+.muted-panel,
+.trend-detail {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 12px;
+}
+
+.muted-panel h3,
+.trend-detail h3 {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.trend-detail-header {
+  display: grid;
+  gap: 8px;
+}
+
+.detail-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.detail-grid p {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+
+.detail-grid strong {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.detail-grid span {
+  overflow-wrap: anywhere;
+}
+
 .alert {
   display: grid;
   gap: 4px;
