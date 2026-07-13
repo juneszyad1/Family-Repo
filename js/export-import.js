@@ -92,26 +92,26 @@ function normalizeGoal(goal) {
 
 function validateImportData(data) {
   if (!data || typeof data !== "object") {
-    throw new Error("Die Datei ist kein gueltiges JSON-Backup.");
+    throw new Error("Die Datei ist kein gültiges JSON-Backup.");
   }
 
   if (data.version !== EXPORT_VERSION) {
-    throw new Error("Diese Backup-Version wird nicht unterstuetzt.");
+    throw new Error("Diese Backup-Version wird nicht unterstützt.");
   }
 
   if (!Array.isArray(data.dailyEntries) || !Array.isArray(data.bodyFatEntries)) {
-    throw new Error("Das Backup enthaelt keine gueltigen Datenlisten.");
+    throw new Error("Das Backup enthält keine gültigen Datenlisten.");
   }
 
   if (data.goals !== undefined && !Array.isArray(data.goals)) {
-    throw new Error("Das Backup enthaelt keine gueltige Zielliste.");
+    throw new Error("Das Backup enthält keine gültige Zielliste.");
   }
 
   const dailyEntriesValid = data.dailyEntries.every((entry) => entry && typeof entry.date === "string");
   const bodyFatEntriesValid = data.bodyFatEntries.every((entry) => entry && typeof entry.date === "string");
 
   if (!dailyEntriesValid || !bodyFatEntriesValid) {
-    throw new Error("Das Backup enthaelt ungueltige Eintraege.");
+    throw new Error("Das Backup enthält ungültige Einträge.");
   }
 
   return data;

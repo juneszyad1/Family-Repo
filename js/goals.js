@@ -153,7 +153,7 @@ export function calculateCurrentValue(goal, entries, today = new Date()) {
       method: "latest",
       measurementCount: 1,
       ageDays,
-      warning: ageDays > 21 ? "Die aktuelle KFA-Prognose basiert auf einer aelteren Messung." : null
+      warning: ageDays > 21 ? "Die aktuelle KFA-Prognose basiert auf einer älteren Messung." : null
     };
   }
 
@@ -174,7 +174,7 @@ export function calculateCurrentValue(goal, entries, today = new Date()) {
     value: latest.value,
     method: "latest",
     measurementCount: 1,
-    warning: "Weniger zuverlaessig: Es liegen weniger als zwei Gewichtswerte in den letzten sieben Tagen vor."
+    warning: "Weniger zuverlässig: Es liegen weniger als zwei Gewichtswerte in den letzten sieben Tagen vor."
   };
 }
 
@@ -215,7 +215,7 @@ export function resolveStartValue(goal, entries) {
   return {
     value: latest.value,
     method: "latest",
-    description: "Ermittelt aus dem letzten verfuegbaren Messwert am oder vor dem Startdatum."
+    description: "Ermittelt aus dem letzten verfügbaren Messwert am oder vor dem Startdatum."
   };
 }
 
@@ -242,8 +242,8 @@ export function calculateLinearTrend(entries, { valueKey, startDate, endDate, go
     return {
       available: false,
       reason: goalType === GOAL_TYPES.BODY_FAT
-        ? "Noch nicht genuegend KFA-Messwerte fuer diesen Trend."
-        : "Noch nicht genuegend Gewichtswerte fuer diesen Trend.",
+        ? "Noch nicht genügend KFA-Messwerte für diesen Trend."
+        : "Noch nicht genügend Gewichtswerte für diesen Trend.",
       measurementCount: measurements.length,
       distinctDayCount: measurements.length,
       spanDays
@@ -520,10 +520,10 @@ export function analyzeGoal(goal, entries, todayInput = new Date()) {
     warnings.push(current.warning);
   }
   if (goal.type === GOAL_TYPES.WEIGHT && Math.abs(required.requiredWeeklyRate || 0) > 1) {
-    warnings.push("Dieses Ziel erfordert eine Gewichtsveraenderung von mehr als 1 kg pro Woche. Pruefe, ob der gewaehlte Zeitraum realistisch und fuer dich geeignet ist.");
+    warnings.push("Dieses Ziel erfordert eine Gewichtsveränderung von mehr als 1 kg pro Woche. Prüfe, ob der gewählte Zeitraum realistisch und für dich geeignet ist.");
   }
   if (goal.type === GOAL_TYPES.BODY_FAT) {
-    warnings.push("Koerperfettmessungen mit einer Zange sind Schaetzwerte. Grosse kurzfristige Veraenderungen koennen durch Messabweichungen entstehen.");
+    warnings.push("Körperfettmessungen mit einer Zange sind Schätzwerte. Große kurzfristige Veränderungen können durch Messabweichungen entstehen.");
   }
 
   const analysis = {

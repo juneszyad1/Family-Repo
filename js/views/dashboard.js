@@ -9,13 +9,13 @@ import { GOAL_STATUS, GOAL_TYPES, analyzeGoal } from "../goals.js";
 import { formatDate, formatNumber, todayIsoDate } from "../utils.js";
 
 const GOAL_STATUS_LABELS = {
-  [GOAL_STATUS.AHEAD]: "Schneller als noetig",
+  [GOAL_STATUS.AHEAD]: "Schneller als nötig",
   [GOAL_STATUS.ON_TRACK]: "Im Ziel",
   [GOAL_STATUS.SLIGHTLY_BEHIND]: "Etwas hinter dem Ziel",
   [GOAL_STATUS.BEHIND]: "Deutlich hinter dem Ziel",
   [GOAL_STATUS.WRONG_DIRECTION]: "Trend weg vom Ziel",
   [GOAL_STATUS.INSUFFICIENT_DATA]: "Zu wenig Daten",
-  [GOAL_STATUS.NOT_STARTED]: "Startet spaeter",
+  [GOAL_STATUS.NOT_STARTED]: "Startet später",
   [GOAL_STATUS.COMPLETED]: "Ziel erreicht",
   [GOAL_STATUS.OVERDUE]: "Zieltermin erreicht"
 };
@@ -83,13 +83,13 @@ function renderGoalSummary(goal, dailyEntries, bodyFatEntries) {
           <p><strong>Zieldatum</strong><span>${formatDate(goal.targetDate)}</span></p>
           <p><strong>Soll heute</strong><span>${formatNumber(analysis.expectedValueToday, { maximumFractionDigits: 1 })} ${unit}</span></p>
           <p><strong>Abweichung</strong><span>${deviationText}</span></p>
-          <p><strong>Primaertrend</strong><span>${primaryTrend?.available ? `${formatNumber(primaryTrend.weeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche` : "Noch nicht verfuegbar"}</span></p>
+          <p><strong>Primärtrend</strong><span>${primaryTrend?.available ? `${formatNumber(primaryTrend.weeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche` : "Noch nicht verfügbar"}</span></p>
         </div>
         <div class="progress-stack compact-progress">
           ${renderProgress("Ziel-Fortschritt", valueProgress, 100, "%")}
           ${renderProgress("Verbrauchte Zeit", timeProgress, 100, "%")}
         </div>
-        <a class="button secondary" href="#/goals">Ziel oeffnen</a>
+        <a class="button secondary" href="#/goals">Ziel öffnen</a>
       </div>
     </article>
   `;
@@ -126,9 +126,9 @@ function renderDashboardContent({ dailyEntries, bodyFatEntries, settings, active
         <p class="muted">${latestWeight ? `Letzte Messung: ${formatDate(latestWeight.date)}` : "Noch keine Messung"}</p>
       </article>
       <article class="card metric">
-        <p class="metric-label">Veraenderung</p>
+        <p class="metric-label">Veränderung</p>
         <p class="metric-value">${formatSignedWeight(weightChange)}</p>
-        <p class="muted">Gegenueber der letzten Messung</p>
+        <p class="muted">Gegenüber der letzten Messung</p>
       </article>
       <article class="card metric">
         <p class="metric-label">7-Tage-Schnitt</p>
@@ -136,7 +136,7 @@ function renderDashboardContent({ dailyEntries, bodyFatEntries, settings, active
         <p class="muted">Nur vorhandene Gewichtswerte</p>
       </article>
       <article class="card metric">
-        <p class="metric-label">Koerperfett</p>
+        <p class="metric-label">Körperfett</p>
         <p class="metric-value">${formatNumber(latestBodyFat?.bodyFatPercentage, { maximumFractionDigits: 1 })} %</p>
         <p class="muted">${latestBodyFat ? `Letzte Messung: ${formatDate(latestBodyFat.date)}` : "Noch keine KFA-Messung"}</p>
       </article>
@@ -198,7 +198,7 @@ async function initializeDashboard(container) {
     container.innerHTML = `
       <section class="card empty-state">
         <h2>Dashboard konnte nicht geladen werden</h2>
-        <p>Die lokale Datenbank ist gerade nicht verfuegbar.</p>
+        <p>Die lokale Datenbank ist gerade nicht verfügbar.</p>
       </section>
     `;
   }

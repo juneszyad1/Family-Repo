@@ -72,7 +72,7 @@ test("differenceInCalendarDays nutzt Kalendertage", () => {
   assertEqual(differenceInCalendarDays("2026-07-08", "2026-07-01"), 7, "Differenz falsch");
 });
 
-test("berechnet erforderliche Tages- und Wochenrate fuer Gewichtsabnahme", () => {
+test("berechnet erforderliche Tages- und Wochenrate für Gewichtsabnahme", () => {
   const result = calculateRequiredRate(weightGoal);
   assertEqual(result.durationDays, 84, "Dauer falsch");
   assertClose(result.requiredDailyRate, -0.0952, 0.0001, "Tagesrate falsch");
@@ -89,19 +89,19 @@ test("berechnet Fortschritt und Zeitfortschritt", () => {
   assertClose(result.timeProgress, 0.5, 0.01, "Zeitfortschritt falsch");
 });
 
-test("richtungsbereinigte Pace Ratio funktioniert fuer Abnahme", () => {
-  assertClose(calculatePaceRatio(weightGoal, -0.5), 0.75, 0.01, "Pace Ratio fuer Abnahme falsch");
+test("richtungsbereinigte Pace Ratio funktioniert für Abnahme", () => {
+  assertClose(calculatePaceRatio(weightGoal, -0.5), 0.75, 0.01, "Pace Ratio für Abnahme falsch");
 });
 
-test("richtungsbereinigte Pace Ratio funktioniert fuer Zunahme", () => {
-  assertClose(calculatePaceRatio(gainGoal, 0.5), 1.5, 0.01, "Pace Ratio fuer Zunahme falsch");
+test("richtungsbereinigte Pace Ratio funktioniert für Zunahme", () => {
+  assertClose(calculatePaceRatio(gainGoal, 0.5), 1.5, 0.01, "Pace Ratio für Zunahme falsch");
 });
 
 test("Schedule Deviation ist negativ, wenn Gewichtsabnahme hinter Plan liegt", () => {
   assertClose(calculateScheduleDeviation(weightGoal, 91.8, "2026-08-12"), -0.8, 0.01, "Planabweichung falsch");
 });
 
-test("lineare Regression erkennt regelmaessig fallende Werte", () => {
+test("lineare Regression erkennt regelmäßig fallende Werte", () => {
   const entries = [
     { date: "2026-07-01", weight: 95 },
     { date: "2026-07-03", weight: 94 },
@@ -113,12 +113,12 @@ test("lineare Regression erkennt regelmaessig fallende Werte", () => {
     endDate: "2026-07-07",
     goalType: GOAL_TYPES.WEIGHT
   });
-  assert(result.available, "Trend sollte verfuegbar sein");
+  assert(result.available, "Trend sollte verfügbar sein");
   assertClose(result.dailyRate, -0.5, 0.0001, "Trendrate falsch");
   assertClose(result.weeklyRate, -3.5, 0.0001, "Wochentrend falsch");
 });
 
-test("lineare Regression beruecksichtigt unregelmaessige Messabstaende", () => {
+test("lineare Regression berücksichtigt unregelmäßige Messabstände", () => {
   const entries = [
     { date: "2026-07-01", weight: 100 },
     { date: "2026-07-02", weight: 99.8 },
@@ -130,8 +130,8 @@ test("lineare Regression beruecksichtigt unregelmaessige Messabstaende", () => {
     endDate: "2026-07-11",
     goalType: GOAL_TYPES.WEIGHT
   });
-  assert(result.available, "Trend sollte verfuegbar sein");
-  assertClose(result.dailyRate, -0.2, 0.0001, "Unregelmaessige Abstaende falsch bewertet");
+  assert(result.available, "Trend sollte verfügbar sein");
+  assertClose(result.dailyRate, -0.2, 0.0001, "Unregelmäßige Abstände falsch bewertet");
 });
 
 test("Gewicht nutzt bei mehreren Messungen am gleichen Tag den Tagesmittelwert", () => {
@@ -147,7 +147,7 @@ test("Gewicht nutzt bei mehreren Messungen am gleichen Tag den Tagesmittelwert",
     endDate: "2026-07-08",
     goalType: GOAL_TYPES.WEIGHT
   });
-  assert(result.available, "Trend sollte verfuegbar sein");
+  assert(result.available, "Trend sollte verfügbar sein");
   assertEqual(result.measurementCount, 3, "Tagesmittel wurde nicht verwendet");
 });
 
@@ -158,10 +158,10 @@ test("zu wenige Gewichtswerte liefern keinen Trend", () => {
     endDate: "2026-07-07",
     goalType: GOAL_TYPES.WEIGHT
   });
-  assert(!result.available, "Trend darf nicht verfuegbar sein");
+  assert(!result.available, "Trend darf nicht verfügbar sein");
 });
 
-test("KFA-Trend ist mit zwei Messungen ueber sieben Tage verfuegbar", () => {
+test("KFA-Trend ist mit zwei Messungen über sieben Tage verfügbar", () => {
   const result = calculateLinearTrend([
     { date: "2026-07-01", bodyFatPercentage: 24 },
     { date: "2026-07-08", bodyFatPercentage: 23.5 }
@@ -171,7 +171,7 @@ test("KFA-Trend ist mit zwei Messungen ueber sieben Tage verfuegbar", () => {
     endDate: "2026-07-14",
     goalType: GOAL_TYPES.BODY_FAT
   });
-  assert(result.available, "KFA-Trend sollte verfuegbar sein");
+  assert(result.available, "KFA-Trend sollte verfügbar sein");
   assertEqual(result.confidence, "low", "Zwei KFA-Messungen sollten geringe Aussagekraft haben");
 });
 
@@ -195,12 +195,12 @@ test("Ziel bereits erreicht wird erkannt", () => {
   assert(projected.reached, "Ziel sollte erreicht sein");
 });
 
-test("ab heute benoetigtes Tempo wird berechnet", () => {
+test("ab heute benötigtes Tempo wird berechnet", () => {
   const result = calculateRemainingRequiredRate(weightGoal, 91.8, "2026-08-12");
   assertClose(result.remainingRequiredWeeklyRate, -0.8, 0.0001, "Resttempo falsch");
 });
 
-test("Ausgangswert fuer Gewicht nutzt bevorzugt 7-Tage-Durchschnitt", () => {
+test("Ausgangswert für Gewicht nutzt bevorzugt 7-Tage-Durchschnitt", () => {
   const result = resolveStartValue({ ...weightGoal, startValue: null }, [
     { date: "2026-06-27", weight: 96 },
     { date: "2026-06-29", weight: 95 },
@@ -210,24 +210,24 @@ test("Ausgangswert fuer Gewicht nutzt bevorzugt 7-Tage-Durchschnitt", () => {
   assertClose(result.value, 95, 0.01, "Startwert falsch");
 });
 
-test("analyzeGoal waehlt 14-Tage-Trend als Primaertrend und erkennt Status", () => {
+test("analyzeGoal wählt 14-Tage-Trend als Primärtrend und erkennt Status", () => {
   const entries = Array.from({ length: 15 }, (_, index) => ({
     date: `2026-08-${String(index + 1).padStart(2, "0")}`,
     weight: 94 - index * 0.08
   }));
   const analysis = analyzeGoal(weightGoal, entries, "2026-08-15");
-  assertEqual(analysis.primaryTrend, "days14", "Primaertrend falsch");
+  assertEqual(analysis.primaryTrend, "days14", "Primärtrend falsch");
   assert([GOAL_STATUS.ON_TRACK, GOAL_STATUS.AHEAD, GOAL_STATUS.SLIGHTLY_BEHIND].includes(analysis.overallStatus), "Unerwarteter Gesamtstatus");
 });
 
-test("analyzeGoal erkennt ein zukuenftiges Ziel als noch nicht gestartet", () => {
+test("analyzeGoal erkennt ein zukünftiges Ziel als noch nicht gestartet", () => {
   const futureGoal = {
     ...weightGoal,
     startDate: "2026-09-01",
     targetDate: "2026-10-01"
   };
   const analysis = analyzeGoal(futureGoal, [{ date: "2026-08-15", weight: 95 }], "2026-08-15");
-  assertEqual(analysis.overallStatus, GOAL_STATUS.NOT_STARTED, "Zukuenftiges Ziel falsch bewertet");
+  assertEqual(analysis.overallStatus, GOAL_STATUS.NOT_STARTED, "Zukünftiges Ziel falsch bewertet");
 });
 
 test("analyzeGoal erkennt ein vorzeitig erreichtes Ziel", () => {
@@ -235,9 +235,9 @@ test("analyzeGoal erkennt ein vorzeitig erreichtes Ziel", () => {
   assertEqual(analysis.overallStatus, GOAL_STATUS.COMPLETED, "Erreichtes Ziel falsch bewertet");
 });
 
-test("analyzeGoal erkennt ueberfaellige Ziele ohne automatische Abschliessung", () => {
+test("analyzeGoal erkennt überfällige Ziele ohne automatische Abschließung", () => {
   const analysis = analyzeGoal(weightGoal, [{ date: "2026-10-01", weight: 89 }], "2026-10-01");
-  assertEqual(analysis.overallStatus, GOAL_STATUS.OVERDUE, "Ueberfaelliges Ziel falsch bewertet");
+  assertEqual(analysis.overallStatus, GOAL_STATUS.OVERDUE, "Überfälliges Ziel falsch bewertet");
 });
 
 test("analyzeGoal warnt bei alter KFA-Messung", () => {
@@ -245,7 +245,7 @@ test("analyzeGoal warnt bei alter KFA-Messung", () => {
     { date: "2026-07-01", bodyFatPercentage: 24 },
     { date: "2026-07-08", bodyFatPercentage: 23.8 }
   ], "2026-08-15");
-  assert(analysis.warnings.some((warning) => warning.includes("aelteren Messung")), "Warnung fuer alte KFA-Messung fehlt");
+  assert(analysis.warnings.some((warning) => warning.includes("älteren Messung")), "Warnung für alte KFA-Messung fehlt");
 });
 
 export async function runGoalTests() {

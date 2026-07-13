@@ -42,7 +42,7 @@ function renderHistory(entries) {
   if (!entries.length) {
     return `
       <section class="card empty-state">
-        <h2>Noch keine Eintraege</h2>
+        <h2>Noch keine Einträge</h2>
         <p>Speichere deinen ersten Tagesdatensatz, dann erscheint er hier.</p>
       </section>
     `;
@@ -51,7 +51,7 @@ function renderHistory(entries) {
   return `
     <section class="card">
       <div class="card-body">
-        <h2 class="section-title">Letzte Eintraege</h2>
+        <h2 class="section-title">Letzte Einträge</h2>
         <div class="entry-list">
           ${sortByDateDesc(entries)
             .map(
@@ -68,7 +68,7 @@ function renderHistory(entries) {
                   </div>
                   <div class="entry-actions">
                     <button class="icon-button" type="button" data-action="edit" aria-label="Eintrag bearbeiten">Bearbeiten</button>
-                    <button class="icon-button danger" type="button" data-action="delete" aria-label="Eintrag loeschen">Loeschen</button>
+                    <button class="icon-button danger" type="button" data-action="delete" aria-label="Eintrag löschen">Löschen</button>
                   </div>
                 </article>
               `
@@ -89,7 +89,7 @@ function setFormEntry(form, entry) {
   form.elements.note.value = entry.note ?? "";
   form.dataset.editingDate = entry.date;
   cardBody.querySelector("[data-form-mode]").textContent = "Eintrag bearbeiten";
-  form.querySelector("[data-submit-label]").textContent = "Aenderungen speichern";
+  form.querySelector("[data-submit-label]").textContent = "Änderungen speichern";
 }
 
 function resetForm(form) {
@@ -124,7 +124,7 @@ async function initializeDailyView(container) {
     entries = await refreshHistory(container);
   } catch (error) {
     console.error(error);
-    showStatus(container, "Die lokale Datenbank konnte nicht geoeffnet werden.", "danger");
+    showStatus(container, "Die lokale Datenbank konnte nicht geöffnet werden.", "danger");
   }
 
   form.addEventListener("submit", async (event) => {
@@ -185,7 +185,7 @@ async function initializeDailyView(container) {
     }
 
     if (button.dataset.action === "delete") {
-      const confirmed = window.confirm(`Eintrag vom ${formatDate(entry.date)} wirklich loeschen?`);
+      const confirmed = window.confirm(`Eintrag vom ${formatDate(entry.date)} wirklich löschen?`);
 
       if (!confirmed) {
         return;
@@ -194,10 +194,10 @@ async function initializeDailyView(container) {
       try {
         await deleteDailyEntry(entry.id);
         entries = await refreshHistory(container);
-        showStatus(container, "Eintrag geloescht.");
+        showStatus(container, "Eintrag gelöscht.");
       } catch (error) {
         console.error(error);
-        showStatus(container, "Der Eintrag konnte nicht geloescht werden.", "danger");
+        showStatus(container, "Der Eintrag konnte nicht gelöscht werden.", "danger");
       }
     }
   });
@@ -241,7 +241,7 @@ export function renderDailyEntry() {
 
           <div class="form-actions field-full">
             <button class="button" type="submit" data-submit-label>Speichern</button>
-            <button class="button secondary" type="button" data-reset-form>Zuruecksetzen</button>
+            <button class="button secondary" type="button" data-reset-form>Zurücksetzen</button>
           </div>
         </form>
       </div>
@@ -249,7 +249,7 @@ export function renderDailyEntry() {
 
     <div data-history>
       <section class="card empty-state">
-        <h2>Eintraege werden geladen</h2>
+        <h2>Einträge werden geladen</h2>
         <p>Einen Moment bitte.</p>
       </section>
     </div>

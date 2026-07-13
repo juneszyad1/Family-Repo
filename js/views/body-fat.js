@@ -61,15 +61,15 @@ function renderResult(entry) {
             <p class="metric-value">${formatNumber(entry.skinfoldSum, { maximumFractionDigits: 1 })} mm</p>
           </div>
           <div>
-            <p class="metric-label">Koerperdichte</p>
+            <p class="metric-label">Körperdichte</p>
             <p class="metric-value">${formatNumber(entry.bodyDensity, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}</p>
           </div>
           <div>
-            <p class="metric-label">Koerperfettanteil</p>
+            <p class="metric-label">Körperfettanteil</p>
             <p class="metric-value">${formatNumber(entry.bodyFatPercentage, { maximumFractionDigits: 1 })} %</p>
           </div>
         </div>
-        <p class="muted">Zangenmessungen sind Schaetzwerte. Miss moeglichst immer unter vergleichbaren Bedingungen.</p>
+        <p class="muted">Zangenmessungen sind Schätzwerte. Miss möglichst immer unter vergleichbaren Bedingungen.</p>
       </div>
     </section>
   `;
@@ -108,7 +108,7 @@ function renderHistory(entries) {
                   </div>
                   <div class="entry-actions">
                     <button class="icon-button" type="button" data-action="edit" aria-label="Messung bearbeiten">Bearbeiten</button>
-                    <button class="icon-button danger" type="button" data-action="delete" aria-label="Messung loeschen">Loeschen</button>
+                    <button class="icon-button danger" type="button" data-action="delete" aria-label="Messung löschen">Löschen</button>
                   </div>
                 </article>
               `
@@ -129,7 +129,7 @@ function setFormEntry(form, entry) {
   form.elements.thigh.value = entry.thigh ?? "";
   form.dataset.editingId = entry.id;
   cardBody.querySelector("[data-form-mode]").textContent = "Messung bearbeiten";
-  form.querySelector("[data-submit-label]").textContent = "Aenderungen speichern";
+  form.querySelector("[data-submit-label]").textContent = "Änderungen speichern";
 }
 
 function resetForm(form) {
@@ -169,7 +169,7 @@ async function initializeBodyFatView(container) {
     entries = await refreshHistory(container);
   } catch (error) {
     console.error(error);
-    showStatus(container, "Die lokale Datenbank konnte nicht geoeffnet werden.", "danger");
+    showStatus(container, "Die lokale Datenbank konnte nicht geöffnet werden.", "danger");
   }
 
   form.addEventListener("submit", async (event) => {
@@ -227,7 +227,7 @@ async function initializeBodyFatView(container) {
     }
 
     if (button.dataset.action === "delete") {
-      const confirmed = window.confirm(`Messung vom ${formatDate(entry.date)} wirklich loeschen?`);
+      const confirmed = window.confirm(`Messung vom ${formatDate(entry.date)} wirklich löschen?`);
 
       if (!confirmed) {
         return;
@@ -236,11 +236,11 @@ async function initializeBodyFatView(container) {
       try {
         await deleteBodyFatEntry(entry.id);
         entries = await refreshHistory(container);
-        showStatus(container, "Messung geloescht.");
+        showStatus(container, "Messung gelöscht.");
         showResult(container, null);
       } catch (error) {
         console.error(error);
-        showStatus(container, "Die Messung konnte nicht geloescht werden.", "danger");
+        showStatus(container, "Die Messung konnte nicht gelöscht werden.", "danger");
       }
     }
   });
@@ -284,7 +284,7 @@ export function renderBodyFat() {
 
           <div class="form-actions field-full">
             <button class="button" type="submit" data-submit-label>Berechnen und speichern</button>
-            <button class="button secondary" type="button" data-reset-form>Zuruecksetzen</button>
+            <button class="button secondary" type="button" data-reset-form>Zurücksetzen</button>
           </div>
         </form>
       </div>

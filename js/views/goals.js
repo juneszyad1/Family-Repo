@@ -16,13 +16,13 @@ import {
 import { formatDate, formatNumber, todayIsoDate, toNumberOrNull } from "../utils.js";
 
 const STATUS_LABELS = {
-  [GOAL_STATUS.AHEAD]: "Deutlich schneller als noetig",
+  [GOAL_STATUS.AHEAD]: "Deutlich schneller als nötig",
   [GOAL_STATUS.ON_TRACK]: "Im Ziel",
-  [GOAL_STATUS.SLIGHTLY_BEHIND]: "Etwas langsamer als noetig",
-  [GOAL_STATUS.BEHIND]: "Deutlich hinter dem benoetigten Tempo",
+  [GOAL_STATUS.SLIGHTLY_BEHIND]: "Etwas langsamer als nötig",
+  [GOAL_STATUS.BEHIND]: "Deutlich hinter dem benötigten Tempo",
   [GOAL_STATUS.WRONG_DIRECTION]: "Aktueller Trend entfernt sich vom Ziel",
-  [GOAL_STATUS.INSUFFICIENT_DATA]: "Noch nicht genuegend Daten",
-  [GOAL_STATUS.NOT_STARTED]: "Ziel startet spaeter",
+  [GOAL_STATUS.INSUFFICIENT_DATA]: "Noch nicht genügend Daten",
+  [GOAL_STATUS.NOT_STARTED]: "Ziel startet später",
   [GOAL_STATUS.COMPLETED]: "Ziel aktuell erreicht",
   [GOAL_STATUS.OVERDUE]: "Zieltermin erreicht"
 };
@@ -108,9 +108,9 @@ function getGoalFormValues(form, dailyEntries, bodyFatEntries) {
 function validateGoal(values) {
   const errors = [];
 
-  if (!values.type) errors.push("Bitte Zieltyp auswaehlen.");
-  if (!values.startDate) errors.push("Bitte Startdatum auswaehlen.");
-  if (!values.targetDate) errors.push("Bitte Zieldatum auswaehlen.");
+  if (!values.type) errors.push("Bitte Zieltyp auswählen.");
+  if (!values.startDate) errors.push("Bitte Startdatum auswählen.");
+  if (!values.targetDate) errors.push("Bitte Zieldatum auswählen.");
   if (values.startValue === null) errors.push("Bitte Ausgangswert eintragen oder genug Messdaten erfassen.");
   if (values.targetValue === null) errors.push("Bitte Zielwert oder Reduktion eintragen.");
   if (values.startDate && values.targetDate && values.targetDate <= values.startDate) {
@@ -153,7 +153,7 @@ function setGoalFormValues(form, goal) {
   form.elements.requestedWeeks.value = goal.requestedWeeks ?? "";
   form.dataset.editingGoalId = goal.id;
   cardBody.querySelector("[data-form-title]").textContent = "Ziel bearbeiten";
-  form.querySelector("[data-submit-label]").textContent = "Aenderungen speichern";
+  form.querySelector("[data-submit-label]").textContent = "Änderungen speichern";
   syncInputModeVisibility(form);
 }
 
@@ -179,7 +179,7 @@ function renderTrendDetail(key, trend, goal, analysis) {
     ? ""
     : dateOffset === 0
       ? "genau zum geplanten Zieltermin"
-      : `${Math.abs(dateOffset)} Tage ${dateOffset > 0 ? "spaeter" : "frueher"} als geplant`;
+      : `${Math.abs(dateOffset)} Tage ${dateOffset > 0 ? "später" : "früher"} als geplant`;
 
   return `
     <article class="trend-detail">
@@ -189,9 +189,9 @@ function renderTrendDetail(key, trend, goal, analysis) {
       </div>
       <div class="detail-grid">
         <p><strong>Trend</strong><span>${formatSigned(trend.weeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</span></p>
-        <p><strong>Benoetigt</strong><span>${formatSigned(analysis.requiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</span></p>
-        <p><strong>Tempo-Verhaeltnis</strong><span>${formatNumber(trend.paceRatio, { maximumFractionDigits: 2 })}x</span></p>
-        <p><strong>Datenbasis</strong><span>${trend.measurementCount} Messungen ueber ${trend.spanDays} Tage</span></p>
+        <p><strong>Benötigt</strong><span>${formatSigned(analysis.requiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</span></p>
+        <p><strong>Tempo-Verhältnis</strong><span>${formatNumber(trend.paceRatio, { maximumFractionDigits: 2 })}x</span></p>
+        <p><strong>Datenbasis</strong><span>${trend.measurementCount} Messungen über ${trend.spanDays} Tage</span></p>
         <p><strong>Aussagekraft</strong><span>${CONFIDENCE_LABELS[trend.confidence] || trend.confidence}</span></p>
         <p><strong>Prognose Zieltermin</strong><span>${formatNumber(trend.projectedValueAtTargetDate, { maximumFractionDigits: 1 })} ${unitLabel(goal.type)}</span></p>
         <p><strong>Prognose-Abweichung</strong><span>${projectedDeviation === null ? "--" : `${formatNumber(Math.abs(projectedDeviation), { maximumFractionDigits: 1 })} ${changeUnit} ${projectedDeviation >= 0 ? "vor Ziel" : "hinter Ziel"}`}</span></p>
@@ -204,7 +204,7 @@ function renderTrendDetail(key, trend, goal, analysis) {
 function renderGoalDetails(goal, analysis) {
   const unit = unitLabel(goal.type);
   const changeUnit = changeUnitLabel(goal.type);
-  const primaryTrendText = analysis.primaryTrend ? trendName(analysis.primaryTrend) : "Kein Trend verfuegbar";
+  const primaryTrendText = analysis.primaryTrend ? trendName(analysis.primaryTrend) : "Kein Trend verfügbar";
   const scheduleDeviationText = analysis.scheduleDeviation === null
     ? "Noch nicht berechenbar"
     : `${formatNumber(Math.abs(analysis.scheduleDeviation), { maximumFractionDigits: 1 })} ${changeUnit} ${analysis.scheduleDeviation >= 0 ? "vor dem Plan" : "hinter dem Plan"}`;
@@ -220,8 +220,8 @@ function renderGoalDetails(goal, analysis) {
             <p><strong>Aktueller Wert</strong><span>${formatNumber(analysis.currentValue, { maximumFractionDigits: 1 })} ${unit}</span></p>
             <p><strong>Sollwert heute</strong><span>${formatNumber(analysis.expectedValueToday, { maximumFractionDigits: 1 })} ${unit}</span></p>
             <p><strong>Planabweichung</strong><span>${scheduleDeviationText}</span></p>
-            <p><strong>Urspruenglich benoetigt</strong><span>${formatSigned(analysis.requiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</span></p>
-            <p><strong>Ab heute benoetigt</strong><span>${formatSigned(analysis.remainingRequiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</span></p>
+            <p><strong>Ursprünglich benötigt</strong><span>${formatSigned(analysis.requiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</span></p>
+            <p><strong>Ab heute benötigt</strong><span>${formatSigned(analysis.remainingRequiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</span></p>
           </div>
         </section>
         ${["days7", "days14", "days30"].map((key) => renderTrendDetail(key, analysis.trends[key], goal, analysis)).join("")}
@@ -238,11 +238,11 @@ function renderGoalNotice(analysis) {
     },
     [GOAL_STATUS.COMPLETED]: {
       type: "success",
-      text: "Ziel vorzeitig erreicht. Du kannst es abschliessen, weiterlaufen lassen oder direkt ein neues Ziel festlegen."
+      text: "Ziel vorzeitig erreicht. Du kannst es abschließen, weiterlaufen lassen oder direkt ein neues Ziel festlegen."
     },
     [GOAL_STATUS.OVERDUE]: {
       type: "danger",
-      text: "Der Zieltermin ist erreicht. Pruefe den aktuellen Stand und schliesse das Ziel ab oder bearbeite den Zieltermin."
+      text: "Der Zieltermin ist erreicht. Prüfe den aktuellen Stand und schließe das Ziel ab oder bearbeite den Zieltermin."
     },
     [GOAL_STATUS.WRONG_DIRECTION]: {
       type: "danger",
@@ -287,8 +287,8 @@ function renderGoalCard(goal, dailyEntries, bodyFatEntries) {
           <p><strong>Planabweichung:</strong> ${scheduleDeviationText}</p>
           <p><strong>Ziel-Fortschritt:</strong> ${progress}</p>
           <p><strong>Verbrauchte Zeit:</strong> ${time}</p>
-          <p><strong>Benoetigt:</strong> ${formatNumber(analysis.requiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</p>
-          <p><strong>Ab heute benoetigt:</strong> ${formatNumber(analysis.remainingRequiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</p>
+          <p><strong>Benötigt:</strong> ${formatNumber(analysis.requiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</p>
+          <p><strong>Ab heute benötigt:</strong> ${formatNumber(analysis.remainingRequiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</p>
         </div>
         <div class="trend-strip">
           ${["days7", "days14", "days30"].map((key) => {
@@ -314,7 +314,7 @@ function renderGoalCard(goal, dailyEntries, bodyFatEntries) {
         ${analysis.warnings.length ? `<div class="alert danger">${analysis.warnings.map((warning) => `<p>${warning}</p>`).join("")}</div>` : ""}
         <div class="entry-actions">
           <button class="icon-button" type="button" data-action="edit-goal">Bearbeiten</button>
-          <button class="icon-button" type="button" data-action="complete-goal">Abschliessen</button>
+          <button class="icon-button" type="button" data-action="complete-goal">Abschließen</button>
           <button class="icon-button danger" type="button" data-action="cancel-goal">Abbrechen</button>
         </div>
       </div>
@@ -383,7 +383,7 @@ function updateDerivedFields(container, dailyEntries, bodyFatEntries) {
   }
 
   const required = calculateRequiredRate(values);
-  preview.innerHTML = renderStatus(`Benoetigtes Tempo: ${formatNumber(required.requiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnitLabel(values.type)} pro Woche.`);
+  preview.innerHTML = renderStatus(`Benötigtes Tempo: ${formatNumber(required.requiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnitLabel(values.type)} pro Woche.`);
 }
 
 async function initializeGoals(container) {
@@ -474,7 +474,7 @@ async function initializeGoals(container) {
     }
 
     const statusValue = action === "complete-goal" ? "completed" : "cancelled";
-    const confirmed = window.confirm(action === "complete-goal" ? "Ziel abschliessen?" : "Ziel abbrechen?");
+    const confirmed = window.confirm(action === "complete-goal" ? "Ziel abschließen?" : "Ziel abbrechen?");
     if (!confirmed) return;
 
     try {
@@ -483,7 +483,7 @@ async function initializeGoals(container) {
       goals = await refreshGoals(container);
     } catch (error) {
       console.error(error);
-      status.innerHTML = renderStatus("Zielstatus konnte nicht geaendert werden.", "danger");
+      status.innerHTML = renderStatus("Zielstatus konnte nicht geändert werden.", "danger");
     }
   });
 }
@@ -509,7 +509,7 @@ export function renderGoals() {
             <span>Eingabemethode</span>
             <select name="inputMode">
               <option value="targetValue">Zielwert festlegen</option>
-              <option value="changeOverWeeks">Reduktion ueber Wochen</option>
+              <option value="changeOverWeeks">Reduktion über Wochen</option>
             </select>
           </label>
           <label class="field">
@@ -517,7 +517,7 @@ export function renderGoals() {
             <input type="date" name="startDate" required>
           </label>
           <label class="field">
-            <span>Ausgangswert ueberschreiben</span>
+            <span>Ausgangswert überschreiben</span>
             <input type="number" name="startValue" step="0.1" inputmode="decimal" placeholder="Optional">
           </label>
           <label class="field" data-mode-group="targetValue">
@@ -529,7 +529,7 @@ export function renderGoals() {
             <input type="date" name="targetDate">
           </label>
           <label class="field" data-mode-group="changeOverWeeks">
-            <span>Gewuenschte Reduktion</span>
+            <span>Gewünschte Reduktion</span>
             <input type="number" name="requestedChange" step="0.1" inputmode="decimal">
           </label>
           <label class="field" data-mode-group="changeOverWeeks">
@@ -540,7 +540,7 @@ export function renderGoals() {
           <div class="field-full" data-goal-preview></div>
           <div class="form-actions field-full">
             <button class="button" type="submit" data-submit-label>Ziel speichern</button>
-            <button class="button secondary" type="button" data-reset-goal-form>Zuruecksetzen</button>
+            <button class="button secondary" type="button" data-reset-goal-form>Zurücksetzen</button>
           </div>
         </form>
       </div>

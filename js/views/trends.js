@@ -133,7 +133,7 @@ function renderSummary(summary) {
     ["Gewicht", `${formatNumber(summary.weightChange, { maximumFractionDigits: 1 })} kg`],
     ["KFA", `${formatNumber(summary.bodyFatChange, { maximumFractionDigits: 1 })} %`],
     ["Niedrigstes Gewicht", `${formatNumber(summary.lowestWeight, { maximumFractionDigits: 1 })} kg`],
-    ["Hoechstes Gewicht", `${formatNumber(summary.highestWeight, { maximumFractionDigits: 1 })} kg`],
+    ["Höchstes Gewicht", `${formatNumber(summary.highestWeight, { maximumFractionDigits: 1 })} kg`],
     ["Erfasste Tage", formatNumber(summary.trackedDays, { maximumFractionDigits: 0 })]
   ];
 
@@ -189,7 +189,7 @@ function renderTrendContent({ dailyEntries, bodyFatEntries, settings, range, act
   return `
     ${renderSummary(summary)}
     ${renderChartShell("Gewicht", "weight-chart")}
-    ${renderChartShell("Koerperfettanteil", "body-fat-chart")}
+    ${renderChartShell("Körperfettanteil", "body-fat-chart")}
     ${renderChartShell("Kalorien", "calories-chart")}
     ${renderChartShell("Protein", "protein-chart")}
     ${renderChartShell("Hautfalten", "skinfold-chart")}
@@ -204,7 +204,7 @@ function renderCharts(container, { dailyEntries, bodyFatEntries, settings, activ
   if (!window.Chart) {
     warning.innerHTML = `
       <section class="card empty-state">
-        <h2>Diagramme nicht verfuegbar</h2>
+        <h2>Diagramme nicht verfügbar</h2>
         <p>Chart.js konnte nicht geladen werden. Die Zusammenfassung bleibt nutzbar.</p>
       </section>
     `;
@@ -265,7 +265,7 @@ function renderCharts(container, { dailyEntries, bodyFatEntries, settings, activ
     data: {
       datasets: bodyFatDatasets
     },
-    options: chartOptions("Koerperfettanteil")
+    options: chartOptions("Körperfettanteil")
   });
 
   const calories = entriesForValue(sortedDailyEntries, "calories");
@@ -330,7 +330,7 @@ async function loadTrends(container, range = "30d") {
     content.innerHTML = `
       <section class="card empty-state">
         <h2>Trends konnten nicht geladen werden</h2>
-        <p>Die lokale Datenbank ist gerade nicht verfuegbar.</p>
+        <p>Die lokale Datenbank ist gerade nicht verfügbar.</p>
       </section>
     `;
   }

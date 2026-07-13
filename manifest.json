@@ -1,7 +1,7 @@
 {
   "name": "Fitness Tracker",
   "short_name": "Fitness",
-  "description": "Private Fitness-Tracking-PWA fuer Gewicht, Ernaehrung und Koerperfett.",
+  "description": "Private Fitness-Tracking-PWA für Gewicht, Ernährung und Körperfett.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

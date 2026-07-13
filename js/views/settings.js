@@ -92,13 +92,13 @@ async function initializeSettings(container) {
       console.error(error);
       pendingImport = null;
       importInput.value = "";
-      showStatus(container, error.message || "Importdatei ist ungueltig.", "danger");
+      showStatus(container, error.message || "Importdatei ist ungültig.", "danger");
     }
   });
 
   container.querySelector("[data-import-json]").addEventListener("click", async () => {
     if (!pendingImport) {
-      showStatus(container, "Bitte zuerst eine JSON-Datei auswaehlen.", "danger");
+      showStatus(container, "Bitte zuerst eine JSON-Datei auswählen.", "danger");
       return;
     }
 
@@ -107,7 +107,7 @@ async function initializeSettings(container) {
     const confirmed = window.confirm(
       mode === "replace"
         ? "Vorhandene Daten werden ersetzt. Import wirklich starten?"
-        : "Daten werden zusammengefuehrt. Import wirklich starten?"
+        : "Daten werden zusammengeführt. Import wirklich starten?"
     );
 
     if (!confirmed) {
@@ -128,7 +128,7 @@ async function initializeSettings(container) {
   });
 
   container.querySelector("[data-delete-all]").addEventListener("click", async () => {
-    const confirmed = window.confirm("Wirklich alle lokal gespeicherten Fitnessdaten loeschen?");
+    const confirmed = window.confirm("Wirklich alle lokal gespeicherten Fitnessdaten löschen?");
 
     if (!confirmed) {
       return;
@@ -138,10 +138,10 @@ async function initializeSettings(container) {
       await deleteEverything();
       fillForm(form, await getSettings());
       window.dispatchEvent(new CustomEvent("fitness-settings-updated", { detail: await getSettings() }));
-      showStatus(container, "Alle Daten wurden geloescht.");
+      showStatus(container, "Alle Daten wurden gelöscht.");
     } catch (error) {
       console.error(error);
-      showStatus(container, "Daten konnten nicht geloescht werden.", "danger");
+      showStatus(container, "Daten konnten nicht gelöscht werden.", "danger");
     }
   });
 }
@@ -153,7 +153,7 @@ export function renderSettings() {
   container.innerHTML = `
     <section class="card">
       <div class="card-body">
-        <h2 class="section-title">Persoenliche Ziele</h2>
+        <h2 class="section-title">Persönliche Ziele</h2>
         <div data-status></div>
         <form class="form-grid" data-settings-form>
           <label class="field">
@@ -177,7 +177,7 @@ export function renderSettings() {
           </label>
 
           <label class="field">
-            <span>Standardalter fuer KFA</span>
+            <span>Standardalter für KFA</span>
             <input type="number" name="defaultAge" min="15" max="100" step="1" inputmode="numeric">
           </label>
 
@@ -219,14 +219,14 @@ export function renderSettings() {
 
           <fieldset class="choice-group field-full">
             <legend>Importmodus</legend>
-            <label><input type="radio" name="importMode" value="merge" checked> Daten zusammenfuehren</label>
+            <label><input type="radio" name="importMode" value="merge" checked> Daten zusammenführen</label>
             <label><input type="radio" name="importMode" value="replace"> Vorhandene Daten ersetzen</label>
           </fieldset>
 
           <fieldset class="choice-group field-full">
             <legend>Bei doppelten Tagesdaten</legend>
             <label><input type="radio" name="conflictMode" value="existing" checked> Vorhandenen Eintrag behalten</label>
-            <label><input type="radio" name="conflictMode" value="imported"> Importierten Eintrag uebernehmen</label>
+            <label><input type="radio" name="conflictMode" value="imported"> Importierten Eintrag übernehmen</label>
           </fieldset>
 
           <div class="form-actions field-full">
@@ -238,9 +238,9 @@ export function renderSettings() {
 
     <section class="card">
       <div class="card-body">
-        <h2 class="section-title">Alle Daten loeschen</h2>
-        <p class="muted settings-note">Diese Aktion entfernt alle lokalen Tagesdaten, KFA-Messungen und Einstellungen auf diesem Geraet.</p>
-        <button class="button danger" type="button" data-delete-all>Alles loeschen</button>
+        <h2 class="section-title">Alle Daten löschen</h2>
+        <p class="muted settings-note">Diese Aktion entfernt alle lokalen Tagesdaten, KFA-Messungen und Einstellungen auf diesem Gerät.</p>
+        <button class="button danger" type="button" data-delete-all>Alles löschen</button>
       </div>
     </section>
   `;

@@ -58,7 +58,7 @@ export function validateDailyEntryForm(formData) {
   const errors = {};
 
   if (isEmpty(formData.date)) {
-    errors.date = "Bitte ein Datum auswaehlen.";
+    errors.date = "Bitte ein Datum auswählen.";
   }
 
   ["weight", "calories", "protein"].forEach((field) => {
@@ -84,7 +84,7 @@ export function validateBodyFatForm(formData) {
   const errors = {};
 
   if (isEmpty(formData.date)) {
-    errors.date = "Bitte ein Datum auswaehlen.";
+    errors.date = "Bitte ein Datum auswählen.";
   }
 
   ["age", "chest", "abdomen", "thigh"].forEach((field) => {

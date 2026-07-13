@@ -25,7 +25,7 @@ function openDatabase() {
 
   databasePromise = new Promise((resolve, reject) => {
     if (!("indexedDB" in window)) {
-      reject(new Error("IndexedDB wird von diesem Browser nicht unterstuetzt."));
+      reject(new Error("IndexedDB wird von diesem Browser nicht unterstützt."));
       return;
     }
 

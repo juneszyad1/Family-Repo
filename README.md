@@ -1,6 +1,6 @@
 # Fitness Tracker PWA
 
-Mobile-first Fitness-Tracking-App fuer Gewicht, Tagesdaten, Koerperfettmessung, Trends und lokale Datenverwaltung.
+Mobile-first Fitness-Tracking-App für Gewicht, Tagesdaten, Körperfettmessung, Trends und lokale Datenverwaltung.
 
 Repository: Family-Repo
 
@@ -22,7 +22,7 @@ Die App ist statisch und kann mit einem einfachen lokalen Server getestet werden
 python3 -m http.server 8080
 ```
 
-Danach im Browser `http://localhost:8080` oeffnen.
+Danach im Browser `http://localhost:8080` öffnen.
 
 ## Tests
 

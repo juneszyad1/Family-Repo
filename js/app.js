@@ -50,11 +50,11 @@ function showConnectionStatus(message, type = "info") {
 
 function initializeConnectionStatus() {
   if (!navigator.onLine) {
-    showConnectionStatus("Offline-Modus aktiv. Gespeicherte Daten bleiben verfuegbar.", "warning");
+    showConnectionStatus("Offline-Modus aktiv. Gespeicherte Daten bleiben verfügbar.", "warning");
   }
 
   window.addEventListener("offline", () => {
-    showConnectionStatus("Offline-Modus aktiv. Die App laeuft lokal weiter.", "warning");
+    showConnectionStatus("Offline-Modus aktiv. Die App läuft lokal weiter.", "warning");
   });
 
   window.addEventListener("online", () => {
