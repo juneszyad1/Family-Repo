@@ -1,5 +1,6 @@
-import { getBodyFatEntries, getDailyEntries, getSettings } from "../database.js";
+import { getActiveGoals, getBodyFatEntries, getDailyEntries, getSettings } from "../database.js";
 import { calculateMovingAverage, calculateTrendSummary, filterEntriesByRange } from "../calculations.js";
+import { GOAL_TYPES, calculateExpectedValueToday } from "../goals.js";
 import { formatDate, formatNumber, sortByDateDesc } from "../utils.js";
 
 const RANGE_OPTIONS = [
@@ -44,6 +45,7 @@ function chartOptions(title) {
     },
     scales: {
       x: {
+        type: "category",
         ticks: { color: textColor, maxRotation: 0, autoSkip: true },
         grid: { color: borderColor }
       },
@@ -66,6 +68,48 @@ function lineDataset(label, data, color, dashed = false) {
     pointRadius: 3,
     pointHoverRadius: 5
   };
+}
+
+function pointDataset(label, data, color, shape = "circle") {
+  return {
+    label,
+    data,
+    borderColor: color,
+    backgroundColor: color,
+    showLine: false,
+    pointRadius: 5,
+    pointHoverRadius: 7,
+    pointStyle: shape
+  };
+}
+
+function goalPathDataset(label, goal, color) {
+  return {
+    label,
+    data: [
+      { x: formatDate(goal.startDate), y: goal.startValue },
+      { x: formatDate(goal.targetDate), y: goal.targetValue }
+    ],
+    borderColor: color,
+    backgroundColor: color,
+    borderDash: [2, 6],
+    tension: 0,
+    pointRadius: 0,
+    pointHoverRadius: 4
+  };
+}
+
+function goalMarkerDatasets(goal, today, color, textColor) {
+  const expectedValueToday = calculateExpectedValueToday(goal, today);
+  const datasets = [
+    pointDataset("Zielpunkt", [{ x: formatDate(goal.targetDate), y: goal.targetValue }], color, "triangle")
+  ];
+
+  if (expectedValueToday !== null) {
+    datasets.push(pointDataset("Sollwert heute", [{ x: formatDate(today), y: expectedValueToday }], textColor, "rectRot"));
+  }
+
+  return datasets;
 }
 
 function createChart(canvas, config) {
@@ -131,13 +175,14 @@ function renderEmptyMessage() {
   `;
 }
 
-function renderTrendContent({ dailyEntries, bodyFatEntries, settings, range }) {
+function renderTrendContent({ dailyEntries, bodyFatEntries, settings, range, activeGoals }) {
   const filteredDaily = filterEntriesByRange(dailyEntries, range);
   const filteredBodyFat = filterEntriesByRange(bodyFatEntries, range);
   const summary = calculateTrendSummary(filteredDaily, filteredBodyFat);
   const hasAnyData = filteredDaily.length || filteredBodyFat.length;
+  const hasGoals = activeGoals.length > 0;
 
-  if (!hasAnyData) {
+  if (!hasAnyData && !hasGoals) {
     return renderEmptyMessage();
   }
 
@@ -151,7 +196,7 @@ function renderTrendContent({ dailyEntries, bodyFatEntries, settings, range }) {
   `;
 }
 
-function renderCharts(container, { dailyEntries, bodyFatEntries, settings }) {
+function renderCharts(container, { dailyEntries, bodyFatEntries, settings, activeGoals }) {
   destroyCharts();
 
   const warning = container.querySelector("[data-chart-warning]");
@@ -177,27 +222,48 @@ function renderCharts(container, { dailyEntries, bodyFatEntries, settings }) {
   const warningColor = getCssColor("--warning");
   const danger = getCssColor("--danger");
   const textSecondary = getCssColor("--text-secondary");
+  const today = new Date();
+  const weightGoal = activeGoals.find((goal) => goal.type === GOAL_TYPES.WEIGHT);
+  const bodyFatGoal = activeGoals.find((goal) => goal.type === GOAL_TYPES.BODY_FAT);
 
   const weightEntries = entriesForValue(sortedDailyEntries, "weight");
   const movingAverage = calculateMovingAverage(sortedDailyEntries, "weight");
+  const weightDatasets = [
+    lineDataset("Gewicht", weightEntries.map((entry) => ({ x: formatDate(entry.date), y: entry.weight })), primary),
+    lineDataset("7-Tage-Schnitt", movingAverage.map((entry) => ({ x: formatDate(entry.date), y: entry.value })), success, true)
+  ];
+
+  if (weightGoal) {
+    weightDatasets.push(
+      goalPathDataset("Zielpfad", weightGoal, warningColor),
+      ...goalMarkerDatasets(weightGoal, today, warningColor, textSecondary)
+    );
+  }
+
   createChart(container.querySelector("#weight-chart"), {
     type: "line",
     data: {
-      labels: weightEntries.map((entry) => formatDate(entry.date)),
-      datasets: [
-        lineDataset("Gewicht", weightEntries.map((entry) => entry.weight), primary),
-        lineDataset("7-Tage-Schnitt", movingAverage.map((entry) => entry.value), success, true)
-      ]
+      datasets: weightDatasets
     },
     options: chartOptions("Gewicht")
   });
 
   const bodyFat = entriesForValue(sortedBodyFatEntries, "bodyFatPercentage");
+  const bodyFatDatasets = [
+    lineDataset("KFA", bodyFat.map((entry) => ({ x: formatDate(entry.date), y: entry.bodyFatPercentage })), danger)
+  ];
+
+  if (bodyFatGoal) {
+    bodyFatDatasets.push(
+      goalPathDataset("Zielpfad", bodyFatGoal, warningColor),
+      ...goalMarkerDatasets(bodyFatGoal, today, warningColor, textSecondary)
+    );
+  }
+
   createChart(container.querySelector("#body-fat-chart"), {
     type: "line",
     data: {
-      labels: bodyFat.map((entry) => formatDate(entry.date)),
-      datasets: [lineDataset("KFA", bodyFat.map((entry) => entry.bodyFatPercentage), danger)]
+      datasets: bodyFatDatasets
     },
     options: chartOptions("Koerperfettanteil")
   });
@@ -247,17 +313,18 @@ async function loadTrends(container, range = "30d") {
   const content = container.querySelector("[data-trend-content]");
 
   try {
-    const [dailyEntries, bodyFatEntries, settings] = await Promise.all([
+    const [dailyEntries, bodyFatEntries, settings, activeGoals] = await Promise.all([
       getDailyEntries(),
       getBodyFatEntries(),
-      getSettings()
+      getSettings(),
+      getActiveGoals()
     ]);
 
     const filteredDaily = filterEntriesByRange(dailyEntries, range);
     const filteredBodyFat = filterEntriesByRange(bodyFatEntries, range);
 
-    content.innerHTML = renderTrendContent({ dailyEntries, bodyFatEntries, settings, range });
-    renderCharts(container, { dailyEntries: filteredDaily, bodyFatEntries: filteredBodyFat, settings });
+    content.innerHTML = renderTrendContent({ dailyEntries, bodyFatEntries, settings, range, activeGoals });
+    renderCharts(container, { dailyEntries: filteredDaily, bodyFatEntries: filteredBodyFat, settings, activeGoals });
   } catch (error) {
     console.error(error);
     content.innerHTML = `
