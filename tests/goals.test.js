@@ -220,6 +220,26 @@ test("analyzeGoal waehlt 14-Tage-Trend als Primaertrend und erkennt Status", () 
   assert([GOAL_STATUS.ON_TRACK, GOAL_STATUS.AHEAD, GOAL_STATUS.SLIGHTLY_BEHIND].includes(analysis.overallStatus), "Unerwarteter Gesamtstatus");
 });
 
+test("analyzeGoal erkennt ein zukuenftiges Ziel als noch nicht gestartet", () => {
+  const futureGoal = {
+    ...weightGoal,
+    startDate: "2026-09-01",
+    targetDate: "2026-10-01"
+  };
+  const analysis = analyzeGoal(futureGoal, [{ date: "2026-08-15", weight: 95 }], "2026-08-15");
+  assertEqual(analysis.overallStatus, GOAL_STATUS.NOT_STARTED, "Zukuenftiges Ziel falsch bewertet");
+});
+
+test("analyzeGoal erkennt ein vorzeitig erreichtes Ziel", () => {
+  const analysis = analyzeGoal(weightGoal, [{ date: "2026-08-12", weight: 86.8 }], "2026-08-12");
+  assertEqual(analysis.overallStatus, GOAL_STATUS.COMPLETED, "Erreichtes Ziel falsch bewertet");
+});
+
+test("analyzeGoal erkennt ueberfaellige Ziele ohne automatische Abschliessung", () => {
+  const analysis = analyzeGoal(weightGoal, [{ date: "2026-10-01", weight: 89 }], "2026-10-01");
+  assertEqual(analysis.overallStatus, GOAL_STATUS.OVERDUE, "Ueberfaelliges Ziel falsch bewertet");
+});
+
 test("analyzeGoal warnt bei alter KFA-Messung", () => {
   const analysis = analyzeGoal(bodyFatGoal, [
     { date: "2026-07-01", bodyFatPercentage: 24 },

@@ -25,7 +25,7 @@
   }
 
   .entry-actions {
-    width: 210px;
+    width: min(100%, 360px);
   }
 
   .summary-grid {

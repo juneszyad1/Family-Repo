@@ -230,6 +230,34 @@ function renderGoalDetails(goal, analysis) {
   `;
 }
 
+function renderGoalNotice(analysis) {
+  const notices = {
+    [GOAL_STATUS.NOT_STARTED]: {
+      type: "info",
+      text: "Dieses Ziel startet in der Zukunft. Die Bewertung beginnt, sobald das Startdatum erreicht ist."
+    },
+    [GOAL_STATUS.COMPLETED]: {
+      type: "success",
+      text: "Ziel vorzeitig erreicht. Du kannst es abschliessen, weiterlaufen lassen oder direkt ein neues Ziel festlegen."
+    },
+    [GOAL_STATUS.OVERDUE]: {
+      type: "danger",
+      text: "Der Zieltermin ist erreicht. Pruefe den aktuellen Stand und schliesse das Ziel ab oder bearbeite den Zieltermin."
+    },
+    [GOAL_STATUS.WRONG_DIRECTION]: {
+      type: "danger",
+      text: "Der aktuelle Trend bewegt sich vom Ziel weg. Passe Zeitraum, Zielwert oder dein Vorgehen an."
+    }
+  };
+  const notice = notices[analysis.overallStatus];
+
+  if (!notice) {
+    return "";
+  }
+
+  return `<div class="goal-notice ${notice.type}"><p>${notice.text}</p></div>`;
+}
+
 function renderGoalCard(goal, dailyEntries, bodyFatEntries) {
   const entries = entriesForType(goal.type, dailyEntries, bodyFatEntries);
   const analysis = analyzeGoal(goal, entries, new Date());
@@ -281,6 +309,7 @@ function renderGoalCard(goal, dailyEntries, bodyFatEntries) {
             <p><strong>Voraussichtliches Erreichen:</strong> ${primary.projectedGoalDate?.date ? formatDate(primary.projectedGoalDate.date) : "nicht berechenbar"}</p>
           </div>
         ` : ""}
+        ${renderGoalNotice(analysis)}
         ${renderGoalDetails(goal, analysis)}
         ${analysis.warnings.length ? `<div class="alert danger">${analysis.warnings.map((warning) => `<p>${warning}</p>`).join("")}</div>` : ""}
         <div class="entry-actions">
