@@ -67,3 +67,19 @@
   --border: #2d3845;
   --shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
 }
+
+:root[data-theme="pink"] {
+  color-scheme: light;
+  --background: #fff1f7;
+  --surface: #ffffff;
+  --surface-muted: #ffe4f1;
+  --text-primary: #3b1728;
+  --text-secondary: #8a4b67;
+  --primary: #db2777;
+  --primary-strong: #be185d;
+  --success: #0f9f6e;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --border: #f9bfd8;
+  --shadow: 0 14px 34px rgba(219, 39, 119, 0.16);
+}

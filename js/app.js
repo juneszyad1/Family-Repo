@@ -2,7 +2,7 @@ import { initRouter } from "./router.js";
 import { getSettings } from "./database.js";
 
 function applyTheme(theme) {
-  if (theme === "light" || theme === "dark") {
+  if (theme === "light" || theme === "dark" || theme === "pink") {
     document.documentElement.dataset.theme = theme;
     return;
   }

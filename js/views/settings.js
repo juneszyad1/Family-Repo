@@ -187,6 +187,7 @@ export function renderSettings() {
               <option value="system">Systemeinstellung</option>
               <option value="light">Light Mode</option>
               <option value="dark">Dark Mode</option>
+              <option value="pink">Pink Fancy</option>
             </select>
           </label>
 
