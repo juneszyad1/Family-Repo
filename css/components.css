@@ -259,6 +259,35 @@
   margin: 0;
 }
 
+.dashboard-section-title {
+  margin: 0;
+}
+
+.dashboard-goal-card .card-body {
+  display: grid;
+  gap: 14px;
+}
+
+.dashboard-goal-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.dashboard-goal-grid p {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+
+.dashboard-goal-grid strong {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.compact-progress {
+  gap: 10px;
+}
+
 .trend-strip {
   display: grid;
   gap: 8px;

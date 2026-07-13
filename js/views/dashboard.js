@@ -1,11 +1,24 @@
-import { getBodyFatEntries, getDailyEntries, getSettings } from "../database.js";
+import { getActiveGoals, getBodyFatEntries, getDailyEntries, getSettings } from "../database.js";
 import {
   calculateAverageWeightLast7Days,
   calculateProgress,
   calculateWeightChange,
   getLatestEntry
 } from "../calculations.js";
+import { GOAL_STATUS, GOAL_TYPES, analyzeGoal } from "../goals.js";
 import { formatDate, formatNumber, todayIsoDate } from "../utils.js";
+
+const GOAL_STATUS_LABELS = {
+  [GOAL_STATUS.AHEAD]: "Schneller als noetig",
+  [GOAL_STATUS.ON_TRACK]: "Im Ziel",
+  [GOAL_STATUS.SLIGHTLY_BEHIND]: "Etwas hinter dem Ziel",
+  [GOAL_STATUS.BEHIND]: "Deutlich hinter dem Ziel",
+  [GOAL_STATUS.WRONG_DIRECTION]: "Trend weg vom Ziel",
+  [GOAL_STATUS.INSUFFICIENT_DATA]: "Zu wenig Daten",
+  [GOAL_STATUS.NOT_STARTED]: "Startet spaeter",
+  [GOAL_STATUS.COMPLETED]: "Ziel erreicht",
+  [GOAL_STATUS.OVERDUE]: "Zieltermin erreicht"
+};
 
 function formatSignedWeight(value) {
   if (value === null || value === undefined) {
@@ -32,7 +45,70 @@ function renderProgress(label, value, target, unit) {
   `;
 }
 
-function renderDashboardContent({ dailyEntries, bodyFatEntries, settings }) {
+function goalUnit(type) {
+  return type === GOAL_TYPES.BODY_FAT ? "%" : "kg";
+}
+
+function goalChangeUnit(type) {
+  return type === GOAL_TYPES.BODY_FAT ? "Prozentpunkte" : "kg";
+}
+
+function goalTitle(type) {
+  return type === GOAL_TYPES.BODY_FAT ? "KFA-Ziel" : "Gewichtsziel";
+}
+
+function renderGoalSummary(goal, dailyEntries, bodyFatEntries) {
+  const entries = goal.type === GOAL_TYPES.BODY_FAT ? bodyFatEntries : dailyEntries;
+  const analysis = analyzeGoal(goal, entries, new Date());
+  const primaryTrend = analysis.primaryTrend ? analysis.trends[analysis.primaryTrend] : null;
+  const unit = goalUnit(goal.type);
+  const changeUnit = goalChangeUnit(goal.type);
+  const valueProgress = analysis.valueProgress === null ? 0 : Math.round(analysis.valueProgress * 100);
+  const timeProgress = analysis.timeProgress === null ? 0 : Math.round(analysis.timeProgress * 100);
+  const deviationText = analysis.scheduleDeviation === null
+    ? "Noch nicht berechenbar"
+    : `${formatNumber(Math.abs(analysis.scheduleDeviation), { maximumFractionDigits: 1 })} ${changeUnit} ${analysis.scheduleDeviation >= 0 ? "vor dem Plan" : "hinter dem Plan"}`;
+
+  return `
+    <article class="card dashboard-goal-card">
+      <div class="card-body">
+        <div class="goal-header">
+          <div>
+            <p class="metric-label">${goalTitle(goal.type)}</p>
+            <h2 class="section-title">${formatNumber(analysis.currentValue, { maximumFractionDigits: 1 })} ${unit} -> ${formatNumber(goal.targetValue, { maximumFractionDigits: 1 })} ${unit}</h2>
+          </div>
+          <span class="status-pill">${GOAL_STATUS_LABELS[analysis.overallStatus] || analysis.overallStatus}</span>
+        </div>
+        <div class="dashboard-goal-grid">
+          <p><strong>Zieldatum</strong><span>${formatDate(goal.targetDate)}</span></p>
+          <p><strong>Soll heute</strong><span>${formatNumber(analysis.expectedValueToday, { maximumFractionDigits: 1 })} ${unit}</span></p>
+          <p><strong>Abweichung</strong><span>${deviationText}</span></p>
+          <p><strong>Primaertrend</strong><span>${primaryTrend?.available ? `${formatNumber(primaryTrend.weeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche` : "Noch nicht verfuegbar"}</span></p>
+        </div>
+        <div class="progress-stack compact-progress">
+          ${renderProgress("Ziel-Fortschritt", valueProgress, 100, "%")}
+          ${renderProgress("Verbrauchte Zeit", timeProgress, 100, "%")}
+        </div>
+        <a class="button secondary" href="#/goals">Ziel oeffnen</a>
+      </div>
+    </article>
+  `;
+}
+
+function renderGoalSummaries(activeGoals, dailyEntries, bodyFatEntries) {
+  if (!activeGoals.length) {
+    return "";
+  }
+
+  return `
+    <section class="view-stack">
+      <h2 class="section-title dashboard-section-title">Aktive Ziele</h2>
+      ${activeGoals.map((goal) => renderGoalSummary(goal, dailyEntries, bodyFatEntries)).join("")}
+    </section>
+  `;
+}
+
+function renderDashboardContent({ dailyEntries, bodyFatEntries, settings, activeGoals }) {
   const today = todayIsoDate();
   const todayEntry = dailyEntries.find((entry) => entry.date === today);
   const latestWeight = getLatestEntry(dailyEntries, "weight");
@@ -76,13 +152,15 @@ function renderDashboardContent({ dailyEntries, bodyFatEntries, settings }) {
       </div>
     </section>
 
+    ${renderGoalSummaries(activeGoals, dailyEntries, bodyFatEntries)}
+
     <section class="card">
       <div class="card-body">
         <h2 class="section-title">Schnellaktionen</h2>
         <div class="button-row">
           <a class="button" href="#/daily">Tagesdaten</a>
           <a class="button secondary" href="#/body-fat">KFA messen</a>
-          <a class="button secondary" href="#/trends">Trends</a>
+          <a class="button secondary" href="#/goals">Ziele</a>
         </div>
       </div>
     </section>
@@ -107,13 +185,14 @@ function renderDashboardContent({ dailyEntries, bodyFatEntries, settings }) {
 
 async function initializeDashboard(container) {
   try {
-    const [dailyEntries, bodyFatEntries, settings] = await Promise.all([
+    const [dailyEntries, bodyFatEntries, settings, activeGoals] = await Promise.all([
       getDailyEntries(),
       getBodyFatEntries(),
-      getSettings()
+      getSettings(),
+      getActiveGoals()
     ]);
 
-    container.innerHTML = renderDashboardContent({ dailyEntries, bodyFatEntries, settings });
+    container.innerHTML = renderDashboardContent({ dailyEntries, bodyFatEntries, settings, activeGoals });
   } catch (error) {
     console.error(error);
     container.innerHTML = `
