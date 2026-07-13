@@ -866,3 +866,1334 @@ Die Architektur soll spätere Erweiterungen nicht unnötig erschweren, aber die 
    - empfohlene spätere Erweiterungen
 
 Beginne mit einer vollständig funktionierenden Basisversion und priorisiere Zuverlässigkeit, einfache Bedienung und Schutz vor Datenverlust.
+
+# Erweiterungsauftrag: Ziele und Fortschrittsprognosen
+
+Erweitere die bestehende Fitness-Tracking-PWA um eine vollständige Zielfunktion für:
+
+1. Gewichtsziele
+2. Körperfettziele
+
+Der Nutzer soll beispielsweise festlegen können:
+
+- „Ich möchte in 12 Wochen 8 kg abnehmen.“
+- „Ich möchte meinen KFA in 16 Wochen um 4 Prozentpunkte reduzieren.“
+- „Ich möchte bis zum 15. Oktober 2026 ein Gewicht von 85 kg erreichen.“
+- „Ich möchte bis zum 1. Dezember 2026 einen KFA von 18 % erreichen.“
+
+Die App soll anhand des tatsächlichen 7-, 14- und 30-Tage-Trends anzeigen:
+
+- ob der Nutzer aktuell im Ziel liegt
+- ob er schneller oder langsamer als erforderlich vorankommt
+- wie groß die Abweichung vom benötigten Fortschritt ist
+- welchen Wert er bei gleichbleibendem Trend voraussichtlich zum Zieltermin erreicht
+- wann er das Ziel bei gleichbleibendem Trend voraussichtlich erreicht
+
+---
+
+# 1. Grundprinzip
+
+Implementiere Ziele nicht als einfache statische Zielwerte, sondern als zeitgebundene Fortschrittsziele.
+
+Jedes Ziel benötigt:
+
+- Zieltyp
+- Ausgangswert
+- Zielwert
+- Startdatum
+- Zieldatum
+- benötigte Veränderung
+- benötigte Veränderung pro Woche
+- aktuellen Fortschritt
+- Trendanalyse für 7, 14 und 30 Tage
+- Prognose zum Zieltermin
+- Statusbewertung
+
+Unterstützte Zieltypen:
+
+```javascript
+const GOAL_TYPES = {
+  WEIGHT: "weight",
+  BODY_FAT: "bodyFat"
+};
+```
+
+---
+
+# 2. Begriffsklärung
+
+## Gewichtsziel
+
+Gewichtsveränderungen werden in Kilogramm angegeben.
+
+Beispiel:
+
+```text
+Ausgangsgewicht: 95 kg
+Zielgewicht: 87 kg
+Veränderung: −8 kg
+Zeitraum: 12 Wochen
+```
+
+## Körperfettziel
+
+KFA-Veränderungen müssen standardmäßig in **Prozentpunkten** behandelt werden, nicht als relative Prozentänderung.
+
+Beispiel:
+
+```text
+Ausgangs-KFA: 24 %
+Ziel-KFA: 20 %
+Veränderung: −4 Prozentpunkte
+```
+
+Die Benutzeroberfläche soll ausdrücklich „Prozentpunkte“ anzeigen, damit keine Verwechslung entsteht.
+
+---
+
+# 3. Ziel erstellen
+
+Erstelle einen eigenen Bereich „Ziele“.
+
+Der Nutzer soll zwischen folgenden Eingabemethoden wählen können.
+
+## Methode A: Zielwert festlegen
+
+Eingabefelder:
+
+- Zieltyp
+- Zielwert
+- Startdatum
+- Zieltermin
+
+Beispiele:
+
+```text
+Gewicht von 95 kg auf 87 kg bis zum 15.10.2026
+KFA von 24 % auf 20 % bis zum 01.12.2026
+```
+
+## Methode B: gewünschte Reduktion festlegen
+
+Eingabefelder:
+
+- Zieltyp
+- gewünschte Reduktion
+- Zeitraum in Wochen
+- Startdatum
+
+Beispiele:
+
+```text
+8 kg in 12 Wochen verlieren
+4 KFA-Prozentpunkte in 16 Wochen verlieren
+```
+
+Berechne daraus automatisch:
+
+- Zielwert
+- Zieldatum
+
+## Ausgangswert
+
+Der Ausgangswert soll standardmäßig anhand der gespeicherten Daten bestimmt werden.
+
+Für Gewicht:
+
+- Verwende bevorzugt den 7-Tage-Durchschnitt zum Startdatum.
+- Falls nicht genügend Daten vorhanden sind, verwende den letzten verfügbaren Gewichtswert am oder vor dem Startdatum.
+
+Für KFA:
+
+- Verwende den letzten verfügbaren KFA-Wert am oder vor dem Startdatum.
+- Da KFA normalerweise nur wöchentlich gemessen wird, ist kein 7-Tage-Durchschnitt erforderlich.
+
+Der Nutzer muss den automatisch bestimmten Ausgangswert manuell überschreiben können.
+
+Zeige transparent an, wie der Ausgangswert bestimmt wurde.
+
+Beispiel:
+
+```text
+Ausgangswert: 94,6 kg
+Ermittelt aus dem durchschnittlichen Gewicht der letzten 7 Tage.
+```
+
+---
+
+# 4. Datenmodell
+
+Erweitere IndexedDB um einen Store `goals`.
+
+Beispielstruktur:
+
+```javascript
+{
+  id: string,
+  type: "weight" | "bodyFat",
+
+  startDate: "YYYY-MM-DD",
+  targetDate: "YYYY-MM-DD",
+
+  startValue: number,
+  targetValue: number,
+
+  direction: "decrease" | "increase",
+
+  inputMode: "targetValue" | "changeOverWeeks",
+
+  requestedChange: number | null,
+  requestedWeeks: number | null,
+
+  status: "active" | "completed" | "cancelled",
+
+  createdAt: string,
+  updatedAt: string,
+  completedAt: string | null
+}
+```
+
+In der ersten Version darf jeweils höchstens ein aktives Gewichtsziel und ein aktives KFA-Ziel existieren.
+
+Vorhandene abgeschlossene oder abgebrochene Ziele sollen in einer Zielhistorie gespeichert bleiben.
+
+---
+
+# 5. Grundberechnung des benötigten Fortschritts
+
+Berechne zunächst die Gesamtdauer in Tagen:
+
+```javascript
+durationDays = differenceInCalendarDays(targetDate, startDate);
+```
+
+Berechne die gewünschte Gesamtveränderung:
+
+```javascript
+totalRequiredChange = targetValue - startValue;
+```
+
+Bei einem Abnehmziel ist dieser Wert negativ.
+
+Beispiel:
+
+```text
+startValue = 95
+targetValue = 87
+totalRequiredChange = −8
+```
+
+Berechne die erforderliche Veränderung pro Tag:
+
+```javascript
+requiredDailyRate = totalRequiredChange / durationDays;
+```
+
+Berechne die erforderliche Veränderung pro Woche:
+
+```javascript
+requiredWeeklyRate = requiredDailyRate * 7;
+```
+
+Beispiel:
+
+```text
+−8 kg in 84 Tagen
+requiredDailyRate = −0,0952 kg pro Tag
+requiredWeeklyRate = −0,667 kg pro Woche
+```
+
+---
+
+# 6. Erwarteter Sollwert am heutigen Tag
+
+Berechne die seit dem Startdatum vergangenen Tage:
+
+```javascript
+elapsedDays = differenceInCalendarDays(today, startDate);
+```
+
+Begrenze den Wert auf den Zielzeitraum:
+
+```javascript
+clampedElapsedDays = Math.max(
+  0,
+  Math.min(elapsedDays, durationDays)
+);
+```
+
+Berechne den Sollwert für den aktuellen Tag:
+
+```javascript
+expectedValueToday =
+  startValue + requiredDailyRate * clampedElapsedDays;
+```
+
+Beispiel:
+
+```text
+Start: 95 kg
+Ziel: 87 kg
+Dauer: 84 Tage
+Vergangene Zeit: 42 Tage
+
+Sollwert heute:
+91 kg
+```
+
+---
+
+# 7. Ermittlung des aktuellen Werts
+
+## Aktuelles Gewicht
+
+Verwende für die Zielbewertung bevorzugt den aktuellen 7-Tage-Durchschnitt.
+
+Der aktuelle 7-Tage-Durchschnitt soll aus allen vorhandenen Gewichtsmessungen innerhalb der letzten sieben Kalendertage berechnet werden.
+
+Falls weniger als zwei Gewichtswerte vorhanden sind:
+
+- verwende den letzten vorhandenen Gewichtswert
+- kennzeichne die Aussage als weniger zuverlässig
+
+## Aktueller KFA
+
+Verwende den zuletzt gemessenen KFA-Wert.
+
+Zeige zusätzlich das Alter der Messung an.
+
+Beispiel:
+
+```text
+Letzte KFA-Messung: vor 9 Tagen
+```
+
+Wenn die letzte KFA-Messung älter als 21 Tage ist, soll eine Warnung erscheinen:
+
+```text
+Die aktuelle KFA-Prognose basiert auf einer älteren Messung.
+```
+
+---
+
+# 8. Trendberechnung
+
+Berechne getrennte Trends für:
+
+- 7 Tage
+- 14 Tage
+- 30 Tage
+
+Nutze für die Trendberechnung eine **lineare Regression** über die vorhandenen Messwerte des jeweiligen Zeitraums.
+
+Verwende nicht nur den ersten und letzten Wert, da einzelne tägliche Schwankungen sonst die Bewertung stark verfälschen können.
+
+## Regressionsmodell
+
+Ordne jedem Messwert zu:
+
+```javascript
+x = Anzahl der Tage seit dem ersten Messdatum im Analysezeitraum
+y = gemessener Wert
+```
+
+Berechne die Steigung:
+
+```javascript
+slope =
+  sum((x - meanX) * (y - meanY)) /
+  sum((x - meanX) ** 2);
+```
+
+Die Steigung entspricht der Veränderung pro Tag.
+
+Berechne daraus:
+
+```javascript
+trendDailyRate = slope;
+trendWeeklyRate = slope * 7;
+```
+
+## Interpretation
+
+Beispiele:
+
+```text
+Gewichtstrend: −0,55 kg pro Woche
+KFA-Trend: −0,20 Prozentpunkte pro Woche
+```
+
+---
+
+# 9. Mindestanforderungen für Trends
+
+Ein Trend darf nur berechnet werden, wenn genügend sinnvolle Daten vorliegen.
+
+## Gewicht
+
+Für einen belastbaren Trend:
+
+- mindestens drei Messwerte
+- Messwerte an mindestens drei unterschiedlichen Kalendertagen
+- zeitliche Spannweite von mindestens drei Tagen
+
+Für den 30-Tage-Trend sollte zusätzlich angezeigt werden, wie viele Messwerte verwendet wurden.
+
+## KFA
+
+Da KFA typischerweise nur einmal pro Woche gemessen wird:
+
+- mindestens zwei Messwerte
+- zeitliche Spannweite von mindestens sieben Tagen
+
+Bei nur zwei KFA-Werten kann ein Trend angezeigt werden, aber mit dem Hinweis:
+
+```text
+Vorläufiger Trend – nur zwei Messungen vorhanden.
+```
+
+Wenn nicht genügend Daten vorhanden sind:
+
+```text
+Noch nicht genügend Messwerte für einen 14-Tage-Trend.
+```
+
+Erfinde keine Trendwerte und ersetze fehlende Daten nicht automatisch durch interpolierte Messungen.
+
+---
+
+# 10. Vergleich von Ist-Trend und benötigtem Trend
+
+Vergleiche für jeden Zeitraum:
+
+```javascript
+actualWeeklyRate
+```
+
+mit:
+
+```javascript
+requiredWeeklyRate
+```
+
+Da Reduktionsziele negative Werte haben, darf die Logik nicht nur mit normalen Größer-/Kleiner-Vergleichen arbeiten.
+
+Nutze stattdessen eine richtungsbereinigte Fortschrittsgeschwindigkeit.
+
+## Richtungsfaktor
+
+```javascript
+const directionFactor =
+  targetValue < startValue ? -1 : 1;
+```
+
+Berechne:
+
+```javascript
+requiredProgressRate =
+  requiredWeeklyRate * directionFactor;
+
+actualProgressRate =
+  actualWeeklyRate * directionFactor;
+```
+
+Danach sind positive Werte immer Fortschritt in Zielrichtung.
+
+Beispiel bei Gewichtsverlust:
+
+```text
+Benötigt: −0,67 kg pro Woche
+Tatsächlich: −0,55 kg pro Woche
+
+Richtungsbereinigt:
+Benötigt: 0,67
+Tatsächlich: 0,55
+```
+
+---
+
+# 11. Geschwindigkeit im Verhältnis zum Ziel
+
+Berechne:
+
+```javascript
+paceRatio = actualProgressRate / requiredProgressRate;
+```
+
+Beispiele:
+
+```text
+paceRatio = 1,00
+genau im benötigten Tempo
+
+paceRatio = 1,20
+20 % schneller als erforderlich
+
+paceRatio = 0,75
+25 % langsamer als erforderlich
+
+paceRatio = 0
+kein Fortschritt
+
+paceRatio < 0
+Entwicklung läuft aktuell vom Ziel weg
+```
+
+Behandle den Sonderfall, dass `requiredProgressRate` null ist.
+
+---
+
+# 12. Statuskategorien
+
+Bewerte jeden Trendzeitraum separat.
+
+Verwende folgende Standardgrenzen:
+
+## Deutlich vor dem Ziel
+
+```javascript
+paceRatio >= 1.15
+```
+
+Anzeige:
+
+```text
+Deutlich schneller als nötig
+```
+
+## Im Ziel
+
+```javascript
+paceRatio >= 0.85 && paceRatio < 1.15
+```
+
+Anzeige:
+
+```text
+Im Ziel
+```
+
+## Leicht hinter dem Ziel
+
+```javascript
+paceRatio >= 0.60 && paceRatio < 0.85
+```
+
+Anzeige:
+
+```text
+Etwas langsamer als nötig
+```
+
+## Deutlich hinter dem Ziel
+
+```javascript
+paceRatio >= 0 && paceRatio < 0.60
+```
+
+Anzeige:
+
+```text
+Deutlich hinter dem benötigten Tempo
+```
+
+## Entwicklung in falsche Richtung
+
+```javascript
+paceRatio < 0
+```
+
+Anzeige:
+
+```text
+Aktueller Trend entfernt sich vom Ziel
+```
+
+Die Statusbewertung muss zusätzlich berücksichtigen, ob der aktuelle Ist-Wert bereits vor oder hinter dem zeitlichen Sollwert liegt.
+
+---
+
+# 13. Abweichung vom Sollwert
+
+Berechne:
+
+```javascript
+rawScheduleDeviation =
+  currentValue - expectedValueToday;
+```
+
+Für eine einheitliche Darstellung in Zielrichtung:
+
+```javascript
+scheduleDeviation =
+  rawScheduleDeviation * directionFactor;
+```
+
+Interpretation:
+
+```text
+scheduleDeviation > 0:
+Nutzer liegt wertmäßig vor dem Plan.
+
+scheduleDeviation = 0:
+Nutzer liegt genau auf dem Plan.
+
+scheduleDeviation < 0:
+Nutzer liegt wertmäßig hinter dem Plan.
+```
+
+Beispiel Gewichtsreduktion:
+
+```text
+Sollgewicht heute: 91,0 kg
+Aktueller 7-Tage-Schnitt: 91,8 kg
+Abweichung: 0,8 kg hinter dem Plan
+```
+
+Beispiel:
+
+```text
+Soll-KFA heute: 21,5 %
+Aktueller KFA: 21,0 %
+Abweichung: 0,5 Prozentpunkte vor dem Plan
+```
+
+---
+
+# 14. Prognose zum Zieltermin
+
+Berechne für jeden Trendzeitraum den prognostizierten Wert am Zieltermin.
+
+Verwende den aktuell repräsentativen Wert als Ausgangspunkt:
+
+```javascript
+remainingDays =
+  differenceInCalendarDays(targetDate, today);
+```
+
+```javascript
+projectedValueAtTargetDate =
+  currentValue + trendDailyRate * remainingDays;
+```
+
+Begrenze `remainingDays` nicht auf einen negativen Wert. Wenn der Zieltermin bereits vergangen ist, soll stattdessen eine Abschluss- oder Überfälligkeitsbewertung erfolgen.
+
+Beispiele:
+
+```text
+Bei deinem aktuellen 14-Tage-Trend:
+Prognose am Zieltermin: 88,4 kg
+
+Zielwert: 87,0 kg
+Voraussichtliche Abweichung: 1,4 kg
+```
+
+Für KFA:
+
+```text
+Prognose am Zieltermin: 19,2 %
+Zielwert: 18,0 %
+Voraussichtliche Abweichung: 1,2 Prozentpunkte
+```
+
+---
+
+# 15. Prognostiziertes Erreichungsdatum
+
+Berechne, wann das Ziel bei unverändertem Trend erreicht würde.
+
+```javascript
+remainingChange = targetValue - currentValue;
+```
+
+Wenn sich der Trend in Zielrichtung bewegt:
+
+```javascript
+daysUntilGoal = remainingChange / trendDailyRate;
+```
+
+Das Ergebnis muss positiv und endlich sein.
+
+Berechne daraus:
+
+```javascript
+projectedGoalDate = today + daysUntilGoal;
+```
+
+Beispiele:
+
+```text
+Voraussichtliches Erreichungsdatum:
+24. Oktober 2026
+
+Das sind 9 Tage nach deinem geplanten Zieltermin.
+```
+
+Falls sich der Trend nicht in Zielrichtung bewegt:
+
+```text
+Mit dem aktuellen Trend ist kein sinnvolles Erreichungsdatum berechenbar.
+```
+
+Falls der aktuelle Wert das Ziel bereits erreicht oder überschritten hat:
+
+```text
+Ziel aktuell erreicht.
+```
+
+---
+
+# 16. Verbleibender benötigter Trend
+
+Berechne zusätzlich, welches Tempo ab heute erforderlich wäre, um das Ziel trotzdem rechtzeitig zu erreichen.
+
+```javascript
+remainingRequiredChange =
+  targetValue - currentValue;
+```
+
+```javascript
+remainingRequiredDailyRate =
+  remainingRequiredChange / remainingDays;
+```
+
+```javascript
+remainingRequiredWeeklyRate =
+  remainingRequiredDailyRate * 7;
+```
+
+Beispiel:
+
+```text
+Ursprünglich benötigtes Tempo:
+−0,50 kg pro Woche
+
+Ab heute benötigtes Tempo:
+−0,68 kg pro Woche
+```
+
+Dadurch erkennt der Nutzer, ob ein Rückstand noch realistisch aufholbar ist.
+
+---
+
+# 17. Primäre Zielbewertung
+
+Zeige eine zentrale Gesamtbewertung an.
+
+Verwende bevorzugt:
+
+- 14-Tage-Trend als Haupttrend
+- 7-Tage-Trend als kurzfristige Entwicklung
+- 30-Tage-Trend als langfristige Entwicklung
+
+Begründung:
+
+- 7 Tage reagieren schnell, sind aber schwankungsanfällig.
+- 14 Tage bieten eine sinnvolle Balance.
+- 30 Tage sind stabiler, reagieren aber langsamer auf aktuelle Veränderungen.
+
+Falls kein 14-Tage-Trend verfügbar ist:
+
+1. verwende den 30-Tage-Trend
+2. falls dieser nicht verfügbar ist, verwende den 7-Tage-Trend
+3. kennzeichne den verwendeten Trend deutlich
+
+Beispiel:
+
+```text
+Gesamtstatus: Etwas hinter dem Ziel
+
+Grundlage: 14-Tage-Trend
+Aktueller Trend: −0,42 kg pro Woche
+Benötigter Trend: −0,56 kg pro Woche
+```
+
+---
+
+# 18. Darstellung im Dashboard
+
+Erweitere das Dashboard um eine Zielkarte je aktivem Ziel.
+
+## Beispiel Gewichtsziel
+
+```text
+Gewichtsziel
+
+Aktuell: 91,8 kg
+Ziel: 87,0 kg
+Zieldatum: 15. Oktober 2026
+
+Fortschritt: 40 %
+Zeit vergangen: 50 %
+
+Sollwert heute: 91,0 kg
+0,8 kg hinter dem Plan
+```
+
+Darunter:
+
+```text
+7 Tage:
+−0,70 kg/Woche
+Im Ziel
+
+14 Tage:
+−0,48 kg/Woche
+Etwas langsamer als nötig
+
+30 Tage:
+−0,57 kg/Woche
+Im Ziel
+```
+
+Zusätzlich:
+
+```text
+Prognose am Zieltermin:
+88,2 kg
+
+Voraussichtlich erreichst du das Ziel:
+am 29. Oktober 2026
+14 Tage später als geplant
+```
+
+## Beispiel KFA-Ziel
+
+```text
+KFA-Ziel
+
+Aktuell: 21,8 %
+Ziel: 18,0 %
+Zieldatum: 1. Dezember 2026
+
+Sollwert heute: 21,3 %
+0,5 Prozentpunkte hinter dem Plan
+```
+
+---
+
+# 19. Fortschrittsanzeige
+
+Berechne den Fortschritt nicht ausschließlich aus der vergangenen Zeit.
+
+## Wertbasierter Fortschritt
+
+```javascript
+valueProgress =
+  (currentValue - startValue) /
+  (targetValue - startValue);
+```
+
+Begrenze für die normale Fortschrittsanzeige auf:
+
+```javascript
+0 bis 1
+```
+
+Anzeige als Prozent:
+
+```javascript
+progressPercentage =
+  clamp(valueProgress * 100, 0, 100);
+```
+
+## Zeitfortschritt
+
+```javascript
+timeProgress =
+  elapsedDays / durationDays;
+```
+
+Ebenfalls auf 0 bis 1 begrenzen.
+
+Zeige beide Werte:
+
+```text
+Ziel-Fortschritt: 42 %
+Verbrauchte Zeit: 50 %
+```
+
+Dies macht sichtbar, ob der Fortschritt zur vergangenen Zeit passt.
+
+---
+
+# 20. Zielverlauf visualisieren
+
+Erweitere die Gewicht- und KFA-Diagramme um eine Ziellinie.
+
+Die Ziellinie verläuft linear:
+
+```text
+vom Ausgangswert am Startdatum
+zum Zielwert am Zieltermin
+```
+
+Im Diagramm sollen sichtbar sein:
+
+- tatsächliche Messwerte
+- tatsächlicher Trend
+- geplante Ziellinie
+- Zielpunkt
+- heutiger Sollwert
+
+Verwende unterschiedliche Linienstile und nicht ausschließlich unterschiedliche Farben.
+
+Beispiel:
+
+- tatsächliche Werte: durchgezogene Linie
+- Trendlinie: gestrichelte Linie
+- Zielpfad: gepunktete Linie
+
+Füge eine verständliche Legende hinzu.
+
+---
+
+# 21. Hinweise zur statistischen Aussagekraft
+
+Zeige bei Trends eine Datenqualitätsanzeige.
+
+Beispiel:
+
+```text
+14-Tage-Trend
+Datenbasis: 11 Messungen an 11 Tagen
+Aussagekraft: gut
+```
+
+Mögliche Bewertung:
+
+## Gering
+
+- Mindestanforderung gerade erfüllt
+- wenige oder stark verteilte Messwerte
+
+## Mittel
+
+- ausreichende Zahl von Messwerten
+- mehrere unterschiedliche Tage
+
+## Gut
+
+Für Gewicht beispielsweise:
+
+- mindestens zehn Messwerte im betrachteten Zeitraum
+- Messungen an mindestens 70 % der Tage
+
+Die Datenqualität darf die eigentliche Berechnung nicht verändern. Sie dient nur als Hinweis.
+
+---
+
+# 22. Besondere Fälle
+
+Behandle mindestens folgende Fälle korrekt.
+
+## Ziel beginnt in der Zukunft
+
+- noch keine Bewertung vornehmen
+- Countdown anzeigen
+- keine Abweichung berechnen
+
+## Zieltermin ist erreicht
+
+Bewerte:
+
+- Ziel erreicht
+- Ziel knapp verfehlt
+- Ziel verfehlt
+
+Speichere das Ziel nicht automatisch als abgeschlossen, ohne den Nutzer zu informieren.
+
+## Ziel bereits vorzeitig erreicht
+
+Zeige:
+
+```text
+Ziel vorzeitig erreicht.
+```
+
+Biete an:
+
+- Ziel abschließen
+- neues Ziel festlegen
+- bestehendes Ziel weiterführen
+
+## Gewicht oder KFA steigt trotz Reduktionsziel
+
+Zeige keine mathematisch falsche positive Prognose.
+
+Status:
+
+```text
+Aktueller Trend bewegt sich vom Ziel weg.
+```
+
+## Fehlende Messwerte
+
+- keine Werte erfinden
+- keine Nullwerte einsetzen
+- keine Lücken automatisch mit dem letzten Wert auffüllen
+- klar anzeigen, welche Berechnungen deshalb nicht möglich sind
+
+## Unregelmäßige Messabstände
+
+Die lineare Regression muss echte Zeitabstände zwischen den Messdaten verwenden.
+
+Behandle einen Abstand von zehn Tagen nicht so, als lägen die Messungen an zwei aufeinanderfolgenden Tagen.
+
+## Mehrere Messungen am gleichen Tag
+
+Falls die Datenstruktur mehrere Messungen pro Tag zulässt:
+
+- Gewicht: Tagesmittelwert verwenden
+- KFA: letzten gespeicherten Wert des Tages verwenden
+
+In der aktuellen App sollte grundsätzlich nur ein relevanter Tageswert pro Datumswert existieren.
+
+---
+
+# 23. Gesundheitliche Plausibilitätswarnungen
+
+Die App darf keine medizinische Beratung geben.
+
+Sie soll jedoch bei sehr aggressiven Zielen eine neutrale Warnung anzeigen.
+
+Beispielsweise bei Gewichtsreduktion:
+
+```javascript
+Math.abs(requiredWeeklyRate) > 1.0
+```
+
+Meldung:
+
+```text
+Dieses Ziel erfordert eine Gewichtsveränderung von mehr als 1 kg pro Woche. Prüfe, ob der gewählte Zeitraum realistisch und für dich geeignet ist.
+```
+
+Bei KFA-Zielen soll keine feste medizinische Sicherheitsschwelle behauptet werden.
+
+Stattdessen:
+
+```text
+Körperfettmessungen mit einer Zange sind Schätzwerte. Große kurzfristige Veränderungen können durch Messabweichungen entstehen.
+```
+
+Verwende keine Formulierungen wie:
+
+- gesund
+- ungesund
+- sicher
+- medizinisch empfohlen
+
+sofern diese nicht durch verlässliche medizinische Regeln begründet werden.
+
+---
+
+# 24. Benutzeroberfläche für Ziele
+
+Erstelle mindestens folgende Ansichten:
+
+## Zielübersicht
+
+- aktive Ziele
+- Fortschritt
+- Status
+- Zieldatum
+- Prognose
+- Ziel öffnen
+- Ziel bearbeiten
+- Ziel abbrechen
+- Ziel abschließen
+
+## Ziel erstellen
+
+- Zieltyp
+- Eingabemethode
+- Ausgangswert
+- Zielwert oder gewünschte Veränderung
+- Startdatum
+- Zieltermin oder Wochenanzahl
+- berechnetes erforderliches Wochentempo
+- Plausibilitätswarnung
+- Speichern
+
+## Zieldetails
+
+- Ausgangswert
+- aktueller Wert
+- Zielwert
+- Sollwert heute
+- Fortschritt
+- Zeitfortschritt
+- 7-Tage-Trend
+- 14-Tage-Trend
+- 30-Tage-Trend
+- benötigter Trend
+- ab heute benötigter Trend
+- Prognose zum Zieltermin
+- prognostiziertes Erreichungsdatum
+- Diagramm mit Zielpfad
+
+## Zielhistorie
+
+- abgeschlossen
+- abgebrochen
+- erreicht oder verfehlt
+- tatsächlicher Endwert
+- Start- und Enddatum
+
+---
+
+# 25. Architektur
+
+Kapsle die Berechnungen in einer eigenen Datei.
+
+Empfohlene Datei:
+
+```text
+js/goals.js
+```
+
+Oder bei einer modulareren Struktur:
+
+```text
+js/goals/
+├── goal-model.js
+├── goal-calculations.js
+├── goal-trends.js
+├── goal-status.js
+└── goal-view.js
+```
+
+Die Berechnungsfunktionen dürfen nicht direkt auf DOM-Elemente zugreifen.
+
+Nutze reine Funktionen, die Eingabewerte erhalten und Ergebnisse zurückgeben.
+
+Beispiele:
+
+```javascript
+calculateRequiredRate(goal)
+calculateExpectedValueToday(goal, today)
+calculateLinearTrend(entries, startDate, endDate)
+calculateScheduleDeviation(goal, currentValue, today)
+calculatePaceRatio(goal, actualWeeklyRate)
+calculateProjectedValue(goal, currentValue, trendDailyRate, today)
+calculateProjectedGoalDate(goal, currentValue, trendDailyRate, today)
+calculateRemainingRequiredRate(goal, currentValue, today)
+calculateGoalProgress(goal, currentValue, today)
+evaluateGoalStatus(goal, analysis)
+```
+
+---
+
+# 26. Rückgabeobjekt der Zielanalyse
+
+Erstelle eine zentrale Funktion:
+
+```javascript
+analyzeGoal(goal, entries, today)
+```
+
+Sie soll ein strukturiertes Ergebnis liefern.
+
+Beispiel:
+
+```javascript
+{
+  goalId: "goal-123",
+
+  currentValue: 91.8,
+  currentValueMethod: "7-day-average",
+
+  durationDays: 84,
+  elapsedDays: 42,
+  remainingDays: 42,
+
+  requiredDailyRate: -0.0952,
+  requiredWeeklyRate: -0.6667,
+
+  expectedValueToday: 91.0,
+  scheduleDeviation: -0.8,
+
+  valueProgress: 0.40,
+  timeProgress: 0.50,
+
+  trends: {
+    days7: {
+      available: true,
+      measurementCount: 6,
+      spanDays: 6,
+      dailyRate: -0.10,
+      weeklyRate: -0.70,
+      paceRatio: 1.05,
+      status: "onTrack",
+      projectedValueAtTargetDate: 87.6,
+      projectedGoalDate: "2026-10-19",
+      confidence: "medium"
+    },
+
+    days14: {
+      available: true,
+      measurementCount: 12,
+      spanDays: 13,
+      dailyRate: -0.0686,
+      weeklyRate: -0.48,
+      paceRatio: 0.72,
+      status: "slightlyBehind",
+      projectedValueAtTargetDate: 88.9,
+      projectedGoalDate: "2026-11-03",
+      confidence: "good"
+    },
+
+    days30: {
+      available: true,
+      measurementCount: 26,
+      spanDays: 29,
+      dailyRate: -0.0814,
+      weeklyRate: -0.57,
+      paceRatio: 0.85,
+      status: "onTrack",
+      projectedValueAtTargetDate: 88.4,
+      projectedGoalDate: "2026-10-28",
+      confidence: "good"
+    }
+  },
+
+  primaryTrend: "days14",
+  overallStatus: "slightlyBehind",
+
+  remainingRequiredDailyRate: -0.1143,
+  remainingRequiredWeeklyRate: -0.80,
+
+  warnings: []
+}
+```
+
+---
+
+# 27. Tests
+
+Schreibe Unit-Tests für die gesamte Berechnungslogik.
+
+Teste mindestens:
+
+## Grundberechnungen
+
+- erforderliche tägliche Rate
+- erforderliche wöchentliche Rate
+- Sollwert am heutigen Tag
+- Fortschritt
+- Zeitfortschritt
+
+## Richtungslogik
+
+- Gewichtsabnahme
+- Gewichtszunahme
+- KFA-Reduktion
+- Ziel bereits überschritten
+- Entwicklung in falsche Richtung
+
+## Lineare Regression
+
+- regelmäßig fallende Werte
+- regelmäßig steigende Werte
+- unregelmäßige Messabstände
+- einzelne Ausreißer
+- nur ein Wert
+- zwei Werte
+- mehrere Werte am gleichen Tag
+
+## Prognosen
+
+- prognostizierter Wert am Zieltermin
+- prognostiziertes Erreichungsdatum
+- Trend gleich null
+- Trend in falsche Richtung
+- Ziel bereits erreicht
+- Zieltermin bereits vergangen
+
+## Statuswerte
+
+- deutlich vor dem Ziel
+- im Ziel
+- leicht hinter dem Ziel
+- deutlich hinter dem Ziel
+- vom Ziel weg
+
+## Datenmangel
+
+- kein 7-Tage-Trend möglich
+- kein 14-Tage-Trend möglich
+- kein 30-Tage-Trend möglich
+- alte KFA-Messung
+- fehlender Ausgangswert
+
+Verwende feste Testdaten und prüfe Ergebnisse mit angemessener Fließkomma-Toleranz.
+
+---
+
+# 28. Akzeptanzkriterien
+
+Die Erweiterung gilt als fertig, wenn:
+
+- Gewichts- und KFA-Ziele erstellt werden können
+- Ziele durch Zielwert oder gewünschte Veränderung definiert werden können
+- ein Start- und Zieldatum gespeichert wird
+- die benötigte wöchentliche Veränderung korrekt berechnet wird
+- der Sollwert für den aktuellen Tag korrekt berechnet wird
+- 7-, 14- und 30-Tage-Trends getrennt berechnet werden
+- die Trends echte zeitliche Abstände berücksichtigen
+- die Trendberechnung lineare Regression verwendet
+- jeder Trend einen verständlichen Status erhält
+- die Abweichung vom Sollwert angezeigt wird
+- die Prognose zum Zieltermin angezeigt wird
+- ein prognostiziertes Erreichungsdatum berechnet wird
+- das ab heute benötigte Tempo angezeigt wird
+- fehlende Daten korrekt behandelt werden
+- Gewicht und KFA unterschiedliche Messfrequenzen berücksichtigen
+- Zielpfad und tatsächliche Werte im Diagramm dargestellt werden
+- abgeschlossene und abgebrochene Ziele gespeichert bleiben
+- alle zentralen Berechnungen mit Unit-Tests abgedeckt sind
+
+---
+
+# 29. Nicht implementieren
+
+In dieser Erweiterung ausdrücklich nicht implementieren:
+
+- automatische Anpassung des Kalorienziels
+- Ernährungs- oder Trainingsberatung
+- medizinische Empfehlungen
+- Push-Benachrichtigungen
+- Cloud-Synchronisierung
+- Login
+- Backend
+- Vergleich mit anderen Personen
+- KI-basierte Prognosen
+- nichtlineare Vorhersagemodelle
+
+Die Prognosen sollen bewusst transparent und nachvollziehbar auf linearer Regression beruhen.
+
+---
+
+# 30. Arbeitsanweisung an Codex
+
+1. Prüfe zunächst die bestehende Projektstruktur und Datenmodelle.
+2. Erstelle einen kurzen Implementierungsplan.
+3. Implementiere zuerst die reinen Berechnungsfunktionen.
+4. Schreibe für diese Funktionen Unit-Tests.
+5. Erweitere danach IndexedDB um den Ziel-Store.
+6. Implementiere anschließend Zielerstellung und Zielbearbeitung.
+7. Integriere danach die Zielanalyse in Dashboard und Trends.
+8. Ergänze die Zielpfade in den Diagrammen.
+9. Teste Gewichts- und KFA-Ziele mit realistischen Beispieldaten.
+10. Prüfe besonders sorgfältig negative Änderungsraten und Richtungsvergleiche.
+11. Vermeide versteckte oder nicht erklärbare Berechnungen.
+12. Zeige dem Nutzer immer die verwendete Datenbasis und den zugrunde liegenden Trendzeitraum.
+13. Hinterlasse keine Platzhalter, nicht funktionierenden Buttons oder ungetesteten Kernberechnungen.
+14. Dokumentiere die Berechnungslogik im README in verständlicher Form.
+15. Liefere abschließend:
+   - implementierte Funktionen
+   - verwendete Formeln
+   - ausgeführte Tests
+   - bekannte Einschränkungen
+   - Beispiele für überprüfte Zielberechnungen
