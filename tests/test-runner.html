@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fitness Tracker Tests</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #f4f6f8;
+        color: #18212b;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        max-width: 880px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin: 0 0 16px;
+      }
+
+      .summary {
+        margin: 0 0 16px;
+        font-weight: 800;
+      }
+
+      .test-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .test {
+        padding: 12px;
+        border-radius: 8px;
+        background: #ffffff;
+        border: 1px solid #dbe3ec;
+      }
+
+      .test.pass {
+        border-color: #16a34a;
+      }
+
+      .test.fail {
+        border-color: #dc2626;
+      }
+
+      pre {
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Fitness Tracker Tests</h1>
+      <p id="summary" class="summary">Tests laufen...</p>
+      <section id="results" class="test-list"></section>
+    </main>
+
+    <script type="module">
+      import { runGoalTests } from "./goals.test.js";
+
+      const summary = document.querySelector("#summary");
+      const resultsContainer = document.querySelector("#results");
+      const results = await runGoalTests();
+      const failed = results.filter((result) => !result.passed);
+
+      summary.textContent = `${results.length - failed.length}/${results.length} Tests bestanden`;
+      resultsContainer.innerHTML = results.map((result) => `
+        <article class="test ${result.passed ? "pass" : "fail"}">
+          <strong>${result.passed ? "PASS" : "FAIL"}: ${result.name}</strong>
+          ${result.error ? `<pre>${result.error.stack || result.error.message}</pre>` : ""}
+        </article>
+      `).join("");
+    </script>
+  </body>
+</html>

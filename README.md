@@ -23,3 +23,11 @@ python3 -m http.server 8080
 ```
 
 Danach im Browser `http://localhost:8080` oeffnen.
+
+## Tests
+
+Die Zielberechnungen haben einen browserbasierten Test-Runner:
+
+```text
+http://localhost:8080/tests/test-runner.html
+```
