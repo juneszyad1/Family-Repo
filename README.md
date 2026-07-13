@@ -2,6 +2,8 @@
 
 Mobile-first Fitness-Tracking-App fuer Gewicht, Tagesdaten, Koerperfettmessung, Trends und lokale Datenverwaltung.
 
+Repository: Family-Repo
+
 ## Tech-Stack
 
 - HTML5
