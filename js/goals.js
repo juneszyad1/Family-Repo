@@ -30,7 +30,11 @@ function toDate(date) {
 }
 
 function toIsoDate(date) {
-  return date.toISOString().slice(0, 10);
+  const localDate = toDate(date);
+  const year = localDate.getFullYear();
+  const month = String(localDate.getMonth() + 1).padStart(2, "0");
+  const day = String(localDate.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function addDays(date, days) {
