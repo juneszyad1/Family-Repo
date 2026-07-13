@@ -1,0 +1,44 @@
+@media (min-width: 640px) {
+  .app-main {
+    padding: 24px;
+  }
+
+  .button-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .field-full {
+    grid-column: 1 / -1;
+  }
+
+  .form-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .entry-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .entry-actions {
+    width: 210px;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 360px) {
+  .nav-item {
+    font-size: 0.62rem;
+  }
+
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+}
