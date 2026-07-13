@@ -25,7 +25,18 @@ async function registerServiceWorker() {
   }
 
   try {
-    await navigator.serviceWorker.register("./service-worker.js");
+    const registration = await navigator.serviceWorker.register("./service-worker.js");
+
+    registration.addEventListener("updatefound", () => {
+      const worker = registration.installing;
+      if (!worker) return;
+
+      worker.addEventListener("statechange", () => {
+        if (worker.state === "installed" && navigator.serviceWorker.controller) {
+          showConnectionStatus("Neue App-Version installiert. Beim nächsten Öffnen nutzt du automatisch die aktuelle Version.", "success");
+        }
+      });
+    });
   } catch (error) {
     console.warn("Service Worker konnte nicht registriert werden.", error);
   }

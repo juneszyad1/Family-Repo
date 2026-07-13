@@ -1,34 +1,34 @@
-const CACHE_NAME = "fitness-tracker-v18";
+const CACHE_NAME = "fitness-tracker-v19";
 const APP_ASSETS = [
   "./",
-  "index.html",
-  "manifest.json",
-  "css/reset.css",
-  "css/variables.css",
-  "css/layout.css",
-  "css/components.css",
-  "css/responsive.css",
-  "js/app.js",
-  "js/router.js",
-  "js/database.js",
-  "js/utils.js",
-  "js/validation.js",
-  "js/calculations.js",
-  "js/goals.js",
-  "js/export-import.js",
-  "js/views/dashboard.js",
-  "js/views/daily-entry.js",
-  "js/views/body-fat.js",
-  "js/views/trends.js",
-  "js/views/goals.js",
-  "js/views/settings.js",
-  "assets/icons/app-icon.svg",
-  "assets/icons/icon-192.png",
-  "assets/icons/icon-512.png",
-  "assets/icons/apple-touch-icon.png"
+  "./index.html",
+  "./manifest.json",
+  "./css/reset.css",
+  "./css/variables.css",
+  "./css/layout.css",
+  "./css/components.css",
+  "./css/responsive.css",
+  "./js/app.js",
+  "./js/router.js",
+  "./js/database.js",
+  "./js/utils.js",
+  "./js/validation.js",
+  "./js/calculations.js",
+  "./js/goals.js",
+  "./js/export-import.js",
+  "./js/views/dashboard.js",
+  "./js/views/daily-entry.js",
+  "./js/views/body-fat.js",
+  "./js/views/trends.js",
+  "./js/views/goals.js",
+  "./js/views/settings.js",
+  "./assets/icons/app-icon.svg",
+  "./assets/icons/icon-192.png",
+  "./assets/icons/icon-512.png",
+  "./assets/icons/apple-touch-icon.png"
 ];
 
-const OFFLINE_FALLBACK = "index.html";
+const OFFLINE_FALLBACK = "./index.html";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -70,7 +70,7 @@ self.addEventListener("fetch", (event) => {
     caches.match(event.request)
       .then((cached) => cached || fetch(event.request))
       .then((response) => {
-        if (response && response.ok && event.request.url.startsWith(self.location.origin)) {
+        if (response && (response.ok || response.type === "opaque")) {
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseClone);

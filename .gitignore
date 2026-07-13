@@ -1,0 +1,15 @@
+.DS_Store
+*.log
+*.tmp
+*.bak
+*.backup
+*.zip
+*.sqlite
+*.sqlite3
+*.db
+fitness-tracker-backup-*.json
+fitness-tracker-backup-*.csv
+node_modules/
+dist/
+build/
+coverage/
