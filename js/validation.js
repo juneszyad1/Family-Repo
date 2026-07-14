@@ -1,3 +1,5 @@
+import { toNumberOrNull } from "./utils.js";
+
 const DAILY_LIMITS = {
   weight: { min: 20, max: 400, label: "Gewicht" },
   calories: { min: 0, max: 15000, label: "Kalorien" },
@@ -20,10 +22,10 @@ function validateOptionalNumber(value, field) {
     return null;
   }
 
-  const number = Number(value);
+  const number = toNumberOrNull(value);
   const limits = DAILY_LIMITS[field];
 
-  if (!Number.isFinite(number)) {
+  if (number === null) {
     return `${limits.label} muss eine Zahl sein.`;
   }
 
@@ -41,9 +43,9 @@ function validateRequiredNumber(value, field, limitsMap) {
     return `${limits.label} ist erforderlich.`;
   }
 
-  const number = Number(value);
+  const number = toNumberOrNull(value);
 
-  if (!Number.isFinite(number)) {
+  if (number === null) {
     return `${limits.label} muss eine Zahl sein.`;
   }
 

@@ -15,7 +15,7 @@ export function toNumberOrNull(value) {
     return null;
   }
 
-  const parsed = Number(value);
+  const parsed = Number(String(value).trim().replace(",", "."));
   return Number.isFinite(parsed) ? parsed : null;
 }
 
