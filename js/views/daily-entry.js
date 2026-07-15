@@ -221,7 +221,7 @@ export function renderDailyEntry() {
 
           <label class="field">
             <span>Gewicht in kg</span>
-            <input type="number" name="weight" min="20" max="400" step="0.1" inputmode="decimal" placeholder="92,4">
+            <input type="text" name="weight" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" placeholder="92,4">
           </label>
 
           <label class="field">

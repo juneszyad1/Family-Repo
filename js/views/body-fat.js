@@ -269,17 +269,17 @@ export function renderBodyFat() {
 
           <label class="field">
             <span>Brustfalte in mm</span>
-            <input type="number" name="chest" min="1" max="100" step="0.1" inputmode="decimal" placeholder="12" required>
+            <input type="text" name="chest" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" placeholder="12" required>
           </label>
 
           <label class="field">
             <span>Bauchfalte in mm</span>
-            <input type="number" name="abdomen" min="1" max="100" step="0.1" inputmode="decimal" placeholder="24" required>
+            <input type="text" name="abdomen" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" placeholder="24" required>
           </label>
 
           <label class="field">
             <span>Oberschenkelfalte in mm</span>
-            <input type="number" name="thigh" min="1" max="100" step="0.1" inputmode="decimal" placeholder="18" required>
+            <input type="text" name="thigh" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" placeholder="18" required>
           </label>
 
           <div class="form-actions field-full">

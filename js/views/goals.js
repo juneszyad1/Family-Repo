@@ -518,11 +518,11 @@ export function renderGoals() {
           </label>
           <label class="field">
             <span>Ausgangswert überschreiben</span>
-            <input type="number" name="startValue" step="0.1" inputmode="decimal" placeholder="Optional">
+            <input type="text" name="startValue" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" placeholder="Optional">
           </label>
           <label class="field" data-mode-group="targetValue">
             <span>Zielwert</span>
-            <input type="number" name="targetValue" step="0.1" inputmode="decimal">
+            <input type="text" name="targetValue" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?">
           </label>
           <label class="field" data-mode-group="targetValue">
             <span>Zieldatum</span>
@@ -530,7 +530,7 @@ export function renderGoals() {
           </label>
           <label class="field" data-mode-group="changeOverWeeks">
             <span>Gewünschte Reduktion</span>
-            <input type="number" name="requestedChange" step="0.1" inputmode="decimal">
+            <input type="text" name="requestedChange" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?">
           </label>
           <label class="field" data-mode-group="changeOverWeeks">
             <span>Zeitraum in Wochen</span>

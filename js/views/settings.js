@@ -168,12 +168,12 @@ export function renderSettings() {
 
           <label class="field">
             <span>Zielgewicht in kg</span>
-            <input type="number" name="targetWeight" min="20" max="400" step="0.1" inputmode="decimal">
+            <input type="text" name="targetWeight" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?">
           </label>
 
           <label class="field">
             <span>Ziel-KFA in %</span>
-            <input type="number" name="targetBodyFat" min="1" max="80" step="0.1" inputmode="decimal">
+            <input type="text" name="targetBodyFat" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?">
           </label>
 
           <label class="field">
