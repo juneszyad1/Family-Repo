@@ -119,6 +119,10 @@ function renderDashboardContent({ dailyEntries, bodyFatEntries, circumferenceEnt
   const averageWeight = calculateAverageWeightLast7Days(dailyEntries);
   const caloriesToday = todayEntry?.calories ?? null;
   const proteinToday = todayEntry?.protein ?? null;
+  const hasCaloriesToday = caloriesToday !== null && caloriesToday !== undefined;
+  const hasProteinToday = proteinToday !== null && proteinToday !== undefined;
+  const hasNutritionToday = hasCaloriesToday && hasProteinToday;
+  const hasPartialNutritionToday = hasCaloriesToday || hasProteinToday;
 
   return `
     <div class="metric-grid">
@@ -178,13 +182,27 @@ function renderDashboardContent({ dailyEntries, bodyFatEntries, circumferenceEnt
     </section>
 
     ${
-      todayEntry
+      hasNutritionToday
         ? `
           <section class="card empty-state">
             <h2>Heute ist erfasst</h2>
             <p>${formatNumber(caloriesToday, { maximumFractionDigits: 0 })} kcal und ${formatNumber(proteinToday, { maximumFractionDigits: 0 })} g Protein gespeichert.</p>
           </section>
         `
+        : hasPartialNutritionToday
+          ? `
+            <section class="card empty-state">
+              <h2>Heute ist teilweise erfasst</h2>
+              <p>${hasCaloriesToday ? `${formatNumber(caloriesToday, { maximumFractionDigits: 0 })} kcal gespeichert.` : "Kalorien fehlen noch."} ${hasProteinToday ? `${formatNumber(proteinToday, { maximumFractionDigits: 0 })} g Protein gespeichert.` : "Protein fehlt noch."}</p>
+            </section>
+          `
+          : todayEntry
+            ? `
+              <section class="card empty-state">
+                <h2>Gewicht ist erfasst</h2>
+                <p>Kalorien und Protein fehlen für heute noch.</p>
+              </section>
+            `
         : `
           <section class="card empty-state">
             <h2>Heute fehlen noch Daten</h2>

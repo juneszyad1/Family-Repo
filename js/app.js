@@ -3,7 +3,9 @@ import { getSettings } from "./database.js";
 import { APP_VERSION_LABEL } from "./config.js";
 
 function applyTheme(theme) {
-  if (theme === "light" || theme === "dark" || theme === "pink") {
+  const supportedThemes = ["light", "dark", "pink", "champagne", "midnight-violet", "walnut", "tokyo-night"];
+
+  if (supportedThemes.includes(theme)) {
     document.documentElement.dataset.theme = theme;
     return;
   }

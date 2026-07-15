@@ -185,15 +185,15 @@ export function renderSettings() {
       <div class="card-body">
         <h2 class="section-title">Persönliche Ziele</h2>
         <div data-status></div>
-        <form class="form-grid" data-settings-form>
+        <form class="form-grid" data-settings-form novalidate>
           <label class="field">
             <span>Kalorienziel pro Tag</span>
-            <input type="number" name="calorieTarget" min="0" max="15000" step="1" inputmode="numeric" required>
+            <input type="text" name="calorieTarget" inputmode="numeric" pattern="[0-9]+" placeholder="2400" required>
           </label>
 
           <label class="field">
             <span>Proteinziel pro Tag</span>
-            <input type="number" name="proteinTarget" min="0" max="1000" step="1" inputmode="numeric" required>
+            <input type="text" name="proteinTarget" inputmode="numeric" pattern="[0-9]+" placeholder="180" required>
           </label>
 
           <label class="field">
@@ -218,6 +218,10 @@ export function renderSettings() {
               <option value="light">Light Mode</option>
               <option value="dark">Dark Mode</option>
               <option value="pink">Pink Fancy</option>
+              <option value="champagne">Champagne Elegant</option>
+              <option value="midnight-violet">Midnight Violet</option>
+              <option value="walnut">Walnut Calm</option>
+              <option value="tokyo-night">Tokyo Night</option>
             </select>
           </label>
 
