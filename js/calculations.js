@@ -108,6 +108,7 @@ export function calculateMovingAverage(entries, valueKey, windowSize = 7) {
 export function calculateTrendSummary(dailyEntries, bodyFatEntries, circumferenceEntries = []) {
   const calorieEntries = dailyEntries.filter((entry) => entry.calories !== null && entry.calories !== undefined);
   const proteinEntries = dailyEntries.filter((entry) => entry.protein !== null && entry.protein !== undefined);
+  const sleepEntries = dailyEntries.filter((entry) => entry.sleepHours !== null && entry.sleepHours !== undefined);
   const weightEntries = dailyEntries
     .filter((entry) => entry.weight !== null && entry.weight !== undefined)
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -141,7 +142,9 @@ export function calculateTrendSummary(dailyEntries, bodyFatEntries, circumferenc
   return {
     averageCalories: average(calorieEntries, "calories"),
     averageProtein: average(proteinEntries, "protein"),
+    averageSleep: average(sleepEntries, "sleepHours"),
     weightChange: change(weightEntries, "weight"),
+    sleepChange: change(sleepEntries.sort((a, b) => a.date.localeCompare(b.date)), "sleepHours"),
     bodyFatChange: change(bodyFatTrendEntries, "bodyFatPercentage"),
     armChange: change(armEntries, "arm"),
     legChange: change(legEntries, "leg"),

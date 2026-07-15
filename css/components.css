@@ -113,6 +113,10 @@
   height: 280px;
 }
 
+.tall-chart-frame {
+  height: 340px;
+}
+
 .photo-grid {
   display: grid;
   gap: 14px;
@@ -252,6 +256,11 @@
   width: 18px;
   height: 18px;
   accent-color: var(--primary);
+}
+
+.compact-choice-group {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0 0 14px;
 }
 
 .settings-note {

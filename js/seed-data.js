@@ -34,6 +34,7 @@ function createDailyEntries() {
       weight: round(weight),
       calories: Math.round(2240 + Math.sin(index / 5) * 170 + weekendLift),
       protein: Math.round(166 + Math.cos(index / 6) * 12),
+      sleepHours: round(7.1 + Math.sin(index / 3) * 0.55 - (index % 7 === 0 ? 0.45 : 0), 1),
       note: index % 18 === 0 ? "Seed-Daten: Vergleichstag mit mehr Bewegung." : "",
       createdAt: `${dateDaysAgo(daysAgo)}T10:00:00.000Z`,
       updatedAt: `${dateDaysAgo(daysAgo)}T10:00:00.000Z`

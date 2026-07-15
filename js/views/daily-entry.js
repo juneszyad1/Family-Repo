@@ -17,6 +17,7 @@ function getFormValues(form) {
     weight: formData.get("weight"),
     calories: formData.get("calories"),
     protein: formData.get("protein"),
+    sleepHours: formData.get("sleepHours"),
     note: formData.get("note")?.trim() || ""
   };
 }
@@ -27,6 +28,7 @@ function normalizeDailyEntry(values) {
     weight: toNumberOrNull(values.weight),
     calories: toNumberOrNull(values.calories),
     protein: toNumberOrNull(values.protein),
+    sleepHours: toNumberOrNull(values.sleepHours),
     note: values.note
   };
 }
@@ -89,7 +91,8 @@ function renderHistory(entries) {
                     <p class="entry-meta">
                       ${formatNumber(entry.weight, { maximumFractionDigits: 1 })} kg &middot;
                       ${formatNumber(entry.calories, { maximumFractionDigits: 0 })} kcal &middot;
-                      ${formatNumber(entry.protein, { maximumFractionDigits: 0 })} g Protein
+                      ${formatNumber(entry.protein, { maximumFractionDigits: 0 })} g Protein &middot;
+                      ${formatNumber(entry.sleepHours, { maximumFractionDigits: 1 })} h Schlaf
                     </p>
                     ${entry.note ? `<p class="entry-note">${escapeHtml(entry.note)}</p>` : ""}
                   </div>
@@ -154,6 +157,7 @@ function setFormEntry(form, entry) {
   form.elements.weight.value = entry.weight ?? "";
   form.elements.calories.value = entry.calories ?? "";
   form.elements.protein.value = entry.protein ?? "";
+  form.elements.sleepHours.value = entry.sleepHours ?? "";
   form.elements.note.value = entry.note ?? "";
   form.dataset.editingDate = entry.date;
   cardBody.querySelector("[data-form-mode]").textContent = "Eintrag bearbeiten";
@@ -402,6 +406,11 @@ export function renderDailyEntry() {
           <label class="field">
             <span>Protein in g</span>
             <input type="number" name="protein" min="0" max="1000" step="1" inputmode="numeric" placeholder="154">
+          </label>
+
+          <label class="field">
+            <span>Schlafdauer in Stunden</span>
+            <input type="text" name="sleepHours" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" placeholder="7,5">
           </label>
 
           <label class="field field-full">

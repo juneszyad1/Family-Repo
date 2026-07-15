@@ -113,6 +113,7 @@ function renderDashboardContent({ dailyEntries, bodyFatEntries, circumferenceEnt
   const todayEntry = dailyEntries.find((entry) => entry.date === today);
   const latestWeight = getLatestEntry(dailyEntries, "weight");
   const latestBodyFat = getLatestEntry(bodyFatEntries, "bodyFatPercentage");
+  const latestSleep = getLatestEntry(dailyEntries, "sleepHours");
   const latestArm = getLatestEntry(circumferenceEntries, "arm");
   const latestLeg = getLatestEntry(circumferenceEntries, "leg");
   const weightChange = calculateWeightChange(dailyEntries);
@@ -145,6 +146,11 @@ function renderDashboardContent({ dailyEntries, bodyFatEntries, circumferenceEnt
         <p class="metric-label">Körperfett</p>
         <p class="metric-value">${formatNumber(latestBodyFat?.bodyFatPercentage, { maximumFractionDigits: 1 })} %</p>
         <p class="muted">${latestBodyFat ? `Letzte Messung: ${formatDate(latestBodyFat.date)}` : "Noch keine KFA-Messung"}</p>
+      </article>
+      <article class="card metric">
+        <p class="metric-label">Schlafdauer</p>
+        <p class="metric-value">${formatNumber(latestSleep?.sleepHours, { maximumFractionDigits: 1 })} h</p>
+        <p class="muted">${latestSleep ? `Letzte Messung: ${formatDate(latestSleep.date)}` : "Noch keine Schlafdauer"}</p>
       </article>
       <article class="card metric">
         <p class="metric-label">Armumfang</p>

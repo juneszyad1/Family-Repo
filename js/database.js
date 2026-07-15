@@ -106,9 +106,10 @@ export async function saveDailyEntry(entryData) {
   const entry = {
     id: existingEntry?.id || createId("daily"),
     date: entryData.date,
-    weight: entryData.weight,
-    calories: entryData.calories,
-    protein: entryData.protein,
+    weight: entryData.weight ?? existingEntry?.weight ?? null,
+    calories: entryData.calories ?? existingEntry?.calories ?? null,
+    protein: entryData.protein ?? existingEntry?.protein ?? null,
+    sleepHours: entryData.sleepHours ?? existingEntry?.sleepHours ?? null,
     note: entryData.note || "",
     createdAt: existingEntry?.createdAt || now,
     updatedAt: now

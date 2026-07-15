@@ -67,6 +67,7 @@ function normalizeDailyEntry(entry) {
     weight: entry.weight ?? null,
     calories: entry.calories ?? null,
     protein: entry.protein ?? null,
+    sleepHours: entry.sleepHours ?? null,
     note: entry.note || "",
     createdAt: entry.createdAt || new Date().toISOString(),
     updatedAt: entry.updatedAt || new Date().toISOString()
@@ -221,7 +222,7 @@ export async function exportJsonBackup() {
 
 export async function exportDailyCsv() {
   const dailyEntries = await getDailyEntries();
-  const header = "Datum,Gewicht,Kalorien,Protein,Notiz";
+  const header = "Datum,Gewicht,Kalorien,Protein,Schlafdauer,Notiz";
   const rows = dailyEntries
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((entry) =>
@@ -230,6 +231,7 @@ export async function exportDailyCsv() {
         entry.weight,
         entry.calories,
         entry.protein,
+        entry.sleepHours,
         entry.note
       ].map(csvEscape).join(",")
     );

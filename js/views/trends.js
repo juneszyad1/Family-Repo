@@ -13,6 +13,12 @@ const RANGE_OPTIONS = [
 ];
 
 const chartInstances = [];
+const COMBINED_SERIES = [
+  { key: "weight", label: "Gewicht", valueKey: "weight", unit: "kg", axis: "weight", defaultVisible: true },
+  { key: "calories", label: "Kalorien", valueKey: "calories", unit: "kcal", axis: "calories", defaultVisible: true },
+  { key: "protein", label: "Protein", valueKey: "protein", unit: "g", axis: "protein", defaultVisible: true },
+  { key: "sleep", label: "Schlafdauer", valueKey: "sleepHours", unit: "h", axis: "sleep", defaultVisible: true }
+];
 
 function destroyCharts() {
   while (chartInstances.length) {
@@ -52,6 +58,45 @@ function chartOptions(title) {
       y: {
         ticks: { color: textColor },
         grid: { color: borderColor }
+      }
+    }
+  };
+}
+
+function combinedChartOptions() {
+  const options = chartOptions("Kompletter 30-Tage-Chart");
+  const textColor = getCssColor("--text-secondary");
+  const borderColor = getCssColor("--border");
+
+  return {
+    ...options,
+    interaction: {
+      mode: "index",
+      intersect: false
+    },
+    scales: {
+      x: options.scales.x,
+      weight: {
+        type: "linear",
+        position: "left",
+        ticks: { color: textColor },
+        grid: { color: borderColor }
+      },
+      calories: {
+        type: "linear",
+        position: "right",
+        ticks: { color: textColor },
+        grid: { drawOnChartArea: false }
+      },
+      protein: {
+        type: "linear",
+        position: "right",
+        display: false
+      },
+      sleep: {
+        type: "linear",
+        position: "left",
+        display: false
       }
     }
   };
@@ -113,7 +158,7 @@ function goalMarkerDatasets(goal, today, color, textColor) {
 }
 
 function createChart(canvas, config) {
-  if (!window.Chart) {
+  if (!window.Chart || !canvas) {
     return;
   }
 
@@ -130,7 +175,9 @@ function renderSummary(summary) {
   const items = [
     ["Ø Kalorien", `${formatNumber(summary.averageCalories, { maximumFractionDigits: 0 })} kcal`],
     ["Ø Protein", `${formatNumber(summary.averageProtein, { maximumFractionDigits: 0 })} g`],
+    ["Ø Schlaf", `${formatNumber(summary.averageSleep, { maximumFractionDigits: 1 })} h`],
     ["Gewicht", `${formatNumber(summary.weightChange, { maximumFractionDigits: 1 })} kg`],
+    ["Schlaf", `${formatNumber(summary.sleepChange, { maximumFractionDigits: 1 })} h`],
     ["KFA", `${formatNumber(summary.bodyFatChange, { maximumFractionDigits: 1 })} %`],
     ["Armumfang", `${formatNumber(summary.armChange, { maximumFractionDigits: 1 })} cm`],
     ["Beinumfang", `${formatNumber(summary.legChange, { maximumFractionDigits: 1 })} cm`],
@@ -151,6 +198,28 @@ function renderSummary(summary) {
           `
         )
         .join("")}
+    </section>
+  `;
+}
+
+function renderCombinedChartShell() {
+  return `
+    <section class="card">
+      <div class="card-body">
+        <h2 class="section-title">Kompletter 30-Tage-Chart</h2>
+        <fieldset class="choice-group compact-choice-group">
+          <legend>Kurven</legend>
+          ${COMBINED_SERIES.map((series) => `
+            <label>
+              <input type="checkbox" value="${series.key}" data-combined-toggle ${series.defaultVisible ? "checked" : ""}>
+              ${series.label}
+            </label>
+          `).join("")}
+        </fieldset>
+        <div class="chart-frame tall-chart-frame">
+          <canvas id="combined-chart"></canvas>
+        </div>
+      </div>
     </section>
   `;
 }
@@ -191,6 +260,7 @@ function renderTrendContent({ dailyEntries, bodyFatEntries, circumferenceEntries
 
   return `
     ${renderSummary(summary)}
+    ${renderCombinedChartShell()}
     ${renderChartShell("Gewicht", "weight-chart")}
     ${renderChartShell("Körperfettanteil", "body-fat-chart")}
     ${renderChartShell("Kalorien", "calories-chart")}
@@ -227,9 +297,39 @@ function renderCharts(container, { dailyEntries, bodyFatEntries, circumferenceEn
   const warningColor = getCssColor("--warning");
   const danger = getCssColor("--danger");
   const textSecondary = getCssColor("--text-secondary");
+  const violet = getCssColor("--primary-strong");
   const today = new Date();
   const weightGoal = activeGoals.find((goal) => goal.type === GOAL_TYPES.WEIGHT);
   const bodyFatGoal = activeGoals.find((goal) => goal.type === GOAL_TYPES.BODY_FAT);
+
+  const selectedCombinedSeries = new Set(
+    [...container.querySelectorAll("[data-combined-toggle]:checked")].map((input) => input.value)
+  );
+  const combinedColors = {
+    weight: primary,
+    calories: warningColor,
+    protein: success,
+    sleep: violet
+  };
+  const combinedDatasets = COMBINED_SERIES
+    .filter((series) => selectedCombinedSeries.has(series.key))
+    .map((series) => lineDataset(
+      `${series.label} (${series.unit})`,
+      entriesForValue(sortedDailyEntries, series.valueKey).map((entry) => ({ x: formatDate(entry.date), y: entry[series.valueKey] })),
+      combinedColors[series.key]
+    ))
+    .map((dataset, index) => ({
+      ...dataset,
+      yAxisID: COMBINED_SERIES.filter((series) => selectedCombinedSeries.has(series.key))[index].axis
+    }));
+
+  createChart(container.querySelector("#combined-chart"), {
+    type: "line",
+    data: {
+      datasets: combinedDatasets
+    },
+    options: combinedChartOptions()
+  });
 
   const weightEntries = entriesForValue(sortedDailyEntries, "weight");
   const movingAverage = calculateMovingAverage(sortedDailyEntries, "weight");
@@ -344,6 +444,11 @@ async function loadTrends(container, range = "30d") {
 
     content.innerHTML = renderTrendContent({ dailyEntries, bodyFatEntries, circumferenceEntries, settings, range, activeGoals });
     renderCharts(container, { dailyEntries: filteredDaily, bodyFatEntries: filteredBodyFat, circumferenceEntries: filteredCircumference, settings, activeGoals });
+    container.querySelectorAll("[data-combined-toggle]").forEach((input) => {
+      input.addEventListener("change", () => {
+        renderCharts(container, { dailyEntries: filteredDaily, bodyFatEntries: filteredBodyFat, circumferenceEntries: filteredCircumference, settings, activeGoals });
+      });
+    });
   } catch (error) {
     console.error(error);
     content.innerHTML = `
