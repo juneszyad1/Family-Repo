@@ -2197,3 +2197,37 @@ Die Prognosen sollen bewusst transparent und nachvollziehbar auf linearer Regres
    - ausgeführte Tests
    - bekannte Einschränkungen
    - Beispiele für überprüfte Zielberechnungen
+
+   # Deployment und Nutzung auf dem iPhone
+
+Bereite die App so vor, dass sie kostenlos über GitHub Pages veröffentlicht und auf einem iPhone als Progressive Web App installiert werden kann.
+
+## Anforderungen
+
+1. Verwende ausschließlich relative Pfade, damit die App auch in einem GitHub-Pages-Unterverzeichnis funktioniert.
+2. Stelle sicher, dass `manifest.json`, App-Icons und Service Worker unter einer URL wie `/fitness-tracker/` korrekt geladen werden.
+3. Der Service Worker darf nicht von einer Veröffentlichung in der Domain-Wurzel ausgehen.
+4. Implementiere eine saubere Cache-Versionierung.
+5. Alte Cache-Versionen müssen beim Aktivieren des neuen Service Workers gelöscht werden.
+6. Die App muss nach dem ersten vollständigen Laden offline starten können.
+7. IndexedDB-Daten dürfen durch normale App-Updates nicht gelöscht oder überschrieben werden.
+8. Zeige bei einer neuen App-Version einen verständlichen Aktualisierungshinweis.
+9. Erstelle ein geeignetes Apple-Touch-Icon.
+10. Berücksichtige iPhone-Safe-Areas über `env(safe-area-inset-top)` und `env(safe-area-inset-bottom)`.
+11. Ergänze im README genaue Anleitungen für:
+    - lokalen Start mit `python3 -m http.server`
+    - Test auf einem iPhone im selben WLAN
+    - Veröffentlichung über GitHub Pages
+    - Installation über Safari und „Zum Home-Bildschirm hinzufügen“
+    - Aktualisierung der veröffentlichten App
+    - Export und Wiederherstellung der lokalen Daten
+12. Prüfe, dass keine echten Nutzerdaten, Backups oder persönliche Testdaten in Git eingecheckt werden.
+13. Erstelle eine passende `.gitignore`.
+14. Teste die App gedanklich und technisch unter einer Unterordner-URL, nicht nur unter `localhost`.
+15. Hinterlasse keine fest eingetragene lokale IP-Adresse oder absolute Entwicklungs-URL im Code.
+
+Die produktive App soll anschließend über eine Adresse nach folgendem Muster funktionieren:
+
+```text
+https://BENUTZERNAME.github.io/fitness-tracker/
+```
