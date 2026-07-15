@@ -211,6 +211,10 @@ export function renderDailyEntry() {
     <section class="card">
       <div class="card-body">
         <h2 class="section-title" data-form-mode>Neuer Tagesdatensatz</h2>
+        <div class="inline-action-panel">
+          <p class="muted">KFA-Messungen erfasst du separat mit der 3-Falten-Methode.</p>
+          <a class="button secondary" href="#/body-fat">KFA eintragen</a>
+        </div>
         <div data-errors></div>
         <div data-status></div>
         <form class="form-grid" data-daily-form novalidate>

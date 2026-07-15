@@ -1,5 +1,6 @@
 import { getSettings, saveSettings } from "../database.js";
 import { deleteEverything, exportDailyCsv, exportJsonBackup, importBackup, readJsonFile } from "../export-import.js";
+import { seedDemoData } from "../seed-data.js";
 import { toNumberOrNull } from "../utils.js";
 
 function normalizeSettings(form) {
@@ -71,6 +72,25 @@ async function initializeSettings(container) {
     } catch (error) {
       console.error(error);
       showStatus(container, "CSV-Export konnte nicht erstellt werden.", "danger");
+    }
+  });
+
+  container.querySelector("[data-seed-demo]").addEventListener("click", async () => {
+    const confirmed = window.confirm("Umfangreiche Testdaten für Gewicht, KFA und Ziele einfügen?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const result = await seedDemoData();
+      showStatus(
+        container,
+        `Testdaten eingefügt: ${result.dailyEntries} Tagesdaten, ${result.bodyFatEntries} KFA-Messungen und ${result.goals} Ziele.`
+      );
+    } catch (error) {
+      console.error(error);
+      showStatus(container, "Testdaten konnten nicht erstellt werden.", "danger");
     }
   });
 
@@ -153,6 +173,16 @@ export function renderSettings() {
   container.innerHTML = `
     <section class="card">
       <div class="card-body">
+        <h2 class="section-title">Lokale Speicherung</h2>
+        <p class="muted settings-note">Deine Daten liegen nur lokal auf diesem Gerät im Browser-Speicher. GitHub Pages speichert keine Fitnessdaten von dir.</p>
+        <div class="alert warning" role="note">
+          <p>Backup-Erinnerung: Erstelle regelmäßig ein JSON-Backup, besonders vor iOS-Updates, Safari-Datenbereinigung oder bevor du die App vom Home-Bildschirm entfernst.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-body">
         <h2 class="section-title">Persönliche Ziele</h2>
         <div data-status></div>
         <form class="form-grid" data-settings-form>
@@ -201,10 +231,19 @@ export function renderSettings() {
     <section class="card">
       <div class="card-body">
         <h2 class="section-title">Daten exportieren</h2>
+        <p class="muted settings-note">Das JSON-Backup enthält Tagesdaten, KFA-Messungen, Ziele und Einstellungen.</p>
         <div class="button-row">
           <button class="button" type="button" data-export-json>JSON-Backup</button>
           <button class="button secondary" type="button" data-export-csv>CSV Tagesdaten</button>
         </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-body">
+        <h2 class="section-title">Testdaten</h2>
+        <p class="muted settings-note">Fügt realistische Demo-Daten für 90 Tage Gewicht, 14 KFA-Messungen und mehrere Ziele ein.</p>
+        <button class="button secondary" type="button" data-seed-demo>Testdaten erstellen</button>
       </div>
     </section>
 

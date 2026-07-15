@@ -24,6 +24,10 @@
         <p class="eyebrow">Fitness Tracker</p>
         <h1 id="view-title">Dashboard</h1>
       </div>
+      <div class="app-header-actions">
+        <span class="version-pill" id="app-version">v--</span>
+        <button class="update-button" type="button" id="app-update-button">Update</button>
+      </div>
     </header>
 
     <div id="app-status" class="app-status" role="status" aria-live="polite" hidden></div>
@@ -38,10 +42,6 @@
       <a class="nav-item" href="#/daily" data-route="daily">
         <span class="nav-icon" aria-hidden="true">＋</span>
         <span>Tagesdaten</span>
-      </a>
-      <a class="nav-item" href="#/body-fat" data-route="body-fat">
-        <span class="nav-icon" aria-hidden="true">％</span>
-        <span>KFA</span>
       </a>
       <a class="nav-item" href="#/trends" data-route="trends">
         <span class="nav-icon" aria-hidden="true">⌁</span>
@@ -58,7 +58,7 @@
     </nav>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+  <script src="vendor/chartjs/chart.umd.min.js" defer></script>
   <script type="module" src="js/app.js"></script>
 </body>
 

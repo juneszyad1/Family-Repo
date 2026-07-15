@@ -295,6 +295,15 @@ export async function replaceGoals(goals) {
   await transactionDone(transaction);
 }
 
+export async function putGoals(goals) {
+  const db = await openDatabase();
+  const transaction = db.transaction(STORES.goals, "readwrite");
+  const store = transaction.objectStore(STORES.goals);
+
+  goals.forEach((goal) => store.put(goal));
+  await transactionDone(transaction);
+}
+
 export async function clearAllData() {
   const db = await openDatabase();
   const transaction = db.transaction(Object.values(STORES), "readwrite");

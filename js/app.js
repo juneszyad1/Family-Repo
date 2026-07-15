@@ -1,5 +1,6 @@
 import { initRouter } from "./router.js";
 import { getSettings } from "./database.js";
+import { APP_VERSION_LABEL } from "./config.js";
 
 function applyTheme(theme) {
   if (theme === "light" || theme === "dark" || theme === "pink") {
@@ -26,6 +27,18 @@ async function registerServiceWorker() {
 
   try {
     const registration = await navigator.serviceWorker.register("./service-worker.js");
+    const updateButton = document.querySelector("#app-update-button");
+
+    updateButton?.addEventListener("click", async () => {
+      showConnectionStatus("Update wird geprüft ...", "info");
+      try {
+        await registration.update();
+        window.setTimeout(() => window.location.reload(), 700);
+      } catch (error) {
+        console.warn("Update-Prüfung fehlgeschlagen.", error);
+        showConnectionStatus("Update konnte gerade nicht geprüft werden.", "warning");
+      }
+    });
 
     registration.addEventListener("updatefound", () => {
       const worker = registration.installing;
@@ -33,12 +46,20 @@ async function registerServiceWorker() {
 
       worker.addEventListener("statechange", () => {
         if (worker.state === "installed" && navigator.serviceWorker.controller) {
-          showConnectionStatus("Neue App-Version installiert. Beim nächsten Öffnen nutzt du automatisch die aktuelle Version.", "success");
+          showConnectionStatus("Neue App-Version installiert. Tippe auf Update oder öffne die App neu.", "success");
         }
       });
     });
   } catch (error) {
     console.warn("Service Worker konnte nicht registriert werden.", error);
+  }
+}
+
+function initializeVersionLabel() {
+  const version = document.querySelector("#app-version");
+
+  if (version) {
+    version.textContent = APP_VERSION_LABEL;
   }
 }
 
@@ -74,6 +95,7 @@ function initializeConnectionStatus() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  initializeVersionLabel();
   initializeTheme();
   initializeConnectionStatus();
   initRouter();

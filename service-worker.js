@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitness-tracker-v21";
+const CACHE_NAME = "fitness-tracker-v22";
 const APP_ASSETS = [
   "./",
   "./index.html",
@@ -8,12 +8,15 @@ const APP_ASSETS = [
   "./css/layout.css",
   "./css/components.css",
   "./css/responsive.css",
+  "./vendor/chartjs/chart.umd.min.js",
+  "./js/config.js",
   "./js/app.js",
   "./js/router.js",
   "./js/database.js",
   "./js/utils.js",
   "./js/validation.js",
   "./js/calculations.js",
+  "./js/seed-data.js",
   "./js/goals.js",
   "./js/export-import.js",
   "./js/views/dashboard.js",

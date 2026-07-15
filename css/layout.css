@@ -24,6 +24,12 @@ body {
   backdrop-filter: blur(14px);
 }
 
+.app-header-actions {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+
 .app-header h1 {
   margin: 2px 0 0;
   font-size: 1.55rem;
@@ -67,6 +73,22 @@ body {
   border-color: color-mix(in srgb, var(--success) 34%, var(--border));
 }
 
+.version-pill,
+.update-button {
+  min-height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 850;
+}
+
+.update-button {
+  color: var(--primary-strong);
+}
+
 .view-stack {
   display: grid;
   gap: 16px;
@@ -79,7 +101,7 @@ body {
   left: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   min-height: calc(var(--nav-height) + var(--safe-bottom));
   padding: 8px 8px calc(8px + var(--safe-bottom));
   border-top: 1px solid var(--border);
