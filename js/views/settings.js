@@ -86,7 +86,7 @@ async function initializeSettings(container) {
       const result = await seedDemoData();
       showStatus(
         container,
-        `Testdaten eingefügt: ${result.dailyEntries} Tagesdaten, ${result.bodyFatEntries} KFA-Messungen und ${result.goals} Ziele.`
+        `Testdaten eingefügt: ${result.dailyEntries} Tagesdaten, ${result.bodyFatEntries} KFA-Messungen, ${result.circumferenceEntries} Umfangmessungen und ${result.goals} Ziele.`
       );
     } catch (error) {
       console.error(error);
@@ -106,7 +106,7 @@ async function initializeSettings(container) {
       pendingImport = await readJsonFile(file);
       showStatus(
         container,
-        `Backup bereit: ${pendingImport.dailyEntries.length} Tagesdaten und ${pendingImport.bodyFatEntries.length} KFA-Messungen.`
+        `Backup bereit: ${pendingImport.dailyEntries.length} Tagesdaten, ${pendingImport.bodyFatEntries.length} KFA-Messungen, ${(pendingImport.circumferenceEntries || []).length} Umfangmessungen und ${(pendingImport.progressPhotos || []).length} Fortschrittsbilder.`
       );
     } catch (error) {
       console.error(error);
@@ -231,7 +231,7 @@ export function renderSettings() {
     <section class="card">
       <div class="card-body">
         <h2 class="section-title">Daten exportieren</h2>
-        <p class="muted settings-note">Das JSON-Backup enthält Tagesdaten, KFA-Messungen, Ziele und Einstellungen.</p>
+        <p class="muted settings-note">Das JSON-Backup enthält Tagesdaten, KFA-Messungen, Umfangmessungen, Fortschrittsbilder, Ziele und Einstellungen. Mit Bildern kann die Datei größer werden.</p>
         <div class="button-row">
           <button class="button" type="button" data-export-json>JSON-Backup</button>
           <button class="button secondary" type="button" data-export-csv>CSV Tagesdaten</button>
@@ -242,7 +242,7 @@ export function renderSettings() {
     <section class="card">
       <div class="card-body">
         <h2 class="section-title">Testdaten</h2>
-        <p class="muted settings-note">Fügt realistische Demo-Daten für 90 Tage Gewicht, 14 KFA-Messungen und mehrere Ziele ein.</p>
+        <p class="muted settings-note">Fügt realistische Demo-Daten für 90 Tage Gewicht, 14 KFA-Messungen, 18 Umfangmessungen und mehrere Ziele ein.</p>
         <button class="button secondary" type="button" data-seed-demo>Testdaten erstellen</button>
       </div>
     </section>

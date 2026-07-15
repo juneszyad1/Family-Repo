@@ -1,5 +1,14 @@
 import { calculateJacksonPollock3 } from "./calculations.js";
-import { getBodyFatEntries, getDailyEntries, getGoals, putBodyFatEntries, putDailyEntries, putGoals } from "./database.js";
+import {
+  getBodyFatEntries,
+  getCircumferenceEntries,
+  getDailyEntries,
+  getGoals,
+  putBodyFatEntries,
+  putCircumferenceEntries,
+  putDailyEntries,
+  putGoals
+} from "./database.js";
 
 function dateDaysAgo(daysAgo) {
   const date = new Date();
@@ -52,6 +61,24 @@ function createBodyFatEntries() {
     return {
       ...base,
       ...calculateJacksonPollock3(base)
+    };
+  });
+}
+
+function createCircumferenceEntries() {
+  return Array.from({ length: 18 }, (_, index) => {
+    const daysAgo = 85 - index * 5;
+    const arm = round(33.6 + index * 0.055 + Math.sin(index / 2) * 0.18);
+    const leg = round(60.2 - index * 0.035 + Math.cos(index / 3) * 0.22);
+
+    return {
+      id: `seed-circumference-${index + 1}`,
+      date: dateDaysAgo(daysAgo),
+      arm,
+      leg,
+      note: index % 6 === 0 ? "Seed-Daten: Umfang unter gleichen Bedingungen messen." : "",
+      createdAt: `${dateDaysAgo(daysAgo)}T10:45:00.000Z`,
+      updatedAt: `${dateDaysAgo(daysAgo)}T10:45:00.000Z`
     };
   });
 }
@@ -110,22 +137,26 @@ function createGoals() {
 }
 
 export async function seedDemoData() {
-  const [existingDailyEntries, existingBodyFatEntries, existingGoals] = await Promise.all([
+  const [existingDailyEntries, existingBodyFatEntries, existingCircumferenceEntries, existingGoals] = await Promise.all([
     getDailyEntries(),
     getBodyFatEntries(),
+    getCircumferenceEntries(),
     getGoals()
   ]);
   const dailyEntries = createDailyEntries().filter((entry) => !existingDailyEntries.some((existing) => existing.id === entry.id || existing.date === entry.date));
   const bodyFatEntries = createBodyFatEntries().filter((entry) => !existingBodyFatEntries.some((existing) => existing.id === entry.id));
+  const circumferenceEntries = createCircumferenceEntries().filter((entry) => !existingCircumferenceEntries.some((existing) => existing.id === entry.id || existing.date === entry.date));
   const goals = createGoals().filter((goal) => !existingGoals.some((existing) => existing.id === goal.id));
 
   await putDailyEntries(dailyEntries);
   await putBodyFatEntries(bodyFatEntries);
+  await putCircumferenceEntries(circumferenceEntries);
   await putGoals(goals);
 
   return {
     dailyEntries: dailyEntries.length,
     bodyFatEntries: bodyFatEntries.length,
+    circumferenceEntries: circumferenceEntries.length,
     goals: goals.length
   };
 }

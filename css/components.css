@@ -113,6 +113,23 @@
   height: 280px;
 }
 
+.photo-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.photo-card {
+  overflow: hidden;
+}
+
+.photo-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  background: var(--surface-muted);
+  object-fit: cover;
+}
+
 .button-row {
   display: grid;
   gap: 10px;

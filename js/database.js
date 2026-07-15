@@ -1,10 +1,12 @@
 import { createId } from "./utils.js";
 
 const DB_NAME = "fitness-tracker-db";
-const DB_VERSION = 2;
+const DB_VERSION = 4;
 const STORES = {
   dailyEntries: "dailyEntries",
   bodyFatEntries: "bodyFatEntries",
+  circumferenceEntries: "circumferenceEntries",
+  progressPhotos: "progressPhotos",
   settings: "settings",
   goals: "goals"
 };
@@ -42,6 +44,16 @@ function openDatabase() {
       if (!db.objectStoreNames.contains(STORES.bodyFatEntries)) {
         const bodyFatStore = db.createObjectStore(STORES.bodyFatEntries, { keyPath: "id" });
         bodyFatStore.createIndex("date", "date", { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains(STORES.circumferenceEntries)) {
+        const circumferenceStore = db.createObjectStore(STORES.circumferenceEntries, { keyPath: "id" });
+        circumferenceStore.createIndex("date", "date", { unique: true });
+      }
+
+      if (!db.objectStoreNames.contains(STORES.progressPhotos)) {
+        const photosStore = db.createObjectStore(STORES.progressPhotos, { keyPath: "id" });
+        photosStore.createIndex("date", "date", { unique: false });
       }
 
       if (!db.objectStoreNames.contains(STORES.settings)) {
@@ -178,6 +190,98 @@ export async function putBodyFatEntries(entries) {
   const store = transaction.objectStore(STORES.bodyFatEntries);
 
   entries.forEach((entry) => store.put(entry));
+  await transactionDone(transaction);
+}
+
+export async function getCircumferenceEntries() {
+  const store = await getStore(STORES.circumferenceEntries);
+  return requestToPromise(store.getAll());
+}
+
+export async function getCircumferenceEntryByDate(date) {
+  const store = await getStore(STORES.circumferenceEntries);
+  const index = store.index("date");
+  return requestToPromise(index.get(date));
+}
+
+export async function saveCircumferenceEntry(entryData) {
+  const existingEntry = await getCircumferenceEntryByDate(entryData.date);
+  const now = new Date().toISOString();
+  const entry = {
+    id: existingEntry?.id || createId("circumference"),
+    date: entryData.date,
+    arm: entryData.arm,
+    leg: entryData.leg,
+    note: entryData.note || "",
+    createdAt: existingEntry?.createdAt || now,
+    updatedAt: now
+  };
+  const store = await getStore(STORES.circumferenceEntries, "readwrite");
+
+  await requestToPromise(store.put(entry));
+  return entry;
+}
+
+export async function deleteCircumferenceEntry(id) {
+  const store = await getStore(STORES.circumferenceEntries, "readwrite");
+  return requestToPromise(store.delete(id));
+}
+
+export async function replaceCircumferenceEntries(entries) {
+  const db = await openDatabase();
+  const transaction = db.transaction(STORES.circumferenceEntries, "readwrite");
+  const store = transaction.objectStore(STORES.circumferenceEntries);
+
+  store.clear();
+  entries.forEach((entry) => store.put(entry));
+  await transactionDone(transaction);
+}
+
+export async function putCircumferenceEntries(entries) {
+  const db = await openDatabase();
+  const transaction = db.transaction(STORES.circumferenceEntries, "readwrite");
+  const store = transaction.objectStore(STORES.circumferenceEntries);
+
+  entries.forEach((entry) => store.put(entry));
+  await transactionDone(transaction);
+}
+
+export async function getProgressPhotos() {
+  const store = await getStore(STORES.progressPhotos);
+  return requestToPromise(store.getAll());
+}
+
+export async function saveProgressPhoto(photoData) {
+  const now = new Date().toISOString();
+  const photo = {
+    id: photoData.id || createId("photo"),
+    date: photoData.date,
+    image: photoData.image,
+    imageType: photoData.imageType,
+    imageName: photoData.imageName || "",
+    imageSize: photoData.imageSize || photoData.image?.size || null,
+    note: photoData.note || "",
+    createdAt: photoData.createdAt || now,
+    updatedAt: now
+  };
+  const store = await getStore(STORES.progressPhotos, "readwrite");
+
+  await requestToPromise(store.put(photo));
+  return photo;
+}
+
+export async function deleteProgressPhoto(id) {
+  const store = await getStore(STORES.progressPhotos, "readwrite");
+  return requestToPromise(store.delete(id));
+}
+
+export async function replaceProgressPhotos(photos) {
+  const db = await openDatabase();
+  const transaction = db.transaction(STORES.progressPhotos, "readwrite");
+  const store = transaction.objectStore(STORES.progressPhotos);
+
+  store.clear();
+  photos.forEach((photo) => store.put(photo));
   await transactionDone(transaction);
 }
 

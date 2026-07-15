@@ -105,7 +105,7 @@ export function calculateMovingAverage(entries, valueKey, windowSize = 7) {
   });
 }
 
-export function calculateTrendSummary(dailyEntries, bodyFatEntries) {
+export function calculateTrendSummary(dailyEntries, bodyFatEntries, circumferenceEntries = []) {
   const calorieEntries = dailyEntries.filter((entry) => entry.calories !== null && entry.calories !== undefined);
   const proteinEntries = dailyEntries.filter((entry) => entry.protein !== null && entry.protein !== undefined);
   const weightEntries = dailyEntries
@@ -113,6 +113,12 @@ export function calculateTrendSummary(dailyEntries, bodyFatEntries) {
     .sort((a, b) => a.date.localeCompare(b.date));
   const bodyFatTrendEntries = bodyFatEntries
     .filter((entry) => entry.bodyFatPercentage !== null && entry.bodyFatPercentage !== undefined)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const armEntries = circumferenceEntries
+    .filter((entry) => entry.arm !== null && entry.arm !== undefined)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const legEntries = circumferenceEntries
+    .filter((entry) => entry.leg !== null && entry.leg !== undefined)
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const average = (entries, key) => {
@@ -137,6 +143,8 @@ export function calculateTrendSummary(dailyEntries, bodyFatEntries) {
     averageProtein: average(proteinEntries, "protein"),
     weightChange: change(weightEntries, "weight"),
     bodyFatChange: change(bodyFatTrendEntries, "bodyFatPercentage"),
+    armChange: change(armEntries, "arm"),
+    legChange: change(legEntries, "leg"),
     lowestWeight: weightEntries.length ? Math.min(...weightEntries.map((entry) => entry.weight)) : null,
     highestWeight: weightEntries.length ? Math.max(...weightEntries.map((entry) => entry.weight)) : null,
     trackedDays: new Set(dailyEntries.map((entry) => entry.date)).size

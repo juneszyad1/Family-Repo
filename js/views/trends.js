@@ -1,4 +1,4 @@
-import { getActiveGoals, getBodyFatEntries, getDailyEntries, getSettings } from "../database.js";
+import { getActiveGoals, getBodyFatEntries, getCircumferenceEntries, getDailyEntries, getSettings } from "../database.js";
 import { calculateMovingAverage, calculateTrendSummary, filterEntriesByRange } from "../calculations.js";
 import { GOAL_TYPES, calculateExpectedValueToday } from "../goals.js";
 import { formatDate, formatNumber, sortByDateDesc } from "../utils.js";
@@ -132,6 +132,8 @@ function renderSummary(summary) {
     ["Ø Protein", `${formatNumber(summary.averageProtein, { maximumFractionDigits: 0 })} g`],
     ["Gewicht", `${formatNumber(summary.weightChange, { maximumFractionDigits: 1 })} kg`],
     ["KFA", `${formatNumber(summary.bodyFatChange, { maximumFractionDigits: 1 })} %`],
+    ["Armumfang", `${formatNumber(summary.armChange, { maximumFractionDigits: 1 })} cm`],
+    ["Beinumfang", `${formatNumber(summary.legChange, { maximumFractionDigits: 1 })} cm`],
     ["Niedrigstes Gewicht", `${formatNumber(summary.lowestWeight, { maximumFractionDigits: 1 })} kg`],
     ["Höchstes Gewicht", `${formatNumber(summary.highestWeight, { maximumFractionDigits: 1 })} kg`],
     ["Erfasste Tage", formatNumber(summary.trackedDays, { maximumFractionDigits: 0 })]
@@ -175,11 +177,12 @@ function renderEmptyMessage() {
   `;
 }
 
-function renderTrendContent({ dailyEntries, bodyFatEntries, settings, range, activeGoals }) {
+function renderTrendContent({ dailyEntries, bodyFatEntries, circumferenceEntries, settings, range, activeGoals }) {
   const filteredDaily = filterEntriesByRange(dailyEntries, range);
   const filteredBodyFat = filterEntriesByRange(bodyFatEntries, range);
-  const summary = calculateTrendSummary(filteredDaily, filteredBodyFat);
-  const hasAnyData = filteredDaily.length || filteredBodyFat.length;
+  const filteredCircumference = filterEntriesByRange(circumferenceEntries, range);
+  const summary = calculateTrendSummary(filteredDaily, filteredBodyFat, filteredCircumference);
+  const hasAnyData = filteredDaily.length || filteredBodyFat.length || filteredCircumference.length;
   const hasGoals = activeGoals.length > 0;
 
   if (!hasAnyData && !hasGoals) {
@@ -192,11 +195,12 @@ function renderTrendContent({ dailyEntries, bodyFatEntries, settings, range, act
     ${renderChartShell("Körperfettanteil", "body-fat-chart")}
     ${renderChartShell("Kalorien", "calories-chart")}
     ${renderChartShell("Protein", "protein-chart")}
+    ${renderChartShell("Arm- und Beinumfang", "circumference-chart")}
     ${renderChartShell("Hautfalten", "skinfold-chart")}
   `;
 }
 
-function renderCharts(container, { dailyEntries, bodyFatEntries, settings, activeGoals }) {
+function renderCharts(container, { dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals }) {
   destroyCharts();
 
   const warning = container.querySelector("[data-chart-warning]");
@@ -215,6 +219,7 @@ function renderCharts(container, { dailyEntries, bodyFatEntries, settings, activ
 
   const sortedDailyEntries = sortByDateDesc(dailyEntries).sort((a, b) => a.date.localeCompare(b.date));
   const sortedBodyFatEntries = sortByDateDesc(bodyFatEntries).sort((a, b) => a.date.localeCompare(b.date));
+  const sortedCircumferenceEntries = sortByDateDesc(circumferenceEntries).sort((a, b) => a.date.localeCompare(b.date));
   const calorieTarget = settings.calorieTarget;
   const proteinTarget = settings.proteinTarget;
   const primary = getCssColor("--primary");
@@ -294,6 +299,18 @@ function renderCharts(container, { dailyEntries, bodyFatEntries, settings, activ
     options: chartOptions("Protein")
   });
 
+  createChart(container.querySelector("#circumference-chart"), {
+    type: "line",
+    data: {
+      labels: sortedCircumferenceEntries.map((entry) => formatDate(entry.date)),
+      datasets: [
+        lineDataset("Armumfang", sortedCircumferenceEntries.map((entry) => entry.arm), primary),
+        lineDataset("Beinumfang", sortedCircumferenceEntries.map((entry) => entry.leg), success)
+      ]
+    },
+    options: chartOptions("Arm- und Beinumfang")
+  });
+
   createChart(container.querySelector("#skinfold-chart"), {
     type: "line",
     data: {
@@ -313,18 +330,20 @@ async function loadTrends(container, range = "30d") {
   const content = container.querySelector("[data-trend-content]");
 
   try {
-    const [dailyEntries, bodyFatEntries, settings, activeGoals] = await Promise.all([
+    const [dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals] = await Promise.all([
       getDailyEntries(),
       getBodyFatEntries(),
+      getCircumferenceEntries(),
       getSettings(),
       getActiveGoals()
     ]);
 
     const filteredDaily = filterEntriesByRange(dailyEntries, range);
     const filteredBodyFat = filterEntriesByRange(bodyFatEntries, range);
+    const filteredCircumference = filterEntriesByRange(circumferenceEntries, range);
 
-    content.innerHTML = renderTrendContent({ dailyEntries, bodyFatEntries, settings, range, activeGoals });
-    renderCharts(container, { dailyEntries: filteredDaily, bodyFatEntries: filteredBodyFat, settings, activeGoals });
+    content.innerHTML = renderTrendContent({ dailyEntries, bodyFatEntries, circumferenceEntries, settings, range, activeGoals });
+    renderCharts(container, { dailyEntries: filteredDaily, bodyFatEntries: filteredBodyFat, circumferenceEntries: filteredCircumference, settings, activeGoals });
   } catch (error) {
     console.error(error);
     content.innerHTML = `
@@ -368,6 +387,11 @@ export function renderTrends() {
         <p>Einen Moment bitte.</p>
       </section>
     </div>
+    <section class="card">
+      <div class="card-body">
+        <a class="button secondary" href="#/progress-photos">Fortschrittsbilder</a>
+      </div>
+    </section>
   `;
   fragment.append(container);
   initializeTrends(container);

@@ -2,6 +2,7 @@ import { renderDashboard } from "./views/dashboard.js";
 import { renderDailyEntry } from "./views/daily-entry.js";
 import { renderBodyFat } from "./views/body-fat.js";
 import { renderTrends } from "./views/trends.js";
+import { renderProgressPhotos } from "./views/progress-photos.js";
 import { renderGoals } from "./views/goals.js";
 import { renderSettings } from "./views/settings.js";
 
@@ -21,6 +22,10 @@ const routes = {
   trends: {
     title: "Trends",
     render: renderTrends
+  },
+  "progress-photos": {
+    title: "Fortschrittsbilder",
+    render: renderProgressPhotos
   },
   goals: {
     title: "Ziele",

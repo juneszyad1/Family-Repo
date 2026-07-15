@@ -3,7 +3,9 @@ import { toNumberOrNull } from "./utils.js";
 const DAILY_LIMITS = {
   weight: { min: 20, max: 400, label: "Gewicht" },
   calories: { min: 0, max: 15000, label: "Kalorien" },
-  protein: { min: 0, max: 1000, label: "Protein" }
+  protein: { min: 0, max: 1000, label: "Protein" },
+  arm: { min: 10, max: 100, label: "Armumfang" },
+  leg: { min: 20, max: 150, label: "Beinumfang" }
 };
 
 const BODY_FAT_LIMITS = {
@@ -95,6 +97,27 @@ export function validateBodyFatForm(formData) {
       errors[field] = error;
     }
   });
+
+  return errors;
+}
+
+export function validateCircumferenceForm(formData) {
+  const errors = {};
+
+  if (isEmpty(formData.date)) {
+    errors.date = "Bitte ein Datum auswählen.";
+  }
+
+  ["arm", "leg"].forEach((field) => {
+    const error = validateOptionalNumber(formData[field], field);
+    if (error) {
+      errors[field] = error;
+    }
+  });
+
+  if (isEmpty(formData.arm) && isEmpty(formData.leg) && isEmpty(formData.note)) {
+    errors.form = "Bitte mindestens Armumfang, Beinumfang oder eine Notiz eintragen.";
+  }
 
   return errors;
 }

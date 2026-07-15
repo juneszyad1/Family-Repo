@@ -1,4 +1,4 @@
-import { getActiveGoals, getBodyFatEntries, getDailyEntries, getSettings } from "../database.js";
+import { getActiveGoals, getBodyFatEntries, getCircumferenceEntries, getDailyEntries, getSettings } from "../database.js";
 import {
   calculateAverageWeightLast7Days,
   calculateProgress,
@@ -108,11 +108,13 @@ function renderGoalSummaries(activeGoals, dailyEntries, bodyFatEntries) {
   `;
 }
 
-function renderDashboardContent({ dailyEntries, bodyFatEntries, settings, activeGoals }) {
+function renderDashboardContent({ dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals }) {
   const today = todayIsoDate();
   const todayEntry = dailyEntries.find((entry) => entry.date === today);
   const latestWeight = getLatestEntry(dailyEntries, "weight");
   const latestBodyFat = getLatestEntry(bodyFatEntries, "bodyFatPercentage");
+  const latestArm = getLatestEntry(circumferenceEntries, "arm");
+  const latestLeg = getLatestEntry(circumferenceEntries, "leg");
   const weightChange = calculateWeightChange(dailyEntries);
   const averageWeight = calculateAverageWeightLast7Days(dailyEntries);
   const caloriesToday = todayEntry?.calories ?? null;
@@ -139,6 +141,16 @@ function renderDashboardContent({ dailyEntries, bodyFatEntries, settings, active
         <p class="metric-label">Körperfett</p>
         <p class="metric-value">${formatNumber(latestBodyFat?.bodyFatPercentage, { maximumFractionDigits: 1 })} %</p>
         <p class="muted">${latestBodyFat ? `Letzte Messung: ${formatDate(latestBodyFat.date)}` : "Noch keine KFA-Messung"}</p>
+      </article>
+      <article class="card metric">
+        <p class="metric-label">Armumfang</p>
+        <p class="metric-value">${formatNumber(latestArm?.arm, { maximumFractionDigits: 1 })} cm</p>
+        <p class="muted">${latestArm ? `Letzte Messung: ${formatDate(latestArm.date)}` : "Noch keine Umfangmessung"}</p>
+      </article>
+      <article class="card metric">
+        <p class="metric-label">Beinumfang</p>
+        <p class="metric-value">${formatNumber(latestLeg?.leg, { maximumFractionDigits: 1 })} cm</p>
+        <p class="muted">${latestLeg ? `Letzte Messung: ${formatDate(latestLeg.date)}` : "Noch keine Umfangmessung"}</p>
       </article>
     </div>
 
@@ -185,14 +197,15 @@ function renderDashboardContent({ dailyEntries, bodyFatEntries, settings, active
 
 async function initializeDashboard(container) {
   try {
-    const [dailyEntries, bodyFatEntries, settings, activeGoals] = await Promise.all([
+    const [dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals] = await Promise.all([
       getDailyEntries(),
       getBodyFatEntries(),
+      getCircumferenceEntries(),
       getSettings(),
       getActiveGoals()
     ]);
 
-    container.innerHTML = renderDashboardContent({ dailyEntries, bodyFatEntries, settings, activeGoals });
+    container.innerHTML = renderDashboardContent({ dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals });
   } catch (error) {
     console.error(error);
     container.innerHTML = `

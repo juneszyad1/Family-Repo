@@ -1,4 +1,4 @@
-const CACHE_NAME = "fitness-tracker-v22";
+const CACHE_NAME = "fitness-tracker-v24";
 const APP_ASSETS = [
   "./",
   "./index.html",
@@ -23,6 +23,7 @@ const APP_ASSETS = [
   "./js/views/daily-entry.js",
   "./js/views/body-fat.js",
   "./js/views/trends.js",
+  "./js/views/progress-photos.js",
   "./js/views/goals.js",
   "./js/views/settings.js",
   "./assets/icons/app-icon.svg",

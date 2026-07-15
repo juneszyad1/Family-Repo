@@ -1,17 +1,35 @@
 import {
   clearAllData,
   getBodyFatEntries,
+  getCircumferenceEntries,
   getDailyEntries,
   getGoals,
+  getProgressPhotos,
   getSettings,
   replaceBodyFatEntries,
+  replaceCircumferenceEntries,
   replaceDailyEntries,
   replaceGoals,
+  replaceProgressPhotos,
   saveSettings
 } from "./database.js";
 import { createId } from "./utils.js";
 
 const EXPORT_VERSION = 1;
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(reader.result));
+    reader.addEventListener("error", () => reject(reader.error));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function dataUrlToBlob(dataUrl) {
+  const response = await fetch(dataUrl);
+  return response.blob();
+}
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -71,6 +89,18 @@ function normalizeBodyFatEntry(entry) {
   };
 }
 
+function normalizeCircumferenceEntry(entry) {
+  return {
+    id: entry.id || createId("circumference"),
+    date: entry.date,
+    arm: entry.arm ?? null,
+    leg: entry.leg ?? null,
+    note: entry.note || "",
+    createdAt: entry.createdAt || new Date().toISOString(),
+    updatedAt: entry.updatedAt || new Date().toISOString()
+  };
+}
+
 function normalizeGoal(goal) {
   return {
     id: goal.id || createId("goal"),
@@ -87,6 +117,20 @@ function normalizeGoal(goal) {
     createdAt: goal.createdAt || new Date().toISOString(),
     updatedAt: goal.updatedAt || new Date().toISOString(),
     completedAt: goal.completedAt || null
+  };
+}
+
+async function normalizeProgressPhoto(photo) {
+  return {
+    id: photo.id || createId("photo"),
+    date: photo.date,
+    image: photo.image instanceof Blob ? photo.image : await dataUrlToBlob(photo.imageDataUrl),
+    imageType: photo.imageType || "image/jpeg",
+    imageName: photo.imageName || "",
+    imageSize: photo.imageSize || null,
+    note: photo.note || "",
+    createdAt: photo.createdAt || new Date().toISOString(),
+    updatedAt: photo.updatedAt || new Date().toISOString()
   };
 }
 
@@ -107,10 +151,20 @@ function validateImportData(data) {
     throw new Error("Das Backup enthält keine gültige Zielliste.");
   }
 
+  if (data.circumferenceEntries !== undefined && !Array.isArray(data.circumferenceEntries)) {
+    throw new Error("Das Backup enthält keine gültige Umfangliste.");
+  }
+
+  if (data.progressPhotos !== undefined && !Array.isArray(data.progressPhotos)) {
+    throw new Error("Das Backup enthält keine gültige Bilderliste.");
+  }
+
   const dailyEntriesValid = data.dailyEntries.every((entry) => entry && typeof entry.date === "string");
   const bodyFatEntriesValid = data.bodyFatEntries.every((entry) => entry && typeof entry.date === "string");
+  const circumferenceEntriesValid = (data.circumferenceEntries || []).every((entry) => entry && typeof entry.date === "string");
+  const progressPhotosValid = (data.progressPhotos || []).every((photo) => photo && typeof photo.date === "string" && typeof photo.imageDataUrl === "string");
 
-  if (!dailyEntriesValid || !bodyFatEntriesValid) {
+  if (!dailyEntriesValid || !bodyFatEntriesValid || !circumferenceEntriesValid || !progressPhotosValid) {
     throw new Error("Das Backup enthält ungültige Einträge.");
   }
 
@@ -130,18 +184,35 @@ function mergeByDate(existingEntries, importedEntries, conflictMode) {
 }
 
 export async function exportJsonBackup() {
-  const [settings, dailyEntries, bodyFatEntries, goals] = await Promise.all([
+  const [settings, dailyEntries, bodyFatEntries, circumferenceEntries, progressPhotos, goals] = await Promise.all([
     getSettings(),
     getDailyEntries(),
     getBodyFatEntries(),
+    getCircumferenceEntries(),
+    getProgressPhotos(),
     getGoals()
   ]);
+  const exportedProgressPhotos = await Promise.all(
+    progressPhotos.map(async (photo) => ({
+      id: photo.id,
+      date: photo.date,
+      imageDataUrl: await blobToDataUrl(photo.image),
+      imageType: photo.imageType,
+      imageName: photo.imageName,
+      imageSize: photo.imageSize,
+      note: photo.note || "",
+      createdAt: photo.createdAt,
+      updatedAt: photo.updatedAt
+    }))
+  );
   const payload = {
     version: EXPORT_VERSION,
     exportDate: new Date().toISOString(),
     settings,
     dailyEntries,
     bodyFatEntries,
+    circumferenceEntries,
+    progressPhotos: exportedProgressPhotos,
     goals
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -176,28 +247,37 @@ export async function importBackup(data, options) {
   const settings = validatedData.settings || {};
   const importedDaily = validatedData.dailyEntries.map(normalizeDailyEntry);
   const importedBodyFat = validatedData.bodyFatEntries.map(normalizeBodyFatEntry);
+  const importedCircumference = (validatedData.circumferenceEntries || []).map(normalizeCircumferenceEntry);
+  const importedProgressPhotos = await Promise.all((validatedData.progressPhotos || []).map(normalizeProgressPhoto));
   const importedGoals = (validatedData.goals || []).map(normalizeGoal);
 
   if (options.mode === "replace") {
     await replaceDailyEntries(importedDaily);
     await replaceBodyFatEntries(importedBodyFat);
+    await replaceCircumferenceEntries(importedCircumference);
+    await replaceProgressPhotos(importedProgressPhotos);
     await replaceGoals(importedGoals);
     await saveSettings(settings);
     return;
   }
 
-  const [existingDaily, existingBodyFat, existingGoals] = await Promise.all([
+  const [existingDaily, existingBodyFat, existingCircumference, existingProgressPhotos, existingGoals] = await Promise.all([
     getDailyEntries(),
     getBodyFatEntries(),
+    getCircumferenceEntries(),
+    getProgressPhotos(),
     getGoals()
   ]);
   const mergedDaily = mergeByDate(existingDaily, importedDaily, options.conflictMode);
+  const mergedCircumference = mergeByDate(existingCircumference, importedCircumference, options.conflictMode);
   const mergedBodyFat = options.conflictMode === "imported"
     ? [...existingBodyFat, ...importedBodyFat]
     : [...importedBodyFat, ...existingBodyFat];
 
   await replaceDailyEntries(mergedDaily);
   await replaceBodyFatEntries(mergedBodyFat);
+  await replaceCircumferenceEntries(mergedCircumference);
+  await replaceProgressPhotos([...existingProgressPhotos, ...importedProgressPhotos]);
   await replaceGoals([...existingGoals, ...importedGoals]);
   await saveSettings(settings);
 }
