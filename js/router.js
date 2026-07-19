@@ -5,6 +5,7 @@ import { renderTrends } from "./views/trends.js";
 import { renderProgressPhotos } from "./views/progress-photos.js";
 import { renderGoals } from "./views/goals.js";
 import { renderSettings } from "./views/settings.js";
+import { renderTrainingDashboard } from "./views/training-dashboard.js";
 
 const routes = {
   dashboard: {
@@ -14,6 +15,10 @@ const routes = {
   daily: {
     title: "Tagesdaten",
     render: renderDailyEntry
+  },
+  training: {
+    title: "Training",
+    render: renderTrainingDashboard
   },
   "body-fat": {
     title: "KFA-Messung",

@@ -20,6 +20,21 @@ function isEmpty(value) {
   return value === null || value === undefined || String(value).trim() === "";
 }
 
+export function sanitizeNumericInputValue(value, allowDecimal = false) {
+  const input = String(value ?? "");
+  let sanitized = input.replace(allowDecimal ? /[^0-9,.]/g : /[^0-9]/g, "");
+
+  if (allowDecimal) {
+    const separatorIndex = sanitized.search(/[,.]/);
+
+    if (separatorIndex >= 0) {
+      sanitized = `${sanitized.slice(0, separatorIndex + 1)}${sanitized.slice(separatorIndex + 1).replace(/[,.]/g, "")}`;
+    }
+  }
+
+  return sanitized;
+}
+
 function validateOptionalNumber(value, field) {
   if (isEmpty(value)) {
     return null;

@@ -6,16 +6,24 @@ import {
   getGoals,
   getProgressPhotos,
   getSettings,
+  getCustomExercises,
+  getWorkoutPlans,
+  getWorkoutSessions,
+  getExerciseFavorites,
   replaceBodyFatEntries,
   replaceCircumferenceEntries,
   replaceDailyEntries,
   replaceGoals,
   replaceProgressPhotos,
+  replaceCustomExercises,
+  replaceWorkoutPlans,
+  replaceWorkoutSessions,
+  replaceExerciseFavorites,
   saveSettings
 } from "./database.js";
 import { createId } from "./utils.js";
 
-const EXPORT_VERSION = 1;
+const EXPORT_VERSION = 2;
 
 function blobToDataUrl(blob) {
   return new Promise((resolve, reject) => {
@@ -140,7 +148,7 @@ function validateImportData(data) {
     throw new Error("Die Datei ist kein gültiges JSON-Backup.");
   }
 
-  if (data.version !== EXPORT_VERSION) {
+  if (![1, EXPORT_VERSION].includes(data.version)) {
     throw new Error("Diese Backup-Version wird nicht unterstützt.");
   }
 
@@ -159,6 +167,10 @@ function validateImportData(data) {
   if (data.progressPhotos !== undefined && !Array.isArray(data.progressPhotos)) {
     throw new Error("Das Backup enthält keine gültige Bilderliste.");
   }
+
+  ["customExercises", "workoutPlans", "workoutSessions", "exerciseFavorites"].forEach((key) => {
+    if (data[key] !== undefined && !Array.isArray(data[key])) throw new Error(`Das Backup enthält keine gültige Liste für ${key}.`);
+  });
 
   const dailyEntriesValid = data.dailyEntries.every((entry) => entry && typeof entry.date === "string");
   const bodyFatEntriesValid = data.bodyFatEntries.every((entry) => entry && typeof entry.date === "string");
@@ -184,14 +196,20 @@ function mergeByDate(existingEntries, importedEntries, conflictMode) {
   return [...entriesByDate.values()];
 }
 
+function mergeById(existingEntries, importedEntries, conflictMode) {
+  const byId = new Map(existingEntries.map((entry) => [entry.id, entry]));
+  importedEntries.forEach((entry) => { if (!byId.has(entry.id) || conflictMode === "imported") byId.set(entry.id, entry); });
+  return [...byId.values()];
+}
+
 export async function exportJsonBackup() {
-  const [settings, dailyEntries, bodyFatEntries, circumferenceEntries, progressPhotos, goals] = await Promise.all([
+  const [settings, dailyEntries, bodyFatEntries, circumferenceEntries, progressPhotos, goals, customExercises, workoutPlans, workoutSessions, exerciseFavorites] = await Promise.all([
     getSettings(),
     getDailyEntries(),
     getBodyFatEntries(),
     getCircumferenceEntries(),
     getProgressPhotos(),
-    getGoals()
+    getGoals(), getCustomExercises(), getWorkoutPlans(), getWorkoutSessions(), getExerciseFavorites()
   ]);
   const exportedProgressPhotos = await Promise.all(
     progressPhotos.map(async (photo) => ({
@@ -214,7 +232,11 @@ export async function exportJsonBackup() {
     bodyFatEntries,
     circumferenceEntries,
     progressPhotos: exportedProgressPhotos,
-    goals
+    goals,
+    customExercises,
+    workoutPlans,
+    workoutSessions,
+    exerciseFavorites
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   downloadBlob(blob, backupFilename("json"));
@@ -252,6 +274,10 @@ export async function importBackup(data, options) {
   const importedCircumference = (validatedData.circumferenceEntries || []).map(normalizeCircumferenceEntry);
   const importedProgressPhotos = await Promise.all((validatedData.progressPhotos || []).map(normalizeProgressPhoto));
   const importedGoals = (validatedData.goals || []).map(normalizeGoal);
+  const importedCustomExercises = validatedData.customExercises || [];
+  const importedWorkoutPlans = validatedData.workoutPlans || [];
+  const importedWorkoutSessions = validatedData.workoutSessions || [];
+  const importedExerciseFavorites = validatedData.exerciseFavorites || [];
 
   if (options.mode === "replace") {
     await replaceDailyEntries(importedDaily);
@@ -259,16 +285,20 @@ export async function importBackup(data, options) {
     await replaceCircumferenceEntries(importedCircumference);
     await replaceProgressPhotos(importedProgressPhotos);
     await replaceGoals(importedGoals);
+    await replaceCustomExercises(importedCustomExercises);
+    await replaceWorkoutPlans(importedWorkoutPlans);
+    await replaceWorkoutSessions(importedWorkoutSessions);
+    await replaceExerciseFavorites(importedExerciseFavorites);
     await saveSettings(settings);
     return;
   }
 
-  const [existingDaily, existingBodyFat, existingCircumference, existingProgressPhotos, existingGoals] = await Promise.all([
+  const [existingDaily, existingBodyFat, existingCircumference, existingProgressPhotos, existingGoals, existingCustomExercises, existingWorkoutPlans, existingWorkoutSessions, existingExerciseFavorites] = await Promise.all([
     getDailyEntries(),
     getBodyFatEntries(),
     getCircumferenceEntries(),
     getProgressPhotos(),
-    getGoals()
+    getGoals(), getCustomExercises(), getWorkoutPlans(), getWorkoutSessions(), getExerciseFavorites()
   ]);
   const mergedDaily = mergeByDate(existingDaily, importedDaily, options.conflictMode);
   const mergedCircumference = mergeByDate(existingCircumference, importedCircumference, options.conflictMode);
@@ -281,6 +311,10 @@ export async function importBackup(data, options) {
   await replaceCircumferenceEntries(mergedCircumference);
   await replaceProgressPhotos([...existingProgressPhotos, ...importedProgressPhotos]);
   await replaceGoals([...existingGoals, ...importedGoals]);
+  await replaceCustomExercises(mergeById(existingCustomExercises, importedCustomExercises, options.conflictMode));
+  await replaceWorkoutPlans(mergeById(existingWorkoutPlans, importedWorkoutPlans, options.conflictMode));
+  await replaceWorkoutSessions(mergeById(existingWorkoutSessions, importedWorkoutSessions, options.conflictMode));
+  await replaceExerciseFavorites(mergeById(existingExerciseFavorites, importedExerciseFavorites, options.conflictMode));
   await saveSettings(settings);
 }
 

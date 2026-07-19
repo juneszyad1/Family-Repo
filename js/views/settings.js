@@ -106,7 +106,7 @@ async function initializeSettings(container) {
       pendingImport = await readJsonFile(file);
       showStatus(
         container,
-        `Backup bereit: ${pendingImport.dailyEntries.length} Tagesdaten, ${pendingImport.bodyFatEntries.length} KFA-Messungen, ${(pendingImport.circumferenceEntries || []).length} Umfangmessungen und ${(pendingImport.progressPhotos || []).length} Fortschrittsbilder.`
+        `Backup bereit: ${pendingImport.dailyEntries.length} Tagesdaten, ${pendingImport.bodyFatEntries.length} KFA-Messungen und ${(pendingImport.workoutSessions || []).length} Trainingseinheiten.`
       );
     } catch (error) {
       console.error(error);
@@ -234,8 +234,19 @@ export function renderSettings() {
 
     <section class="card">
       <div class="card-body">
+        <h2 class="section-title">Mehr Bereiche</h2>
+        <div class="button-row">
+          <a class="button secondary" href="#/goals">Ziele</a>
+          <a class="button secondary" href="#/body-fat">KFA</a>
+          <a class="button secondary" href="#/progress-photos">Fortschrittsbilder</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-body">
         <h2 class="section-title">Daten exportieren</h2>
-        <p class="muted settings-note">Das JSON-Backup enthält Tagesdaten, KFA-Messungen, Umfangmessungen, Fortschrittsbilder, Ziele und Einstellungen. Mit Bildern kann die Datei größer werden.</p>
+        <p class="muted settings-note">Das JSON-Backup enthält Tagesdaten, Messungen, Bilder, Ziele, Trainingspläne, eigene Übungen, Favoriten und Trainingseinheiten.</p>
         <div class="button-row">
           <button class="button" type="button" data-export-json>JSON-Backup</button>
           <button class="button secondary" type="button" data-export-csv>CSV Tagesdaten</button>

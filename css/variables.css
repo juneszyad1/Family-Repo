@@ -1,71 +1,80 @@
 :root {
   color-scheme: light;
-  --background: #f4f6f8;
-  --surface: #ffffff;
-  --surface-muted: #eef2f6;
-  --text-primary: #18212b;
-  --text-secondary: #64748b;
-  --primary: #2563eb;
-  --primary-strong: #1d4ed8;
-  --success: #16a34a;
-  --warning: #d97706;
-  --danger: #dc2626;
-  --border: #dbe3ec;
-  --shadow: 0 10px 24px rgba(24, 33, 43, 0.08);
-  --radius: 8px;
-  --nav-height: 78px;
+  --background: #f1f4ee;
+  --surface: #fbfcf9;
+  --surface-muted: #e7ece4;
+  --text-primary: #151a16;
+  --text-secondary: #667068;
+  --primary: #607f18;
+  --primary-strong: #40580d;
+  --on-primary: #ffffff;
+  --success: #2f8b50;
+  --warning: #b66a12;
+  --danger: #c94747;
+  --border: #dce3d9;
+  --shadow: 0 18px 48px rgba(29, 39, 31, 0.07);
+  --shadow-soft: 0 8px 24px rgba(29, 39, 31, 0.05);
+  --radius: 18px;
+  --radius-small: 12px;
+  --nav-height: 82px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --content-width: 720px;
+  --content-width: 980px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --background: #101418;
-    --surface: #171d23;
-    --surface-muted: #202832;
-    --text-primary: #f1f5f9;
-    --text-secondary: #a7b3c2;
-    --primary: #60a5fa;
-    --primary-strong: #93c5fd;
-    --success: #4ade80;
-    --warning: #f59e0b;
-    --danger: #f87171;
-    --border: #2d3845;
-    --shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+    --background: #0b0e0c;
+    --surface: #131815;
+    --surface-muted: #1d241f;
+    --text-primary: #f3f7f1;
+    --text-secondary: #98a49b;
+    --primary: #b7f34a;
+    --primary-strong: #d0ff78;
+    --on-primary: #12170d;
+    --success: #59d27c;
+    --warning: #f0ad4e;
+    --danger: #ff7272;
+    --border: #29322c;
+    --shadow: 0 22px 56px rgba(0, 0, 0, 0.34);
+    --shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.22);
   }
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --background: #f4f6f8;
-  --surface: #ffffff;
-  --surface-muted: #eef2f6;
-  --text-primary: #18212b;
-  --text-secondary: #64748b;
-  --primary: #2563eb;
-  --primary-strong: #1d4ed8;
-  --success: #16a34a;
-  --warning: #d97706;
-  --danger: #dc2626;
-  --border: #dbe3ec;
-  --shadow: 0 10px 24px rgba(24, 33, 43, 0.08);
+  --background: #f1f4ee;
+  --surface: #fbfcf9;
+  --surface-muted: #e7ece4;
+  --text-primary: #151a16;
+  --text-secondary: #667068;
+  --primary: #607f18;
+  --primary-strong: #40580d;
+  --on-primary: #ffffff;
+  --success: #2f8b50;
+  --warning: #b66a12;
+  --danger: #c94747;
+  --border: #dce3d9;
+  --shadow: 0 18px 48px rgba(29, 39, 31, 0.07);
+  --shadow-soft: 0 8px 24px rgba(29, 39, 31, 0.05);
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --background: #101418;
-  --surface: #171d23;
-  --surface-muted: #202832;
-  --text-primary: #f1f5f9;
-  --text-secondary: #a7b3c2;
-  --primary: #60a5fa;
-  --primary-strong: #93c5fd;
-  --success: #4ade80;
-  --warning: #f59e0b;
-  --danger: #f87171;
-  --border: #2d3845;
-  --shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  --background: #0b0e0c;
+  --surface: #131815;
+  --surface-muted: #1d241f;
+  --text-primary: #f3f7f1;
+  --text-secondary: #98a49b;
+  --primary: #b7f34a;
+  --primary-strong: #d0ff78;
+  --on-primary: #12170d;
+  --success: #59d27c;
+  --warning: #f0ad4e;
+  --danger: #ff7272;
+  --border: #29322c;
+  --shadow: 0 22px 56px rgba(0, 0, 0, 0.34);
+  --shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.22);
 }
 
 :root[data-theme="pink"] {
@@ -77,6 +86,7 @@
   --text-secondary: #8a4b67;
   --primary: #db2777;
   --primary-strong: #be185d;
+  --on-primary: #ffffff;
   --success: #0f9f6e;
   --warning: #d97706;
   --danger: #dc2626;
@@ -93,6 +103,7 @@
   --text-secondary: #756651;
   --primary: #9f6b35;
   --primary-strong: #7c4f24;
+  --on-primary: #ffffff;
   --success: #4f8a5b;
   --warning: #b7791f;
   --danger: #b7473b;
@@ -109,6 +120,7 @@
   --text-secondary: #b8a9d6;
   --primary: #a78bfa;
   --primary-strong: #c4b5fd;
+  --on-primary: #171022;
   --success: #5eead4;
   --warning: #fbbf24;
   --danger: #fb7185;
@@ -125,6 +137,7 @@
   --text-secondary: #755f4c;
   --primary: #8b5a2b;
   --primary-strong: #65401f;
+  --on-primary: #ffffff;
   --success: #527a43;
   --warning: #b66b22;
   --danger: #a84432;
@@ -141,6 +154,7 @@
   --text-secondary: #9aa7c7;
   --primary: #7aa2f7;
   --primary-strong: #bb9af7;
+  --on-primary: #11131f;
   --success: #9ece6a;
   --warning: #e0af68;
   --danger: #f7768e;

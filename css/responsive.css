@@ -1,6 +1,20 @@
 @media (min-width: 640px) {
   .app-main {
-    padding: 24px;
+    padding: 32px 24px 40px;
+  }
+
+  .dashboard-hero .card-body {
+    grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.8fr);
+    align-items: end;
+  }
+
+  .hero-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .entry-composer-heading {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 0.65fr);
+    align-items: end;
   }
 
   .button-row {
@@ -59,6 +73,38 @@
   }
 }
 
+@media (max-width: 520px) {
+  .dashboard-intro {
+    align-items: flex-end;
+  }
+
+  .dashboard-intro .compact-button {
+    width: 46px;
+    overflow: hidden;
+    padding: 0;
+    color: transparent;
+    font-size: 0;
+  }
+
+  .dashboard-intro .compact-button::before {
+    content: "+";
+    color: var(--on-primary);
+    font-size: 1.35rem;
+  }
+
+  .dashboard-vitals article {
+    padding-inline: 8px;
+  }
+
+  .hero-facts div {
+    padding: 12px 10px;
+  }
+
+  .section-heading {
+    align-items: flex-start;
+  }
+}
+
 @media (max-width: 360px) {
   .nav-item {
     font-size: 0.62rem;
@@ -66,5 +112,9 @@
 
   .metric-grid {
     grid-template-columns: 1fr;
+  }
+
+  .bottom-nav {
+    width: calc(100% - 12px);
   }
 }

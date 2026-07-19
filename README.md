@@ -1,6 +1,6 @@
 # Fitness Tracker PWA
 
-Mobile-first Fitness-Tracking-App für Gewicht, Tagesdaten, Körperfettmessung, Trends und lokale Datenverwaltung.
+Mobile-first Fitness-Tracking-App für Gewicht, Tagesdaten, Körperfettmessung, Trends, Trainingsplanung und lokale Datenverwaltung.
 
 Repository: Family-Repo
 
@@ -86,8 +86,27 @@ Die Fitnessdaten liegen lokal im Browser in IndexedDB. Normale App-Updates lösc
 
 ## Tests
 
-Die Zielberechnungen haben einen browserbasierten Test-Runner:
+Ziel-, Übungsdatenbank-, Trainingsplan-, Session- und Berechnungstests laufen im browserbasierten Test-Runner:
 
 ```text
 http://localhost:8080/tests/test-runner.html
 ```
+
+## Training
+
+Der Bereich `Training` unterstützt Krafttraining, Stretching und einfache sonstige Aktivitäten. Enthalten sind 121 Kraftübungen und 58 Stretch-/Mobility-Übungen, Suche und Filter, Favoriten, eigene Übungen, mehrere Trainingspläne mit individuellen Satzwerten, laufende Einheiten, Stretch-Timer, Historie und Basisstatistiken. Übungen und App-Dateien werden lokal ausgeliefert; Trainingsdaten verlassen das Gerät nicht.
+
+### Lokale Datenmodelle
+
+IndexedDB verwendet Version 5. Bestehende Stores bleiben unverändert erhalten. Ergänzt wurden:
+
+- `customExercises`: benutzerdefinierte Kraft- und Stretch-Übungen; Index `workoutType`
+- `workoutPlans`: Pläne mit typabhängigen, geordneten Übungen; Indexe `workoutType`, `updatedAt`, `isArchived`
+- `workoutSessions`: unabhängige Plan- und Namens-Snapshots; Indexe `date`, `workoutType`, `status`, `planId`, `completedAt`
+- `exerciseFavorites`: lokale Favoriten; Index `workoutType`
+
+Kraftsätze speichern Ziel- und Ist-Wiederholungen sowie Ziel- und Ist-Gewicht jeweils in einem eigenen Satzobjekt. Stretching-Einträge speichern Durchgänge, Dauer und Seite. Das JSON-Backupformat v2 umfasst alle Trainings-Stores; Backups der Version 1 bleiben importierbar.
+
+### Bewusste Grenzen der ersten Version
+
+Cardio-Detailtracking, RPE/RIR, Satzpausen, Supersätze, automatische Progression, Rekorde, 1RM, Bilder, Videos, Anleitungen, Cloud-Synchronisierung und HealthKit sind noch nicht implementiert. Der Stretch-Timer rekonstruiert kurze App-Wechsel über Zeitstempel, ist aber nicht als garantierter Hintergrundtimer gedacht.

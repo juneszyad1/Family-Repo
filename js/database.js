@@ -1,14 +1,18 @@
 import { createId } from "./utils.js";
 
 const DB_NAME = "fitness-tracker-db";
-const DB_VERSION = 4;
+export const DB_VERSION = 5;
 const STORES = {
   dailyEntries: "dailyEntries",
   bodyFatEntries: "bodyFatEntries",
   circumferenceEntries: "circumferenceEntries",
   progressPhotos: "progressPhotos",
   settings: "settings",
-  goals: "goals"
+  goals: "goals",
+  customExercises: "customExercises",
+  workoutPlans: "workoutPlans",
+  workoutSessions: "workoutSessions",
+  exerciseFavorites: "exerciseFavorites"
 };
 
 let databasePromise;
@@ -65,6 +69,25 @@ function openDatabase() {
         goalsStore.createIndex("type", "type", { unique: false });
         goalsStore.createIndex("status", "status", { unique: false });
         goalsStore.createIndex("typeStatus", ["type", "status"], { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains(STORES.customExercises)) {
+        const store = db.createObjectStore(STORES.customExercises, { keyPath: "id" });
+        store.createIndex("workoutType", "workoutType", { unique: false });
+      }
+      if (!db.objectStoreNames.contains(STORES.workoutPlans)) {
+        const store = db.createObjectStore(STORES.workoutPlans, { keyPath: "id" });
+        store.createIndex("workoutType", "workoutType", { unique: false });
+        store.createIndex("updatedAt", "updatedAt", { unique: false });
+        store.createIndex("isArchived", "isArchived", { unique: false });
+      }
+      if (!db.objectStoreNames.contains(STORES.workoutSessions)) {
+        const store = db.createObjectStore(STORES.workoutSessions, { keyPath: "id" });
+        ["date", "workoutType", "status", "planId", "completedAt"].forEach((name) => store.createIndex(name, name, { unique: false }));
+      }
+      if (!db.objectStoreNames.contains(STORES.exerciseFavorites)) {
+        const store = db.createObjectStore(STORES.exerciseFavorites, { keyPath: "id" });
+        store.createIndex("workoutType", "workoutType", { unique: false });
       }
     });
 
@@ -419,3 +442,41 @@ export async function clearAllData() {
 
   await transactionDone(transaction);
 }
+
+async function getAll(storeName) { const store = await getStore(storeName); return requestToPromise(store.getAll()); }
+async function getById(storeName, id) { const store = await getStore(storeName); return requestToPromise(store.get(id)); }
+async function putRecord(storeName, record) { const store = await getStore(storeName, "readwrite"); await requestToPromise(store.put(record)); return record; }
+async function deleteRecord(storeName, id) { const store = await getStore(storeName, "readwrite"); return requestToPromise(store.delete(id)); }
+async function replaceRecords(storeName, records) { const db = await openDatabase(); const transaction = db.transaction(storeName, "readwrite"); const store = transaction.objectStore(storeName); store.clear(); records.forEach((item) => store.put(item)); await transactionDone(transaction); }
+
+export const getCustomExercises = () => getAll(STORES.customExercises);
+export const getCustomExerciseById = (id) => getById(STORES.customExercises, id);
+export async function saveCustomExercise(data) {
+  const now = new Date().toISOString(); const existing = data.id ? await getCustomExerciseById(data.id) : null;
+  return putRecord(STORES.customExercises, { ...data, id: data.id || createId("custom-exercise"), isCustom: true, createdAt: existing?.createdAt || data.createdAt || now, updatedAt: now });
+}
+export const deleteCustomExercise = (id) => deleteRecord(STORES.customExercises, id);
+export const replaceCustomExercises = (items) => replaceRecords(STORES.customExercises, items);
+
+export const getWorkoutPlans = () => getAll(STORES.workoutPlans);
+export const getWorkoutPlanById = (id) => getById(STORES.workoutPlans, id);
+export async function saveWorkoutPlan(data) {
+  const now = new Date().toISOString(); const existing = data.id ? await getWorkoutPlanById(data.id) : null;
+  return putRecord(STORES.workoutPlans, { ...data, id: data.id || createId("plan"), isArchived: Boolean(data.isArchived), createdAt: existing?.createdAt || data.createdAt || now, updatedAt: now });
+}
+export const deleteWorkoutPlan = (id) => deleteRecord(STORES.workoutPlans, id);
+export const replaceWorkoutPlans = (items) => replaceRecords(STORES.workoutPlans, items);
+
+export const getWorkoutSessions = () => getAll(STORES.workoutSessions);
+export const getWorkoutSessionById = (id) => getById(STORES.workoutSessions, id);
+export async function saveWorkoutSession(data) { return putRecord(STORES.workoutSessions, { ...data, updatedAt: new Date().toISOString() }); }
+export const deleteWorkoutSession = (id) => deleteRecord(STORES.workoutSessions, id);
+export const replaceWorkoutSessions = (items) => replaceRecords(STORES.workoutSessions, items);
+
+export const getExerciseFavorites = () => getAll(STORES.exerciseFavorites);
+export async function toggleExerciseFavorite(exerciseId, workoutType) {
+  const id = `${workoutType}:${exerciseId}`; const existing = await getById(STORES.exerciseFavorites, id);
+  if (existing) { await deleteRecord(STORES.exerciseFavorites, id); return false; }
+  await putRecord(STORES.exerciseFavorites, { id, exerciseId, workoutType, createdAt: new Date().toISOString() }); return true;
+}
+export const replaceExerciseFavorites = (items) => replaceRecords(STORES.exerciseFavorites, items);

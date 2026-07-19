@@ -1,7 +1,7 @@
 import { getActiveGoals, getBodyFatEntries, getCircumferenceEntries, getDailyEntries, getSettings } from "../database.js";
 import { calculateMovingAverage, calculateTrendSummary, filterEntriesByRange } from "../calculations.js";
 import { GOAL_TYPES, calculateExpectedValueToday } from "../goals.js";
-import { formatDate, formatNumber, sortByDateDesc } from "../utils.js";
+import { formatDate, formatNumber, sortByDateDesc, todayIsoDate } from "../utils.js";
 
 const RANGE_OPTIONS = [
   { value: "7d", label: "7 Tage" },
@@ -22,7 +22,11 @@ const COMBINED_SERIES = [
 
 function destroyCharts() {
   while (chartInstances.length) {
-    chartInstances.pop().destroy();
+    try {
+      chartInstances.pop().destroy();
+    } catch (error) {
+      console.warn("Ein altes Diagramm konnte nicht sauber entfernt werden.", error);
+    }
   }
 }
 
@@ -159,10 +163,14 @@ function goalMarkerDatasets(goal, today, color, textColor) {
 
 function createChart(canvas, config) {
   if (!window.Chart || !canvas) {
-    return;
+    return null;
   }
 
-  chartInstances.push(new window.Chart(canvas, config));
+  const existingChart = window.Chart.getChart?.(canvas);
+  existingChart?.destroy();
+  const chart = new window.Chart(canvas, config);
+  chartInstances.push(chart);
+  return chart;
 }
 
 function entriesForValue(entries, valueKey) {
@@ -298,7 +306,7 @@ function renderCharts(container, { dailyEntries, bodyFatEntries, circumferenceEn
   const danger = getCssColor("--danger");
   const textSecondary = getCssColor("--text-secondary");
   const violet = getCssColor("--primary-strong");
-  const today = new Date();
+  const today = todayIsoDate();
   const weightGoal = activeGoals.find((goal) => goal.type === GOAL_TYPES.WEIGHT);
   const bodyFatGoal = activeGoals.find((goal) => goal.type === GOAL_TYPES.BODY_FAT);
 
@@ -426,6 +434,22 @@ function renderCharts(container, { dailyEntries, bodyFatEntries, circumferenceEn
   });
 }
 
+function tryRenderCharts(container, chartData) {
+  try {
+    renderCharts(container, chartData);
+    return true;
+  } catch (error) {
+    console.error("Diagramme konnten nicht gerendert werden.", error);
+    container.querySelector("[data-chart-warning]").innerHTML = `
+      <section class="card empty-state">
+        <h2>Diagramme konnten nicht angezeigt werden</h2>
+        <p>Die Trend-Zusammenfassung bleibt verfügbar. Lade die App neu, um die Diagramme erneut aufzubauen.</p>
+      </section>
+    `;
+    return false;
+  }
+}
+
 async function loadTrends(container, range = "30d") {
   const content = container.querySelector("[data-trend-content]");
 
@@ -443,10 +467,11 @@ async function loadTrends(container, range = "30d") {
     const filteredCircumference = filterEntriesByRange(circumferenceEntries, range);
 
     content.innerHTML = renderTrendContent({ dailyEntries, bodyFatEntries, circumferenceEntries, settings, range, activeGoals });
-    renderCharts(container, { dailyEntries: filteredDaily, bodyFatEntries: filteredBodyFat, circumferenceEntries: filteredCircumference, settings, activeGoals });
+    const chartData = { dailyEntries: filteredDaily, bodyFatEntries: filteredBodyFat, circumferenceEntries: filteredCircumference, settings, activeGoals };
+    tryRenderCharts(container, chartData);
     container.querySelectorAll("[data-combined-toggle]").forEach((input) => {
       input.addEventListener("change", () => {
-        renderCharts(container, { dailyEntries: filteredDaily, bodyFatEntries: filteredBodyFat, circumferenceEntries: filteredCircumference, settings, activeGoals });
+        tryRenderCharts(container, chartData);
       });
     });
   } catch (error) {

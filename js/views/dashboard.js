@@ -1,4 +1,4 @@
-import { getActiveGoals, getBodyFatEntries, getCircumferenceEntries, getDailyEntries, getSettings } from "../database.js";
+import { getActiveGoals, getBodyFatEntries, getCircumferenceEntries, getDailyEntries, getSettings, getWorkoutPlans, getWorkoutSessions } from "../database.js";
 import {
   calculateAverageWeightLast7Days,
   calculateProgress,
@@ -7,6 +7,8 @@ import {
 } from "../calculations.js";
 import { GOAL_STATUS, GOAL_TYPES, analyzeGoal } from "../goals.js";
 import { formatDate, formatNumber, todayIsoDate } from "../utils.js";
+import { WORKOUT_STATUS, WORKOUT_TYPE_LABELS } from "../training/training-constants.js";
+import { calculateWeeklyWorkoutCount } from "../training/workout-calculations.js";
 
 const GOAL_STATUS_LABELS = {
   [GOAL_STATUS.AHEAD]: "Schneller als nötig",
@@ -108,7 +110,17 @@ function renderGoalSummaries(activeGoals, dailyEntries, bodyFatEntries) {
   `;
 }
 
-function renderDashboardContent({ dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals }) {
+function renderTrainingSummary(sessions, plans) {
+  const completed = sessions.filter((s) => s.status === WORKOUT_STATUS.COMPLETED).sort((a,b)=>(b.completedAt||b.updatedAt).localeCompare(a.completedAt||a.updatedAt));
+  const last = completed[0];
+  const counts = completed.filter((s) => { const d=new Date(`${s.date}T12:00:00`); const start=new Date(); start.setDate(start.getDate()-6); start.setHours(0,0,0,0); return d>=start; }).reduce((acc,s)=>({...acc,[s.workoutType]:(acc[s.workoutType]||0)+1}),{});
+  const week = Array.from({length:7},(_,index)=>{const date=new Date();date.setHours(12,0,0,0);date.setDate(date.getDate()-6+index);const iso=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;const daySessions=completed.filter((s)=>s.date===iso);return `<li class="${daySessions.length?"has-training":""}"><strong>${new Intl.DateTimeFormat("de-DE",{weekday:"short"}).format(date)}</strong><span>${daySessions.length?daySessions.map((s)=>WORKOUT_TYPE_LABELS[s.workoutType]).join(", "):"Kein Training"}</span></li>`}).join("");
+  const quickPlans=plans.filter((p)=>!p.isArchived).slice(0,3);
+  return `<section class="card dashboard-training-card"><div class="card-body"><div class="section-heading"><div><p class="metric-label">Bewegung</p><h2 class="section-title">Training</h2></div><a class="text-link" href="#/training">Alle öffnen →</a></div><div class="dashboard-training-grid"><div class="training-highlight"><p class="metric-label">Letztes Training</p><p><strong>${last?escapeHtmlSafe(last.planNameSnapshot):"Noch keines"}</strong>${last?`<br><span class="muted">${formatDate(last.date)} · ${WORKOUT_TYPE_LABELS[last.workoutType]} · ${Math.round((last.durationSeconds||0)/60)} min</span>`:""}</p></div><div class="training-count"><strong>${calculateWeeklyWorkoutCount(completed)}</strong><span>Einheiten<br>in 7 Tagen</span><small>${counts.strength||0} Kraft · ${counts.stretching||0} Stretch</small></div></div><h3 class="subsection-title">Wochenrhythmus</h3><ul class="week-overview">${week}</ul>${quickPlans.length?`<h3 class="subsection-title">Schnellstart</h3><div class="quick-plan-list">${quickPlans.map((p)=>`<a href="#/training"><strong>${escapeHtmlSafe(p.name)}</strong><span>${WORKOUT_TYPE_LABELS[p.workoutType]} →</span></a>`).join("")}</div>`:""}<a class="button" href="#/training">Training starten</a></div></section>`;
+}
+function escapeHtmlSafe(value) { const node=document.createElement("span"); node.textContent=value||""; return node.innerHTML; }
+
+function renderDashboardContent({ dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals, workoutSessions, workoutPlans }) {
   const today = todayIsoDate();
   const todayEntry = dailyEntries.find((entry) => entry.date === today);
   const latestWeight = getLatestEntry(dailyEntries, "weight");
@@ -124,59 +136,51 @@ function renderDashboardContent({ dailyEntries, bodyFatEntries, circumferenceEnt
   const hasProteinToday = proteinToday !== null && proteinToday !== undefined;
   const hasNutritionToday = hasCaloriesToday && hasProteinToday;
   const hasPartialNutritionToday = hasCaloriesToday || hasProteinToday;
+  const displayDate = new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "2-digit", month: "long" }).format(new Date(`${today}T12:00:00`));
+  const weightChangeClass = weightChange === null ? "neutral" : weightChange <= 0 ? "positive" : "negative";
 
   return `
-    <div class="metric-grid">
-      <article class="card metric">
-        <p class="metric-label">Aktuelles Gewicht</p>
-        <p class="metric-value">${formatNumber(latestWeight?.weight, { maximumFractionDigits: 1 })} kg</p>
-        <p class="muted">${latestWeight ? `Letzte Messung: ${formatDate(latestWeight.date)}` : "Noch keine Messung"}</p>
-      </article>
-      <article class="card metric">
-        <p class="metric-label">Veränderung</p>
-        <p class="metric-value">${formatSignedWeight(weightChange)}</p>
-        <p class="muted">Gegenüber der letzten Messung</p>
-      </article>
-      <article class="card metric">
-        <p class="metric-label">7-Tage-Schnitt</p>
-        <p class="metric-value">${formatNumber(averageWeight, { maximumFractionDigits: 1 })} kg</p>
-        <p class="muted">Nur vorhandene Gewichtswerte</p>
-      </article>
-      <article class="card metric">
-        <p class="metric-label">Körperfett</p>
-        <p class="metric-value">${formatNumber(latestBodyFat?.bodyFatPercentage, { maximumFractionDigits: 1 })} %</p>
-        <p class="muted">${latestBodyFat ? `Letzte Messung: ${formatDate(latestBodyFat.date)}` : "Noch keine KFA-Messung"}</p>
-      </article>
-      <article class="card metric">
-        <p class="metric-label">Schlafdauer</p>
-        <p class="metric-value">${formatNumber(latestSleep?.sleepHours, { maximumFractionDigits: 1 })} h</p>
-        <p class="muted">${latestSleep ? `Letzte Messung: ${formatDate(latestSleep.date)}` : "Noch keine Schlafdauer"}</p>
-      </article>
-      <article class="card metric">
-        <p class="metric-label">Armumfang</p>
-        <p class="metric-value">${formatNumber(latestArm?.arm, { maximumFractionDigits: 1 })} cm</p>
-        <p class="muted">${latestArm ? `Letzte Messung: ${formatDate(latestArm.date)}` : "Noch keine Umfangmessung"}</p>
-      </article>
-      <article class="card metric">
-        <p class="metric-label">Beinumfang</p>
-        <p class="metric-value">${formatNumber(latestLeg?.leg, { maximumFractionDigits: 1 })} cm</p>
-        <p class="muted">${latestLeg ? `Letzte Messung: ${formatDate(latestLeg.date)}` : "Noch keine Umfangmessung"}</p>
-      </article>
-    </div>
+    <section class="dashboard-intro">
+      <div><p class="eyebrow">${displayDate}</p><h2>Dein Status heute</h2></div>
+      <a class="button compact-button" href="#/daily">Werte eintragen</a>
+    </section>
 
-    <section class="card">
+    <section class="card dashboard-hero">
       <div class="card-body">
-        <h2 class="section-title">Heute</h2>
-        <div class="progress-stack">
+        <div class="hero-primary">
+          <p class="metric-label">Aktuelles Gewicht</p>
+          <p class="hero-value">${formatNumber(latestWeight?.weight, { maximumFractionDigits: 1 })}<span>kg</span></p>
+          <p class="trend-badge ${weightChangeClass}">${formatSignedWeight(weightChange)} <span>zur letzten Messung</span></p>
+          <p class="hero-date">${latestWeight ? `Stand ${formatDate(latestWeight.date)}` : "Noch keine Gewichtsmessung"}</p>
+        </div>
+        <div class="hero-facts">
+          <div><span>7-Tage-Schnitt</span><strong>${formatNumber(averageWeight, { maximumFractionDigits: 1 })} kg</strong></div>
+          <div><span>Körperfett</span><strong>${formatNumber(latestBodyFat?.bodyFatPercentage, { maximumFractionDigits: 1 })} %</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="dashboard-vitals" aria-label="Weitere Körperwerte">
+      <article><span>Schlaf</span><strong>${formatNumber(latestSleep?.sleepHours, { maximumFractionDigits: 1 })} h</strong><small>${latestSleep ? formatDate(latestSleep.date) : "Kein Wert"}</small></article>
+      <article><span>Arm</span><strong>${formatNumber(latestArm?.arm, { maximumFractionDigits: 1 })} cm</strong><small>${latestArm ? formatDate(latestArm.date) : "Kein Wert"}</small></article>
+      <article><span>Bein</span><strong>${formatNumber(latestLeg?.leg, { maximumFractionDigits: 1 })} cm</strong><small>${latestLeg ? formatDate(latestLeg.date) : "Kein Wert"}</small></article>
+    </section>
+
+    <section class="card nutrition-card">
+      <div class="card-body">
+        <div class="section-heading"><div><p class="metric-label">Tagesziele</p><h2 class="section-title">Ernährung</h2></div><span class="status-pill">Heute</span></div>
+        <div class="progress-stack nutrition-progress">
           ${renderProgress("Kalorien", caloriesToday, settings.calorieTarget, "kcal")}
           ${renderProgress("Protein", proteinToday, settings.proteinTarget, "g")}
         </div>
       </div>
     </section>
 
+    ${renderTrainingSummary(workoutSessions, workoutPlans)}
+
     ${renderGoalSummaries(activeGoals, dailyEntries, bodyFatEntries)}
 
-    <section class="card">
+    <section class="card quick-action-card">
       <div class="card-body">
         <h2 class="section-title">Schnellaktionen</h2>
         <div class="button-row">
@@ -221,15 +225,17 @@ function renderDashboardContent({ dailyEntries, bodyFatEntries, circumferenceEnt
 
 async function initializeDashboard(container) {
   try {
-    const [dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals] = await Promise.all([
+    const [dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals, workoutSessions, workoutPlans] = await Promise.all([
       getDailyEntries(),
       getBodyFatEntries(),
       getCircumferenceEntries(),
       getSettings(),
-      getActiveGoals()
+      getActiveGoals(),
+      getWorkoutSessions(),
+      getWorkoutPlans()
     ]);
 
-    container.innerHTML = renderDashboardContent({ dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals });
+    container.innerHTML = renderDashboardContent({ dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals, workoutSessions, workoutPlans });
   } catch (error) {
     console.error(error);
     container.innerHTML = `

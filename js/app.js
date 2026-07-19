@@ -28,14 +28,22 @@ async function registerServiceWorker() {
   }
 
   try {
-    const registration = await navigator.serviceWorker.register("./service-worker.js");
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    let reloading = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (hadController && !reloading) {
+        reloading = true;
+        window.location.reload();
+      }
+    });
+    const registration = await navigator.serviceWorker.register("./service-worker.js", { updateViaCache: "none" });
     const updateButton = document.querySelector("#app-update-button");
 
     updateButton?.addEventListener("click", async () => {
       showConnectionStatus("Update wird geprüft ...", "info");
       try {
         await registration.update();
-        window.setTimeout(() => window.location.reload(), 700);
+        showConnectionStatus("Update geladen. Die App aktualisiert sich nach der Aktivierung.", "success");
       } catch (error) {
         console.warn("Update-Prüfung fehlgeschlagen.", error);
         showConnectionStatus("Update konnte gerade nicht geprüft werden.", "warning");

@@ -1,4 +1,5 @@
-const CACHE_NAME = "fitness-tracker-v28";
+const CACHE_PREFIX = "fitness-tracker-";
+const CACHE_NAME = `${CACHE_PREFIX}v31`;
 const APP_ASSETS = [
   "./",
   "./index.html",
@@ -19,6 +20,14 @@ const APP_ASSETS = [
   "./js/seed-data.js",
   "./js/goals.js",
   "./js/export-import.js",
+  "./js/data/strength-exercises.js",
+  "./js/data/stretch-exercises.js",
+  "./js/training/training-constants.js",
+  "./js/training/exercise-library.js",
+  "./js/training/workout-calculations.js",
+  "./js/training/workout-validation.js",
+  "./js/training/workout-sessions.js",
+  "./js/training/stretch-timer.js",
   "./js/views/dashboard.js",
   "./js/views/daily-entry.js",
   "./js/views/body-fat.js",
@@ -26,6 +35,7 @@ const APP_ASSETS = [
   "./js/views/progress-photos.js",
   "./js/views/goals.js",
   "./js/views/settings.js",
+  "./js/views/training-dashboard.js",
   "./assets/icons/app-icon.svg",
   "./assets/icons/icon-192.png",
   "./assets/icons/icon-512.png",
@@ -48,7 +58,7 @@ self.addEventListener("activate", (event) => {
       .then((cacheNames) =>
         Promise.all(
           cacheNames
-            .filter((cacheName) => cacheName !== CACHE_NAME)
+            .filter((cacheName) => cacheName.startsWith(CACHE_PREFIX) && cacheName !== CACHE_NAME)
             .map((cacheName) => caches.delete(cacheName))
         )
       )
@@ -71,8 +81,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
-    caches.match(event.request)
-      .then((cached) => cached || fetch(event.request))
+    fetch(event.request)
       .then((response) => {
         if (response && (response.ok || response.type === "opaque")) {
           const responseClone = response.clone();

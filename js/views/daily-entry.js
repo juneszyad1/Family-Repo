@@ -6,7 +6,7 @@ import {
   saveCircumferenceEntry,
   saveDailyEntry
 } from "../database.js";
-import { hasErrors, validateCircumferenceForm, validateDailyEntryForm } from "../validation.js";
+import { hasErrors, sanitizeNumericInputValue, validateCircumferenceForm, validateDailyEntryForm } from "../validation.js";
 import { escapeHtml, formatDate, formatNumber, sortByDateDesc, toNumberOrNull, todayIsoDate } from "../utils.js";
 
 function getFormValues(form) {
@@ -212,6 +212,21 @@ function showStatus(container, message, type = "success") {
   status.innerHTML = message ? `<div class="alert ${type}" role="status"><p>${message}</p></div>` : "";
 }
 
+function sanitizeNumericInput(input) {
+  const cursorPosition = input.selectionStart ?? input.value.length;
+  const allowDecimal = input.dataset.numeric === "decimal";
+  const prefix = input.value.slice(0, cursorPosition);
+  const sanitizedValue = sanitizeNumericInputValue(input.value, allowDecimal);
+  const sanitizedPrefix = sanitizeNumericInputValue(prefix, allowDecimal);
+
+  if (sanitizedValue === input.value) {
+    return;
+  }
+
+  input.value = sanitizedValue;
+  input.setSelectionRange(sanitizedPrefix.length, sanitizedPrefix.length);
+}
+
 async function initializeDailyView(container) {
   const form = container.querySelector("[data-daily-form]");
   const circumferenceForm = container.querySelector("[data-circumference-form]");
@@ -222,6 +237,12 @@ async function initializeDailyView(container) {
 
   form.elements.date.value = todayIsoDate();
   circumferenceForm.elements.date.value = todayIsoDate();
+
+  container.addEventListener("input", (event) => {
+    if (event.target.matches("[data-numeric]")) {
+      sanitizeNumericInput(event.target);
+    }
+  });
 
   try {
     entries = await refreshHistory(container);
@@ -378,9 +399,12 @@ export function renderDailyEntry() {
   const container = document.createElement("section");
   container.className = "view-stack";
   container.innerHTML = `
-    <section class="card">
+    <section class="card entry-composer">
       <div class="card-body">
-        <h2 class="section-title" data-form-mode>Neuer Tagesdatensatz</h2>
+        <div class="entry-composer-heading">
+          <div><p class="metric-label">Daily check-in</p><h2 class="section-title" data-form-mode>Neuer Tagesdatensatz</h2></div>
+          <p>Halte deine wichtigsten Werte in weniger als einer Minute fest.</p>
+        </div>
         <div class="inline-action-panel">
           <p class="muted">KFA-Messungen erfasst du separat mit der 3-Falten-Methode.</p>
           <a class="button secondary" href="#/body-fat">KFA eintragen</a>
@@ -394,23 +418,23 @@ export function renderDailyEntry() {
           </label>
 
           <label class="field">
-            <span>Gewicht in kg</span>
-            <input type="text" name="weight" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" placeholder="92,4">
+            <span>Gewicht</span>
+            <span class="input-shell"><input type="text" name="weight" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-numeric="decimal" placeholder="92,4"><span class="input-unit">kg</span></span>
           </label>
 
           <label class="field">
-            <span>Kalorien in kcal</span>
-            <input type="number" name="calories" min="0" max="15000" step="1" inputmode="numeric" placeholder="2150">
+            <span>Kalorien</span>
+            <span class="input-shell"><input type="text" name="calories" inputmode="numeric" pattern="[0-9]+" data-numeric="integer" placeholder="2150"><span class="input-unit">kcal</span></span>
           </label>
 
           <label class="field">
-            <span>Protein in g</span>
-            <input type="number" name="protein" min="0" max="1000" step="1" inputmode="numeric" placeholder="154">
+            <span>Protein</span>
+            <span class="input-shell"><input type="text" name="protein" inputmode="numeric" pattern="[0-9]+" data-numeric="integer" placeholder="154"><span class="input-unit">g</span></span>
           </label>
 
           <label class="field">
-            <span>Schlafdauer in Stunden</span>
-            <input type="text" name="sleepHours" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" placeholder="7,5">
+            <span>Schlafdauer</span>
+            <span class="input-shell"><input type="text" name="sleepHours" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-numeric="decimal" placeholder="7,5"><span class="input-unit">Std.</span></span>
           </label>
 
           <label class="field field-full">
@@ -426,7 +450,7 @@ export function renderDailyEntry() {
       </div>
     </section>
 
-    <section class="card">
+    <section class="card entry-composer secondary-composer">
       <div class="card-body">
         <h2 class="section-title" data-circumference-form-mode>Neue Umfangmessung</h2>
         <p class="muted settings-note">Arm- und Beinumfang zählen nur als Progress-Tracking und werden nicht für die KFA-Berechnung verwendet.</p>
@@ -438,13 +462,13 @@ export function renderDailyEntry() {
           </label>
 
           <label class="field">
-            <span>Armumfang in cm</span>
-            <input type="text" name="arm" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" placeholder="34,5">
+            <span>Armumfang</span>
+            <span class="input-shell"><input type="text" name="arm" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-numeric="decimal" placeholder="34,5"><span class="input-unit">cm</span></span>
           </label>
 
           <label class="field">
-            <span>Beinumfang in cm</span>
-            <input type="text" name="leg" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" placeholder="58,0">
+            <span>Beinumfang</span>
+            <span class="input-shell"><input type="text" name="leg" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-numeric="decimal" placeholder="58,0"><span class="input-unit">cm</span></span>
           </label>
 
           <label class="field field-full">

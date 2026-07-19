@@ -1,0 +1,33 @@
+import { STRENGTH_EXERCISES } from "../js/data/strength-exercises.js";
+import { STRETCH_EXERCISES } from "../js/data/stretch-exercises.js";
+import { EXERCISE_CATEGORIES, EQUIPMENT_TYPES, STRETCH_CATEGORIES, STRETCH_TYPES } from "../js/training/training-constants.js";
+import { filterExercises } from "../js/training/exercise-library.js";
+import { calculateSetVolume, calculateStretchPlannedDuration, calculateWorkoutDuration, calculateWorkoutVolume, calculateCompletedSetCount, calculateTotalReps } from "../js/training/workout-calculations.js";
+import { validateCustomExercise, validateWorkoutPlan } from "../js/training/workout-validation.js";
+import { completeSession, createSessionFromPlan } from "../js/training/workout-sessions.js";
+
+const tests=[]; const test=(name,fn)=>tests.push({name,fn});
+const assert=(condition,message)=>{if(!condition)throw new Error(message)};
+const equal=(actual,expected,message)=>{if(actual!==expected)throw new Error(`${message}: erwartet ${expected}, erhalten ${actual}`)};
+
+test("mindestens 100 eindeutige Kraftübungen",()=>{assert(STRENGTH_EXERCISES.length>=100,"Zu wenige Kraftübungen");equal(new Set(STRENGTH_EXERCISES.map(x=>x.id)).size,STRENGTH_EXERCISES.length,"Doppelte IDs")});
+test("Kraftübungen besitzen vollständige gültige Kerndaten",()=>{const categories=new Set(Object.values(EXERCISE_CATEGORIES)),equipment=new Set(Object.values(EQUIPMENT_TYPES));STRENGTH_EXERCISES.forEach(x=>{assert(x.name&&categories.has(x.category),`Ungültige Übung ${x.id}`);assert(x.equipment.length&&x.equipment.every(e=>equipment.has(e)),`Ungültige Ausrüstung ${x.id}`);assert(x.instructions===null&&x.videoUrl===null&&x.imageUrl===null,"Zukunftsfelder fehlen")})});
+test("mindestens 40 eindeutige Stretch-Übungen",()=>{assert(STRETCH_EXERCISES.length>=40,"Zu wenige Stretch-Übungen");equal(new Set(STRETCH_EXERCISES.map(x=>x.id)).size,STRETCH_EXERCISES.length,"Doppelte Stretch-IDs")});
+test("Stretch-Übungen besitzen gültige Kategorien, Zielbereiche und Typen",()=>{const categories=new Set(Object.values(STRETCH_CATEGORIES)),types=new Set(Object.values(STRETCH_TYPES));STRETCH_EXERCISES.forEach(x=>{assert(x.name&&categories.has(x.category),`Ungültige Stretch-Übung ${x.id}`);assert(x.targetAreas.length&&types.has(x.stretchType),`Ungültige Stretch-Daten ${x.id}`)})});
+test("Suche ignoriert Großschreibung und Umlaute",()=>{assert(filterExercises(STRENGTH_EXERCISES,{query:"KLIMMZUGE"}).some(x=>x.id==="pull-up"),"Umlautsuche fehlgeschlagen")});
+test("Suchfilter nach Ausrüstung und Kategorie",()=>{const result=filterExercises(STRENGTH_EXERCISES,{category:"chest",equipment:"barbell"});assert(result.length>0&&result.every(x=>x.category==="chest"&&x.equipment.includes("barbell")),"Filter falsch")});
+test("Bewegungsmuster- und Favoritenfilter",()=>{const result=filterExercises(STRENGTH_EXERCISES,{movementPattern:"squat",favoriteOnly:true,favoriteIds:new Set(["barbell-back-squat"])});equal(result.length,1,"Kombinierter Filter falsch")});
+test("10 × 50 kg ergeben 500 kg",()=>equal(calculateSetVolume(10,50),500,"Satzvolumen falsch"));
+test("mehrere Sätze ergeben 1400 kg",()=>equal(calculateWorkoutVolume([{sets:[{actualReps:10,actualWeight:50,completed:true},{actualReps:8,actualWeight:60,completed:true},{actualReps:6,actualWeight:70,completed:true}]}]),1400,"Volumen falsch"));
+test("offene, fehlende und Null-Sätze zählen nicht zum Volumen",()=>equal(calculateWorkoutVolume([{sets:[{actualReps:10,actualWeight:50,completed:false},{actualReps:10,actualWeight:null,completed:true},{actualReps:0,actualWeight:100,completed:true}]}]),0,"Randfall falsch"));
+test("teilweise Einheit zählt nur abgeschlossene Sätze",()=>{const ex=[{sets:[{actualReps:8,actualWeight:50,completed:true},{actualReps:9,actualWeight:50,completed:false}]}];equal(calculateCompletedSetCount(ex),1,"Satzanzahl falsch");equal(calculateTotalReps(ex),8,"Wiederholungen falsch")});
+test("Training über Mitternacht berechnet Dauer",()=>equal(calculateWorkoutDuration("2026-07-16T23:50:00Z","2026-07-17T00:10:00Z"),1200,"Dauer falsch"));
+test("Stretch-Gesamtdauer",()=>equal(calculateStretchPlannedDuration([{sets:2,durationSeconds:30},{sets:3,durationSeconds:20}]),120,"Stretchdauer falsch"));
+test("Stretch-Gesamtdauer funktioniert auch in einer laufenden Einheit",()=>equal(calculateStretchPlannedDuration([{sets:[{completed:true},{completed:false}],durationSeconds:30}]),60,"Session-Stretchdauer falsch"));
+test("Kraftplan unterstützt unterschiedliche Satzwerte und Validierung",()=>{const p={name:"Push",workoutType:"strength",exercises:[{exerciseId:"barbell-bench-press",sets:[{targetReps:10,targetWeight:60},{targetReps:8,targetWeight:70},{targetReps:6,targetWeight:75}]}]};equal(validateWorkoutPlan(p,new Set(["barbell-bench-press"])).length,0,"Plan ungültig");equal(p.exercises[0].sets[1].targetWeight,70,"Individuelles Gewicht verloren")});
+test("Stretchplan wird validiert",()=>equal(validateWorkoutPlan({name:"Morgen",workoutType:"stretching",exercises:[{exerciseId:"doorway-chest-stretch",sets:2,durationSeconds:30,sideMode:"eachSide"}]},new Set(["doorway-chest-stretch"])).length,0,"Stretchplan ungültig"));
+test("Eigene Übungen prüfen Kategorie und Ausrüstung",()=>{equal(validateCustomExercise({name:"Eigen",workoutType:"strength",category:"chest",equipment:["dumbbell"]}).length,0,"Eigene Kraftübung ungültig");assert(validateCustomExercise({name:"Fehler",workoutType:"strength",category:"upperBack",equipment:[]}).length>0,"Ungültige Daten akzeptiert")});
+test("Krafteinheit erstellt unabhängige Snapshots und lässt sich abschließen",()=>{const plan={id:"p",name:"Push",workoutType:"strength",exercises:[{exerciseId:"barbell-bench-press",sets:[{targetReps:8,targetWeight:80}],notes:""}]};const session=createSessionFromPlan(plan,[],new Date("2026-07-16T10:00:00Z"));plan.name="Geändert";equal(session.planNameSnapshot,"Push","Snapshot verändert");session.exercises[0].sets[0].completed=true;const done=completeSession(session,"2026-07-16T11:00:00Z");equal(done.durationSeconds,3600,"Abschlussdauer falsch");equal(done.status,"completed","Status falsch")});
+test("Stretch-Einheit enthält unabhängige Durchgänge",()=>{const session=createSessionFromPlan({id:"s",name:"Stretch",workoutType:"stretching",exercises:[{exerciseId:"doorway-chest-stretch",sets:2,durationSeconds:30,sideMode:"eachSide"}]},[],new Date());equal(session.exercises[0].sets.length,2,"Durchgänge falsch");assert(session.exercises[0].sets[0].id!==session.exercises[0].sets[1].id,"IDs nicht eindeutig")});
+
+export async function runTrainingTests(){const results=[];for(const item of tests){try{await item.fn();results.push({name:item.name,passed:true})}catch(error){results.push({name:item.name,passed:false,error})}}return results;}
