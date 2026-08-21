@@ -2,7 +2,7 @@ import { STRENGTH_EXERCISES } from "../js/data/strength-exercises.js";
 import { STRETCH_EXERCISES } from "../js/data/stretch-exercises.js";
 import { EXERCISE_CATEGORIES, EQUIPMENT_TYPES, STRETCH_CATEGORIES, STRETCH_TYPES } from "../js/training/training-constants.js";
 import { filterExercises } from "../js/training/exercise-library.js";
-import { calculateSetVolume, calculateStretchPlannedDuration, calculateWorkoutDuration, calculateWorkoutVolume, calculateCompletedSetCount, calculateTotalReps } from "../js/training/workout-calculations.js";
+import { calculateSetVolume, calculateStretchPlannedDuration, calculateWorkoutDuration, calculateWorkoutVolume, calculateCompletedSetCount, calculateTotalReps, estimate1RM, detectWorkoutPRs, compareWorkoutWithPrevious } from "../js/training/workout-calculations.js";
 import { validateCustomExercise, validateWorkoutPlan } from "../js/training/workout-validation.js";
 import { completeSession, createSessionFromPlan } from "../js/training/workout-sessions.js";
 
@@ -29,5 +29,75 @@ test("Stretchplan wird validiert",()=>equal(validateWorkoutPlan({name:"Morgen",w
 test("Eigene Übungen prüfen Kategorie und Ausrüstung",()=>{equal(validateCustomExercise({name:"Eigen",workoutType:"strength",category:"chest",equipment:["dumbbell"]}).length,0,"Eigene Kraftübung ungültig");assert(validateCustomExercise({name:"Fehler",workoutType:"strength",category:"upperBack",equipment:[]}).length>0,"Ungültige Daten akzeptiert")});
 test("Krafteinheit erstellt unabhängige Snapshots und lässt sich abschließen",()=>{const plan={id:"p",name:"Push",workoutType:"strength",exercises:[{exerciseId:"barbell-bench-press",sets:[{targetReps:8,targetWeight:80}],notes:""}]};const session=createSessionFromPlan(plan,[],new Date("2026-07-16T10:00:00Z"));plan.name="Geändert";equal(session.planNameSnapshot,"Push","Snapshot verändert");session.exercises[0].sets[0].completed=true;const done=completeSession(session,"2026-07-16T11:00:00Z");equal(done.durationSeconds,3600,"Abschlussdauer falsch");equal(done.status,"completed","Status falsch")});
 test("Stretch-Einheit enthält unabhängige Durchgänge",()=>{const session=createSessionFromPlan({id:"s",name:"Stretch",workoutType:"stretching",exercises:[{exerciseId:"doorway-chest-stretch",sets:2,durationSeconds:30,sideMode:"eachSide"}]},[],new Date());equal(session.exercises[0].sets.length,2,"Durchgänge falsch");assert(session.exercises[0].sets[0].id!==session.exercises[0].sets[1].id,"IDs nicht eindeutig")});
+
+test("1RM-Berechnung nach Epley-Formel", () => {
+  equal(estimate1RM(100, 1), 100, "1 Wdh. muss exakt Gewicht entsprechen");
+  equal(estimate1RM(100, 10), 133.3, "10 Wdh. @ 100 kg = 133.3 kg 1RM");
+  equal(estimate1RM(80, 8), 101.3, "8 Wdh. @ 80 kg = 101.3 kg 1RM");
+  equal(estimate1RM(0, 10), 0, "0 kg muss 0 ergeben");
+});
+
+test("PR-Erkennung erkennt Maximalgewicht- und 1RM-Steigerungen", () => {
+  const session1 = {
+    id: "s1",
+    status: "completed",
+    workoutType: "strength",
+    date: "2026-08-01",
+    completedAt: "2026-08-01T11:00:00Z",
+    exercises: [
+      { exerciseId: "barbell-bench-press", exerciseNameSnapshot: "Bankdrücken", sets: [{ actualReps: 8, actualWeight: 80, completed: true }] }
+    ]
+  };
+  const session2 = {
+    id: "s2",
+    status: "completed",
+    workoutType: "strength",
+    date: "2026-08-08",
+    completedAt: "2026-08-08T11:00:00Z",
+    exercises: [
+      { exerciseId: "barbell-bench-press", exerciseNameSnapshot: "Bankdrücken", sets: [{ actualReps: 8, actualWeight: 85, completed: true }] }
+    ]
+  };
+
+  const prs1 = detectWorkoutPRs(session1, []);
+  equal(prs1.length, 1, "Erstmalige Übung muss als PR/Erst-Eintrag erkannt werden");
+  equal(prs1[0].type, "firstTime", "Typ muss firstTime sein");
+
+  const prs2 = detectWorkoutPRs(session2, [session1]);
+  equal(prs2.length, 1, "Gewichtssteigerung muss als MaxWeight-PR erkannt werden");
+  equal(prs2[0].type, "maxWeight", "Typ muss maxWeight sein");
+  equal(prs2[0].diff, 5, "Differenz muss +5 kg sein");
+});
+
+test("Vergleich mit vorherigem Training berechnet prozentuale Differenzen", () => {
+  const prevSession = {
+    id: "s1",
+    planId: "p1",
+    status: "completed",
+    workoutType: "strength",
+    date: "2026-08-01",
+    completedAt: "2026-08-01T11:00:00Z",
+    exercises: [
+      { exerciseId: "barbell-bench-press", exerciseNameSnapshot: "Bankdrücken", sets: [{ actualReps: 10, actualWeight: 50, completed: true }] }
+    ]
+  };
+  const currentSession = {
+    id: "s2",
+    planId: "p1",
+    status: "completed",
+    workoutType: "strength",
+    date: "2026-08-08",
+    completedAt: "2026-08-08T11:00:00Z",
+    exercises: [
+      { exerciseId: "barbell-bench-press", exerciseNameSnapshot: "Bankdrücken", sets: [{ actualReps: 10, actualWeight: 60, completed: true }] }
+    ]
+  };
+
+  const comparison = compareWorkoutWithPrevious(currentSession, [prevSession]);
+  assert(comparison.hasPrevious, "Vorheriges Training muss gefunden werden");
+  equal(comparison.totalComparison.volume.percent, 20, "Volumen-Steigerung muss +20% sein (500 kg -> 600 kg)");
+  equal(comparison.exerciseComparisons[0].volumeDiff.percent, 20, "Übungs-Volumensteigerung muss +20% sein");
+  equal(comparison.exerciseComparisons[0].weightDiff.percent, 20, "Übungs-Gewichtssteigerung muss +20% sein");
+});
 
 export async function runTrainingTests(){const results=[];for(const item of tests){try{await item.fn();results.push({name:item.name,passed:true})}catch(error){results.push({name:item.name,passed:false,error})}}return results;}

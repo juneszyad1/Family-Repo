@@ -216,13 +216,8 @@ export function renderSettings() {
             <span>Darstellung</span>
             <select name="theme">
               <option value="system">Systemeinstellung</option>
+              <option value="dark">Dark Mode (Standard)</option>
               <option value="light">Light Mode</option>
-              <option value="dark">Dark Mode</option>
-              <option value="pink">Pink Fancy</option>
-              <option value="champagne">Champagne Elegant</option>
-              <option value="midnight-violet">Midnight Violet</option>
-              <option value="walnut">Walnut Calm</option>
-              <option value="tokyo-night">Tokyo Night</option>
             </select>
           </label>
 

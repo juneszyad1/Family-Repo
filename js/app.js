@@ -4,7 +4,7 @@ import { getSettings } from "./database.js";
 let serviceWorkerRegistration = null;
 
 function applyTheme(theme) {
-  const supportedThemes = ["light", "dark", "pink", "champagne", "midnight-violet", "walnut", "tokyo-night"];
+  const supportedThemes = ["light", "dark"];
 
   if (supportedThemes.includes(theme)) {
     document.documentElement.dataset.theme = theme;

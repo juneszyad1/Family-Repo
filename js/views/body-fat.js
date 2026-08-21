@@ -52,24 +52,23 @@ function renderResult(entry) {
   }
 
   return `
-    <section class="card">
-      <div class="card-body result-panel">
-        <h2 class="section-title">Berechnetes Ergebnis</h2>
-        <div class="metric-grid compact">
-          <div>
-            <p class="metric-label">Hautfaltensumme</p>
-            <p class="metric-value">${formatNumber(entry.skinfoldSum, { maximumFractionDigits: 1 })} mm</p>
+    <section class="card result-card">
+      <div class="card-body">
+        <div class="result-hero">
+          <p class="metric-label">Berechneter Körperfettanteil</p>
+          <p class="hero-value">${formatNumber(entry.bodyFatPercentage, { maximumFractionDigits: 1 })}<span>%</span></p>
+        </div>
+        <div class="stat-strip">
+          <div class="stat-cell">
+            <p class="stat-label">Hautfalten</p>
+            <p class="stat-value">${formatNumber(entry.skinfoldSum, { maximumFractionDigits: 1 })} <span class="stat-unit">mm</span></p>
           </div>
-          <div>
-            <p class="metric-label">Körperdichte</p>
-            <p class="metric-value">${formatNumber(entry.bodyDensity, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}</p>
-          </div>
-          <div>
-            <p class="metric-label">Körperfettanteil</p>
-            <p class="metric-value">${formatNumber(entry.bodyFatPercentage, { maximumFractionDigits: 1 })} %</p>
+          <div class="stat-cell">
+            <p class="stat-label">Körperdichte</p>
+            <p class="stat-value">${formatNumber(entry.bodyDensity, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}</p>
           </div>
         </div>
-        <p class="muted">Zangenmessungen sind Schätzwerte. Miss möglichst immer unter vergleichbaren Bedingungen.</p>
+        <p class="muted result-note">Zangenmessungen sind Schätzwerte. Miss möglichst immer unter vergleichbaren Bedingungen.</p>
       </div>
     </section>
   `;

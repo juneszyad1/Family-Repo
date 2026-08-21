@@ -1,7 +1,7 @@
 import { getActiveGoals, getBodyFatEntries, getCircumferenceEntries, getDailyEntries, getSettings } from "../database.js";
 import { calculateMovingAverage, calculateTrendSummary, filterEntriesByRange } from "../calculations.js";
 import { GOAL_TYPES, calculateExpectedValueToday, getGoalPoints } from "../goals.js";
-import { formatDate, formatNumber, sortByDateDesc, todayIsoDate } from "../utils.js";
+import { formatDate, formatNumber, formatShortDate, sortByDateDesc, todayIsoDate } from "../utils.js";
 
 const RANGE_OPTIONS = [
   { value: "7d", label: "7 Tage" },
@@ -13,6 +13,7 @@ const RANGE_OPTIONS = [
 ];
 
 const chartInstances = [];
+let fullscreenChartInstance = null;
 const COMBINED_SERIES = [
   { key: "weight", label: "Gewicht", valueKey: "weight", unit: "kg", axis: "weight", defaultVisible: true },
   { key: "calories", label: "Kalorien", valueKey: "calories", unit: "kcal", axis: "calories", defaultVisible: false },
@@ -35,11 +36,22 @@ function destroyCharts() {
   }
 }
 
+function destroyFullscreenChart() {
+  if (fullscreenChartInstance) {
+    try {
+      fullscreenChartInstance.destroy();
+    } catch (error) {
+      console.warn("Vollbild-Diagramm konnte nicht entfernt werden.", error);
+    }
+    fullscreenChartInstance = null;
+  }
+}
+
 function getCssColor(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-function chartOptions(title) {
+function chartOptions(title, isFullscreen = false) {
   const textColor = getCssColor("--text-secondary");
   const borderColor = getCssColor("--border");
 
@@ -61,7 +73,20 @@ function chartOptions(title) {
     scales: {
       x: {
         type: "category",
-        ticks: { color: textColor, maxRotation: 0, autoSkip: true },
+        ticks: {
+          color: textColor,
+          maxRotation: 0,
+          autoSkip: true,
+          autoSkipPadding: 16,
+          maxTicksLimit: isFullscreen ? 14 : 6,
+          callback: function(value) {
+            const label = this.getLabelForValue(value);
+            if (typeof label === "string" && label.length === 10 && label[2] === "." && label[5] === ".") {
+              return label.slice(0, 6);
+            }
+            return label;
+          }
+        },
         grid: { color: borderColor }
       },
       y: {
@@ -72,8 +97,8 @@ function chartOptions(title) {
   };
 }
 
-function combinedChartOptions(range) {
-  const options = chartOptions(`Übersicht · ${getRangeLabel(range)}`);
+function combinedChartOptions(range, isFullscreen = false) {
+  const options = chartOptions(`Übersicht · ${getRangeLabel(range)}`, isFullscreen);
   const textColor = getCssColor("--text-secondary");
   const borderColor = getCssColor("--border");
 
@@ -191,29 +216,44 @@ function entriesForValue(entries, valueKey) {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+function formatSignedNumber(value, unit = "") {
+  if (value === null || value === undefined) return "--";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${formatNumber(value, { maximumFractionDigits: 1 })}${unit ? ` ${unit}` : ""}`;
+}
+
 function renderSummary(summary) {
-  const items = [
-    ["Ø Kalorien", `${formatNumber(summary.averageCalories, { maximumFractionDigits: 0 })} kcal`],
-    ["Ø Protein", `${formatNumber(summary.averageProtein, { maximumFractionDigits: 0 })} g`],
-    ["Ø Schlaf", `${formatNumber(summary.averageSleep, { maximumFractionDigits: 1 })} h`],
-    ["Gewicht", `${formatNumber(summary.weightChange, { maximumFractionDigits: 1 })} kg`],
-    ["Schlaf", `${formatNumber(summary.sleepChange, { maximumFractionDigits: 1 })} h`],
-    ["KFA", `${formatNumber(summary.bodyFatChange, { maximumFractionDigits: 1 })} %`],
-    ["Erfasste Tage", formatNumber(summary.trackedDays, { maximumFractionDigits: 0 })]
-  ];
+  const weightChangeStr = formatSignedNumber(summary.weightChange, "kg");
 
   return `
-    <section class="trend-summary" aria-label="Zusammenfassung des Zeitraums">
-      ${items
-        .map(
-          ([label, value]) => `
-            <article class="metric compact-metric">
-              <p class="metric-label">${label}</p>
-              <p class="metric-value">${value}</p>
-            </article>
-          `
-        )
-        .join("")}
+    <section class="card trend-overview-card" aria-label="Zusammenfassung des Zeitraums">
+      <div class="card-body">
+        <div class="trend-hero-header">
+          <div>
+            <p class="metric-label">Gewichtsverlauf im Zeitraum</p>
+            <p class="hero-value">${weightChangeStr}</p>
+          </div>
+          <span class="status-pill">${formatNumber(summary.trackedDays, { maximumFractionDigits: 0 })} Tage erfasst</span>
+        </div>
+        <div class="stat-strip">
+          <div class="stat-cell">
+            <p class="stat-label">Ø Kalorien</p>
+            <p class="stat-value">${formatNumber(summary.averageCalories, { maximumFractionDigits: 0 })} <span class="stat-unit">kcal</span></p>
+          </div>
+          <div class="stat-cell">
+            <p class="stat-label">Ø Protein</p>
+            <p class="stat-value">${formatNumber(summary.averageProtein, { maximumFractionDigits: 0 })} <span class="stat-unit">g</span></p>
+          </div>
+          <div class="stat-cell">
+            <p class="stat-label">Ø Schlaf</p>
+            <p class="stat-value">${formatNumber(summary.averageSleep, { maximumFractionDigits: 1 })} <span class="stat-unit">h</span></p>
+          </div>
+          <div class="stat-cell">
+            <p class="stat-label">KFA-Delta</p>
+            <p class="stat-value">${formatSignedNumber(summary.bodyFatChange)} <span class="stat-unit">%</span></p>
+          </div>
+        </div>
+      </div>
     </section>
   `;
 }
@@ -222,7 +262,12 @@ function renderCombinedChartShell(range, dailyEntries) {
   return `
     <section class="card">
       <div class="card-body">
-        <h2 class="section-title">Übersicht · ${getRangeLabel(range)}</h2>
+        <div class="chart-header">
+          <h2 class="section-title">Übersicht · ${getRangeLabel(range)}</h2>
+          <button type="button" class="chart-fullscreen-trigger" data-open-fullscreen aria-label="Diagramm im Vollbild anzeigen">
+            ⛶
+          </button>
+        </div>
         <fieldset class="choice-group compact-choice-group">
           <legend>Kurven</legend>
           ${COMBINED_SERIES.map((series) => `
@@ -240,6 +285,46 @@ function renderCombinedChartShell(range, dailyEntries) {
       </div>
     </section>
   `;
+}
+
+function renderFullscreenCombinedChart(container, chartData) {
+  destroyFullscreenChart();
+  const canvas = container.querySelector("#fullscreen-chart");
+  if (!window.Chart || !canvas || !chartData) return;
+
+  const { dailyEntries, range } = chartData;
+  const sortedDailyEntries = sortByDateDesc(dailyEntries).sort((a, b) => a.date.localeCompare(b.date));
+  const primary = getCssColor("--primary");
+  const success = getCssColor("--success");
+  const warningColor = getCssColor("--warning");
+  const violet = getCssColor("--primary-strong");
+
+  const combinedColors = {
+    weight: primary,
+    calories: warningColor,
+    protein: success,
+    sleep: violet
+  };
+
+  const combinedDatasets = COMBINED_SERIES
+    .filter((series) => selectedCombinedSeries.has(series.key))
+    .map((series) => lineDataset(
+      `${series.label} (${series.unit})`,
+      entriesForValue(sortedDailyEntries, series.valueKey).map((entry) => ({ x: formatDate(entry.date), y: entry[series.valueKey] })),
+      combinedColors[series.key]
+    ))
+    .map((dataset, index) => ({
+      ...dataset,
+      yAxisID: COMBINED_SERIES.filter((series) => selectedCombinedSeries.has(series.key))[index].axis
+    }));
+
+  fullscreenChartInstance = new window.Chart(canvas, {
+    type: "line",
+    data: {
+      datasets: combinedDatasets
+    },
+    options: combinedChartOptions(range, true)
+  });
 }
 
 function renderDataAlternative(entries) {
@@ -467,6 +552,53 @@ function tryRenderCharts(container, chartData) {
   }
 }
 
+let currentChartData = null;
+
+function updateCurveToggles(container) {
+  container.querySelectorAll("[data-combined-toggle]").forEach((input) => {
+    input.checked = selectedCombinedSeries.has(input.value);
+  });
+  container.querySelectorAll("[data-fullscreen-combined-toggle]").forEach((input) => {
+    input.checked = selectedCombinedSeries.has(input.value);
+  });
+}
+
+function openFullscreen(container) {
+  if (!currentChartData) return;
+  const overlay = container.querySelector("[data-fullscreen-overlay]");
+  if (!overlay) return;
+  overlay.hidden = false;
+  document.body.classList.add("has-fullscreen-chart");
+  overlay.querySelector("[data-fullscreen-range]").textContent = getRangeLabel(currentChartData.range);
+  updateCurveToggles(container);
+  renderFullscreenCombinedChart(container, currentChartData);
+}
+
+function closeFullscreen(container) {
+  const overlay = container.querySelector("[data-fullscreen-overlay]");
+  if (!overlay) return;
+  overlay.hidden = true;
+  overlay.classList.remove("is-landscape-forced");
+  document.body.classList.remove("has-fullscreen-chart");
+  const rotateBtn = overlay.querySelector("[data-toggle-landscape]");
+  if (rotateBtn) rotateBtn.textContent = "Querformat";
+  destroyFullscreenChart();
+}
+
+function toggleLandscape(container) {
+  const overlay = container.querySelector("[data-fullscreen-overlay]");
+  if (!overlay) return;
+  overlay.classList.toggle("is-landscape-forced");
+  const isForced = overlay.classList.contains("is-landscape-forced");
+  const rotateBtn = overlay.querySelector("[data-toggle-landscape]");
+  if (rotateBtn) rotateBtn.textContent = isForced ? "Hochformat" : "Querformat";
+  requestAnimationFrame(() => {
+    if (fullscreenChartInstance) {
+      fullscreenChartInstance.resize();
+    }
+  });
+}
+
 async function loadTrends(container, range = "30d") {
   const content = container.querySelector("[data-trend-content]");
 
@@ -484,15 +616,14 @@ async function loadTrends(container, range = "30d") {
     const filteredCircumference = filterEntriesByRange(circumferenceEntries, range);
 
     content.innerHTML = renderTrendContent({ dailyEntries, bodyFatEntries, circumferenceEntries, settings, range, activeGoals });
-    const chartData = { dailyEntries: filteredDaily, bodyFatEntries: filteredBodyFat, circumferenceEntries: filteredCircumference, settings, activeGoals, range };
-    tryRenderCharts(container, chartData);
-    container.querySelectorAll("[data-combined-toggle]").forEach((input) => {
-      input.addEventListener("change", () => {
-        if (input.checked) selectedCombinedSeries.add(input.value);
-        else selectedCombinedSeries.delete(input.value);
-        tryRenderCharts(container, chartData);
-      });
-    });
+    currentChartData = { dailyEntries: filteredDaily, bodyFatEntries: filteredBodyFat, circumferenceEntries: filteredCircumference, settings, activeGoals, range };
+    tryRenderCharts(container, currentChartData);
+
+    const overlay = container.querySelector("[data-fullscreen-overlay]");
+    if (overlay && !overlay.hidden) {
+      overlay.querySelector("[data-fullscreen-range]").textContent = getRangeLabel(range);
+      renderFullscreenCombinedChart(container, currentChartData);
+    }
   } catch (error) {
     console.error(error);
     content.innerHTML = `
@@ -509,6 +640,55 @@ function initializeTrends(container) {
 
   select.addEventListener("change", () => {
     loadTrends(container, select.value);
+  });
+
+  container.addEventListener("change", (event) => {
+    const t = event.target;
+    if (t.matches("[data-combined-toggle], [data-fullscreen-combined-toggle]")) {
+      if (t.checked) selectedCombinedSeries.add(t.value);
+      else selectedCombinedSeries.delete(t.value);
+      updateCurveToggles(container);
+      if (currentChartData) {
+        tryRenderCharts(container, currentChartData);
+        const overlay = container.querySelector("[data-fullscreen-overlay]");
+        if (overlay && !overlay.hidden) {
+          renderFullscreenCombinedChart(container, currentChartData);
+        }
+      }
+    }
+  });
+
+  container.addEventListener("click", (event) => {
+    if (event.target.closest("[data-open-fullscreen]")) {
+      openFullscreen(container);
+      return;
+    }
+    if (event.target.closest("[data-close-fullscreen]")) {
+      closeFullscreen(container);
+      return;
+    }
+    if (event.target.closest("[data-toggle-landscape]")) {
+      toggleLandscape(container);
+      return;
+    }
+  });
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeFullscreen(container);
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    chartInstances.forEach((chart) => chart?.resize?.());
+    fullscreenChartInstance?.resize?.();
+  });
+
+  window.addEventListener("orientationchange", () => {
+    setTimeout(() => {
+      chartInstances.forEach((chart) => chart?.resize?.());
+      fullscreenChartInstance?.resize?.();
+    }, 150);
   });
 
   loadTrends(container, select.value);
@@ -538,6 +718,38 @@ export function renderTrends() {
         <a class="button secondary" href="#/progress-photos">Fortschrittsbilder</a>
       </div>
     </section>
+    <div class="chart-fullscreen-overlay" data-fullscreen-overlay hidden>
+      <div class="fullscreen-chart-modal" role="dialog" aria-modal="true" aria-label="Diagramm Vollbildansicht">
+        <div class="fullscreen-chart-header">
+          <div>
+            <span class="status-pill" data-fullscreen-range>30 Tage</span>
+            <h3 class="fullscreen-title">Trend-Übersicht</h3>
+          </div>
+          <div class="fullscreen-header-actions">
+            <button type="button" class="button secondary compact-button" data-toggle-landscape aria-label="Querformat umschalten">
+              Querformat
+            </button>
+            <button type="button" class="icon-button" data-close-fullscreen aria-label="Vollbild schließen">
+              ×
+            </button>
+          </div>
+        </div>
+        <div class="fullscreen-controls">
+          <fieldset class="choice-group compact-choice-group">
+            <legend>Kurven</legend>
+            ${COMBINED_SERIES.map((series) => `
+              <label>
+                <input type="checkbox" value="${series.key}" data-fullscreen-combined-toggle ${selectedCombinedSeries.has(series.key) ? "checked" : ""}>
+                ${series.label}
+              </label>
+            `).join("")}
+          </fieldset>
+        </div>
+        <div class="fullscreen-chart-frame">
+          <canvas id="fullscreen-chart" aria-label="Vollbild-Diagramm" role="img"></canvas>
+        </div>
+      </div>
+    </div>
   `;
   fragment.append(container);
   initializeTrends(container);

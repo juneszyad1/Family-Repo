@@ -6,12 +6,12 @@ import {
 import { createId, escapeHtml, formatDate, formatNumber, todayIsoDate } from "../utils.js";
 import { filterExercises, getBuiltInExercises } from "../training/exercise-library.js";
 import { completeSession, createSessionFromPlan } from "../training/workout-sessions.js";
-import { calculateWorkoutStatistics, summarizeWorkout } from "../training/workout-calculations.js";
+import { calculateWorkoutStatistics, compareWorkoutWithPrevious, detectWorkoutPRs, summarizeWorkout } from "../training/workout-calculations.js";
 import { validateCustomExercise, validateWorkoutPlan } from "../training/workout-validation.js";
 import { CATEGORY_LABELS, EQUIPMENT_LABELS, MOVEMENT_PATTERN_LABELS, SIDE_MODE_LABELS, STRETCH_CATEGORY_LABELS, WORKOUT_STATUS, WORKOUT_TYPE_LABELS, WORKOUT_TYPES } from "../training/training-constants.js";
 import { StretchTimer } from "../training/stretch-timer.js";
 
-const state = { tab: "plans", plans: [], sessions: [], custom: [], favorites: [], editingPlan: null, activeSession: null, historyType: "all", picker: { query: "", category: "", equipment: "", movementPattern: "", favorites: false, custom: false, recent: false }, timers: new Map() };
+const state = { tab: "plans", plans: [], sessions: [], custom: [], favorites: [], editingPlan: null, activeSession: null, workoutSummary: null, historyType: "all", picker: { query: "", category: "", equipment: "", movementPattern: "", favorites: false, custom: false, recent: false }, timers: new Map() };
 export const TRAINING_TABS = [["plans","Pläne"],["history","Historie"],["library","Übungen"],["stats","Statistik"]];
 const typeOptions = Object.entries(WORKOUT_TYPE_LABELS).map(([v,l]) => `<option value="${v}">${l}</option>`).join("");
 const duration = (seconds) => seconds == null ? "--" : `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,"0")} min`;
@@ -95,9 +95,144 @@ function planEditor(plan) {
     <div class="sticky-action"><button class="button" type="submit">Plan speichern</button></div></form>`;
 }
 
+function formatDiffBadge(diffObj) {
+  if (!diffObj || diffObj.percent === null || diffObj.percent === undefined) {
+    return `<span class="diff-tag neutral">Neu</span>`;
+  }
+  const val = diffObj.percent;
+  if (val > 0) {
+    return `<span class="diff-tag positive">+${val}%</span>`;
+  }
+  if (val < 0) {
+    return `<span class="diff-tag negative">${val}%</span>`;
+  }
+  return `<span class="diff-tag neutral">±0%</span>`;
+}
+
+function workoutCompletionModal(summary) {
+  if (!summary) return "";
+  const { session, prs, comparison } = summary;
+  const isStrength = session.workoutType === WORKOUT_TYPES.STRENGTH;
+  const sSummary = summarizeWorkout(session);
+
+  const prsHtml = prs && prs.length > 0 ? `
+    <div class="pr-section">
+      <h3 class="section-title">Neue Bestleistungen</h3>
+      <div class="pr-badge-list">
+        ${prs.map((pr) => `
+          <div class="pr-card">
+            <div class="pr-card-info">
+              <span class="pr-card-badge">★ ${escapeHtml(pr.label)}</span>
+              <strong>${escapeHtml(pr.exerciseName)}</strong>
+            </div>
+            <div class="pr-card-val">
+              ${escapeHtml(pr.formatted)}
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  ` : "";
+
+  const strengthTableHtml = isStrength && comparison?.exerciseComparisons?.length ? `
+    <div class="view-stack">
+      <h3 class="section-title">Übersicht & Vergleich zum letzten Training</h3>
+      <div class="comparison-table-wrapper">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>Übung</th>
+              <th>Sätze × Wdh.</th>
+              <th>Top-Gewicht</th>
+              <th>Volumen</th>
+              <th>Vergleich</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${comparison.exerciseComparisons.map((ec) => {
+              const setsStr = ec.current.sets.length > 0
+                ? `${ec.current.sets.length}S · ${ec.current.totalReps} Wdh.`
+                : "--";
+              const weightStr = ec.current.maxWeight > 0 ? `${formatNumber(ec.current.maxWeight, { maximumFractionDigits: 1 })} kg` : "Bodyweight";
+              const volStr = `${formatNumber(ec.current.totalVolume, { maximumFractionDigits: 0 })} kg`;
+              const badge = formatDiffBadge(ec.volumeDiff);
+
+              return `
+                <tr>
+                  <td>${escapeHtml(ec.exerciseName)}</td>
+                  <td>${setsStr}</td>
+                  <td>${weightStr}</td>
+                  <td>${volStr}</td>
+                  <td>${badge}</td>
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  ` : "";
+
+  const comparisonStripHtml = isStrength ? `
+    <div class="comparison-summary-strip">
+      <div class="metric">
+        <span class="metric-label">Dauer</span>
+        <p class="metric-value" style="font-size: 1.3rem;">${duration(session.durationSeconds)}</p>
+      </div>
+      <div class="metric">
+        <span class="metric-label">Gesamtvolumen</span>
+        <p class="metric-value" style="font-size: 1.3rem;">${formatNumber(sSummary.totalVolume, { maximumFractionDigits: 0 })} kg</p>
+        ${comparison?.totalComparison?.volume?.percent !== null && comparison?.totalComparison?.volume?.percent !== undefined ? `
+          <small class="muted">${comparison.totalComparison.volume.percent >= 0 ? `+${comparison.totalComparison.volume.percent}%` : `${comparison.totalComparison.volume.percent}%`} vs. Vorher</small>
+        ` : ""}
+      </div>
+      <div class="metric">
+        <span class="metric-label">Wiederholungen</span>
+        <p class="metric-value" style="font-size: 1.3rem;">${sSummary.totalReps}</p>
+        ${comparison?.totalComparison?.reps?.percent !== null && comparison?.totalComparison?.reps?.percent !== undefined ? `
+          <small class="muted">${comparison.totalComparison.reps.percent >= 0 ? `+${comparison.totalComparison.reps.percent}%` : `${comparison.totalComparison.reps.percent}%`} vs. Vorher</small>
+        ` : ""}
+      </div>
+      <div class="metric">
+        <span class="metric-label">Kraftsätze</span>
+        <p class="metric-value" style="font-size: 1.3rem;">${sSummary.completedSets}</p>
+      </div>
+    </div>
+  ` : `
+    <div class="comparison-summary-strip">
+      <div class="metric">
+        <span class="metric-label">Dauer</span>
+        <p class="metric-value" style="font-size: 1.3rem;">${duration(session.durationSeconds)}</p>
+      </div>
+      <div class="metric">
+        <span class="metric-label">Durchgänge</span>
+        <p class="metric-value" style="font-size: 1.3rem;">${sSummary.completedSets || 0}</p>
+      </div>
+    </div>
+  `;
+
+  return `
+    <div class="completion-celebration" data-celebration-overlay>
+      <div class="celebration-modal" role="dialog" aria-modal="true" aria-labelledby="celebration-title">
+        <div class="celebration-banner">
+          <div class="celebration-icon">★</div>
+          <h2 id="celebration-title" class="celebration-title">Training abgeschlossen!</h2>
+          <p class="celebration-subtitle">${escapeHtml(session.planNameSnapshot)} · ${formatDate(session.date)}</p>
+        </div>
+        ${comparisonStripHtml}
+        ${prsHtml}
+        ${strengthTableHtml}
+        <div class="form-actions field-full">
+          <button type="button" class="button" data-dismiss-summary>Fertig & Zur Historie</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function historyView() {
   const items = state.sessions.filter((s)=>s.status!==WORKOUT_STATUS.IN_PROGRESS && (state.historyType==="all"||s.workoutType===state.historyType)).sort((a,b)=>(b.completedAt||b.updatedAt).localeCompare(a.completedAt||a.updatedAt));
-  return `<section class="view-stack"><section class="card"><div class="card-body"><label class="field"><span>Historie filtern</span><select data-history-filter><option value="all">Alle</option>${typeOptions}</select></label></div></section>${items.length?`<div class="entry-list">${items.map((s)=>{const sum=summarizeWorkout(s);return `<article class="card"><div class="card-body plan-row"><div><span class="status-pill">${WORKOUT_TYPE_LABELS[s.workoutType]}</span><h3>${escapeHtml(s.planNameSnapshot)}</h3><p class="muted">${formatDate(s.date)} · ${duration(s.durationSeconds)} · ${sum.exerciseCount} Übungen · ${s.status==="completed"?"Abgeschlossen":"Abgebrochen"}</p></div><div class="entry-actions"><button class="button secondary" data-open-session="${s.id}">Öffnen</button><button class="button danger" data-delete-session="${s.id}">Löschen</button></div></div></article>`}).join("")}</div>`:`<section class="card empty-state"><h2>Noch keine Einheiten</h2><p>Abgeschlossene Trainings erscheinen hier.</p></section>`}</section>`;
+  return `<section class="view-stack"><section class="card"><div class="card-body"><label class="field"><span>Historie filtern</span><select data-history-filter><option value="all">Alle</option>${typeOptions}</select></label></div></section>${items.length?`<div class="entry-list">${items.map((s)=>{const sum=summarizeWorkout(s);return `<article class="card"><div class="card-body plan-row"><div><span class="status-pill">${WORKOUT_TYPE_LABELS[s.workoutType]}</span><h3>${escapeHtml(s.planNameSnapshot)}</h3><p class="muted">${formatDate(s.date)} · ${duration(s.durationSeconds)} · ${sum.exerciseCount} Übungen · ${s.status==="completed"?"Abgeschlossen":"Abgebrochen"}</p></div><div class="entry-actions"><button class="button secondary" data-show-summary="${s.id}">Zusammenfassung</button><button class="button secondary" data-open-session="${s.id}">Öffnen</button><button class="button danger" data-delete-session="${s.id}">Löschen</button></div></div></article>`}).join("")}</div>`:`<section class="card empty-state"><h2>Noch keine Einheiten</h2><p>Abgeschlossene Trainings erscheinen hier.</p></section>`}</section>`;
 }
 function libraryView() {
   const strengthCount=getBuiltInExercises("strength").length, stretchCount=getBuiltInExercises("stretching").length;
@@ -112,7 +247,7 @@ function sessionView(session) {
   const readonly = session.status !== WORKOUT_STATUS.IN_PROGRESS; const summary = summarizeWorkout(session);
   return `<form class="view-stack" data-session-form><section class="card"><div class="card-body"><div class="training-heading"><div><span class="status-pill">${WORKOUT_TYPE_LABELS[session.workoutType]}</span><h2>${escapeHtml(session.planNameSnapshot)}</h2><p class="muted">${readonly?"Abgeschlossen":"Laufendes Training"}</p></div><button type="button" class="button secondary" data-close-session>Schließen</button></div>${readonly?`<div class="summary-grid"><div><strong>${summary.exerciseCount}</strong><span> Übungen</span></div>${session.workoutType==="strength"?`<div><strong>${summary.completedSets}</strong><span> Sätze</span></div><div><strong>${summary.totalReps}</strong><span> Wdh.</span></div><div><strong>${formatNumber(summary.totalVolume,{maximumFractionDigits:1})}</strong><span> kg Volumen</span></div>`:`<div><strong>${summary.completedSets||0}</strong><span> Durchgänge</span></div>`}</div>`:""}<div class="form-grid"><label class="field"><span>Datum</span><input name="date" type="date" value="${session.date}" ${readonly?"":"readonly"}></label><label class="field"><span>Trainingsnotiz</span><textarea name="notes">${escapeHtml(session.notes||"")}</textarea></label></div></div></section>
     ${session.workoutType===WORKOUT_TYPES.OTHER?`<section class="card"><div class="card-body"><label class="field"><span>Dauer (Minuten)</span><input data-other-duration type="number" min="0" max="1440" value="${Math.round((session.durationSeconds||0)/60)}"></label></div></section>`:session.exercises.map((exercise,index)=>sessionExercise(exercise,index,session.workoutType,readonly)).join("")}
-    <div class="sticky-action">${readonly?`<button class="button" data-save-completed>Änderungen speichern</button>`:`<button class="button" data-complete-session>Training abschließen</button><button class="button danger" data-cancel-session>Training abbrechen</button>`}</div></form>`;
+    <div class="sticky-action">${readonly?`<button class="button" data-show-summary="${session.id}">Zusammenfassung anzeigen</button><button class="button secondary" data-save-completed>Änderungen speichern</button>`:`<button class="button" data-complete-session>Training abschließen</button><button class="button danger" data-cancel-session>Training abbrechen</button>`}</div></form>`;
 }
 function sessionExercise(exercise,index,type,readonly) {
   const firstOpenExercise = state.activeSession?.exercises.find((item) => item.sets.some((set) => !set.completed));
@@ -129,7 +264,7 @@ function renderContent(container) {
   document.body.classList.toggle("workout-focus", Boolean(isSession && state.activeSession.status === WORKOUT_STATUS.IN_PROGRESS));
   const activeTab = TRAINING_TABS.some(([id]) => id === state.tab) ? state.tab : "plans";
   const tabPanels = TRAINING_TABS.map(([id]) => `<div role="tabpanel" id="training-panel-${id}" aria-labelledby="training-tab-${id}" tabindex="0" ${id===activeTab?"":"hidden"}>${id===activeTab?`${resumePanel()}${content}`:""}</div>`).join("");
-  container.innerHTML = `<div data-training-status aria-live="polite"></div>${isSession?"":navigation()}${isSession?content:tabPanels}`;
+  container.innerHTML = `<div data-training-status aria-live="polite"></div>${isSession?"":navigation()}${isSession?content:tabPanels}${workoutCompletionModal(state.workoutSummary)}`;
 }
 function mutatePlanExercise(target, callback) { const el=target.closest("[data-plan-exercise]"); const item=state.editingPlan.exercises.find((x)=>x.id===el?.dataset.planExercise); if(item) callback(item,el); }
 async function persistActive(container) { if (!state.activeSession) return; await saveWorkoutSession(state.activeSession); state.sessions=await getWorkoutSessions(); }
@@ -140,6 +275,8 @@ function bindEvents(container) {
   container.addEventListener("click", async (event) => {
     const button=event.target.closest("button"); if(!button) return;
     try {
+      if(button.hasAttribute("data-dismiss-summary")){state.workoutSummary=null;state.activeSession=null;state.tab="history";renderContent(container);return;}
+      if(button.dataset.showSummary){const targetSession=state.sessions.find((s)=>s.id===button.dataset.showSummary);if(targetSession){const prs=detectWorkoutPRs(targetSession,state.sessions);const comparison=compareWorkoutWithPrevious(targetSession,state.sessions);state.workoutSummary={session:targetSession,prs,comparison};renderContent(container);}return;}
       if(button.dataset.tab){selectTrainingTab(container,button.dataset.tab);return;}
       if(button.hasAttribute("data-new-plan")){state.editingPlan=blankPlan();renderContent(container);return;}
       if(button.hasAttribute("data-cancel-plan")){state.editingPlan=null;renderContent(container);return;}
@@ -164,7 +301,7 @@ function bindEvents(container) {
       if(button.hasAttribute("data-add-session-set")){const ex=state.activeSession.exercises.find((x)=>x.id===button.closest("[data-session-exercise]").dataset.sessionExercise);const last=ex.sets.at(-1)||{};ex.sets.push({id:createId("session-set"),plannedReps:last.plannedReps??0,plannedWeight:last.plannedWeight??0,actualReps:last.actualReps??0,actualWeight:last.actualWeight??0,completed:false});await persistActive(container);renderContent(container);return;}
       if(button.hasAttribute("data-remove-session-set")){const ex=state.activeSession.exercises.find((x)=>x.id===button.closest("[data-session-exercise]").dataset.sessionExercise);if(ex.sets.length>1)ex.sets=ex.sets.filter((s)=>s.id!==button.closest("[data-session-set]").dataset.sessionSet);await persistActive(container);renderContent(container);return;}
       if(button.hasAttribute("data-next-exercise")){button.closest("[data-session-exercise]").nextElementSibling?.scrollIntoView({behavior:"smooth",block:"start"});await persistActive(container);return;}
-      if(button.hasAttribute("data-complete-session")){const form=button.closest("form"),fd=new FormData(form);state.activeSession.notes=fd.get("notes")||"";const invalid=state.activeSession.workoutType===WORKOUT_TYPES.STRENGTH&&state.activeSession.exercises.some((x)=>x.sets.some((s)=>s.actualReps<0||s.actualReps>1000||s.actualWeight<0||s.actualWeight>1000));if(invalid)throw new Error("Wiederholungen und Gewicht müssen zwischen 0 und 1000 liegen.");state.activeSession=completeSession(state.activeSession);const other=form.querySelector("[data-other-duration]");if(other)state.activeSession.durationSeconds=Number(other.value)*60;await persistActive(container);state.tab="history";renderContent(container);return;}
+      if(button.hasAttribute("data-complete-session")){const form=button.closest("form"),fd=new FormData(form);state.activeSession.notes=fd.get("notes")||"";const invalid=state.activeSession.workoutType===WORKOUT_TYPES.STRENGTH&&state.activeSession.exercises.some((x)=>x.sets.some((s)=>s.actualReps<0||s.actualReps>1000||s.actualWeight<0||s.actualWeight>1000));if(invalid)throw new Error("Wiederholungen und Gewicht müssen zwischen 0 und 1000 liegen.");const other=form.querySelector("[data-other-duration]");const completed=completeSession(state.activeSession);if(other)completed.durationSeconds=Number(other.value)*60;const prs=detectWorkoutPRs(completed,state.sessions);const comparison=compareWorkoutWithPrevious(completed,state.sessions);state.activeSession=completed;await persistActive(container);state.workoutSummary={session:completed,prs,comparison};renderContent(container);return;}
       if(button.hasAttribute("data-cancel-session")){if(confirm("Training abbrechen? Die Einheit bleibt als abgebrochen in der Historie.")){state.activeSession={...state.activeSession,status:WORKOUT_STATUS.CANCELLED,completedAt:new Date().toISOString()};await persistActive(container);state.tab="history";renderContent(container);}return;}
       if(button.hasAttribute("data-save-completed")){await persistActive(container);statusMessage(container,"Änderungen gespeichert.");return;}
       if(button.matches("[data-timer-start],[data-timer-pause],[data-timer-reset]")){const exEl=button.closest("[data-session-exercise]"),ex=state.activeSession.exercises.find((x)=>x.id===exEl.dataset.sessionExercise);let timer=state.timers.get(ex.id);if(!timer){timer=new StretchTimer(ex.durationSeconds,({remainingSeconds,status,endsAt})=>{ex.timerState={remainingSeconds,status,endsAt};exEl.querySelector("[data-timer-time]").textContent=remainingSeconds;exEl.querySelector("[data-timer-status]").textContent={ready:"Bereit",running:"Läuft",paused:"Pausiert",finished:"Zeit abgelaufen"}[status];});timer.remainingSeconds=ex.timerState?.endsAt?Math.max(0,Math.ceil((ex.timerState.endsAt-Date.now())/1000)):ex.timerState?.remainingSeconds??ex.durationSeconds;state.timers.set(ex.id,timer);}if(button.hasAttribute("data-timer-start")){timer.start();await persistActive(container);}if(button.hasAttribute("data-timer-pause")){timer.pause();await persistActive(container);}if(button.hasAttribute("data-timer-reset")){timer.reset();await persistActive(container);}return;}
