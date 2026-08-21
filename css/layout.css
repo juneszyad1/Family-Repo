@@ -41,13 +41,12 @@ body {
 
 .app-header h1 {
   margin: 3px 0 0;
-  font-family: "Arial Narrow", "Aptos Narrow", ui-sans-serif, system-ui, sans-serif;
-  font-size: clamp(1.4rem, 4vw, 1.8rem);
-  font-stretch: condensed;
-  font-weight: 800;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-size: clamp(1.35rem, 3vw, 1.65rem);
+  font-weight: 850;
   text-transform: uppercase;
-  line-height: 1.05;
-  letter-spacing: -0.04em;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
 }
 
 .eyebrow {

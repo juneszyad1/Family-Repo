@@ -11,12 +11,11 @@
 
 .section-title {
   margin: 0 0 12px;
-  font-family: "Arial Narrow", "Aptos Narrow", ui-sans-serif, system-ui, sans-serif;
-  font-size: 1.25rem;
-  font-stretch: condensed;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-size: 1.2rem;
   font-weight: 800;
-  line-height: 1.15;
-  letter-spacing: -0.025em;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
 .muted {
@@ -61,10 +60,10 @@
 
 .metric-value {
   margin: 6px 0 0;
-  font-family: "Arial Narrow", "Aptos Narrow", ui-sans-serif, system-ui, sans-serif;
-  font-size: 1.85rem;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-size: 1.75rem;
   font-weight: 850;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
@@ -572,8 +571,11 @@
 }
 
 .milestone-step-value strong {
-  font-family: "Arial Narrow", "Aptos Narrow", ui-sans-serif, system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
   font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .milestone-pill {
@@ -806,17 +808,18 @@
 
 .hero-value {
   margin: 8px 0 12px;
-  font-size: clamp(3.25rem, 13vw, 5.6rem);
-  font-family: "Arial Narrow", "Aptos Narrow", ui-sans-serif, system-ui, sans-serif;
-  font-weight: 800;
-  line-height: 0.9;
-  letter-spacing: -0.075em;
+  font-size: clamp(2.8rem, 8vw, 4.2rem);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-weight: 850;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
 }
 
 .hero-value span {
   margin-left: 8px;
   color: var(--text-secondary);
-  font-size: 0.24em;
+  font-size: 0.35em;
   font-weight: 700;
   letter-spacing: 0;
 }
@@ -894,10 +897,10 @@
 }
 
 .hero-facts strong {
-  font-family: "Arial Narrow", "Aptos Narrow", ui-sans-serif, system-ui, sans-serif;
-  font-size: 1.45rem;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-size: 1.35rem;
   font-weight: 850;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
 }
@@ -939,10 +942,10 @@
 
 .stat-value {
   margin: 2px 0 0;
-  font-family: "Arial Narrow", "Aptos Narrow", ui-sans-serif, system-ui, sans-serif;
-  font-size: 1.45rem;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-size: 1.35rem;
   font-weight: 850;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
   display: flex;
@@ -1157,10 +1160,10 @@
   background: transparent;
   box-shadow: none;
   color: var(--text-primary);
-  font-family: "Arial Narrow", "Aptos Narrow", ui-sans-serif, system-ui, sans-serif;
-  font-size: 1.65rem;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-size: 1.55rem;
   font-weight: 850;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   text-align: right;
   font-variant-numeric: tabular-nums;
   padding: 0;
@@ -1210,10 +1213,10 @@
   background: transparent;
   box-shadow: none;
   min-height: 54px;
-  font-family: "Arial Narrow", "Aptos Narrow", ui-sans-serif, system-ui, sans-serif;
-  font-size: 1.55rem;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-size: 1.45rem;
   font-weight: 850;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
@@ -1532,11 +1535,11 @@
 }
 
 .timer > strong {
-  font-family: "Arial Narrow", "Aptos Narrow", ui-sans-serif, system-ui, sans-serif;
-  font-size: clamp(3.5rem, 14vw, 6rem);
-  line-height: 0.9;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-size: clamp(3.2rem, 10vw, 4.6rem);
+  line-height: 0.95;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
   color: var(--primary);
 }
 
@@ -1656,9 +1659,9 @@
 
 .celebration-title {
   margin: 0;
-  font-family: "Arial Narrow", "Aptos Narrow", ui-sans-serif, system-ui, sans-serif;
-  font-size: clamp(1.6rem, 5vw, 2.2rem);
-  font-weight: 800;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-size: clamp(1.4rem, 4vw, 1.9rem);
+  font-weight: 850;
   letter-spacing: -0.03em;
 }
 
@@ -1719,11 +1722,12 @@
 }
 
 .pr-card-val {
-  font-family: "Arial Narrow", "Aptos Narrow", ui-sans-serif, system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
   font-size: 1.15rem;
   font-weight: 850;
   color: #f59e0b;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .comparison-summary-strip {
