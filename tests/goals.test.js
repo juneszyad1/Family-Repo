@@ -378,6 +378,29 @@ test("calculateAdaptiveTdee meldet unzureichende Daten bei weniger als 5 Einträ
   assertEqual(res.tdee, null, "TDEE muss null sein");
 });
 
+test("calculateRolling7DayAverages berechnet tägliche 7-Tage-Durchschnitte exakt", async () => {
+  const { calculateRolling7DayAverages } = await import("../js/calculations.js");
+  // 10 aufeinanderfolgende Tage mit steigendem Gewicht: 80.0, 81.0, 82.0, 83.0, 84.0, 85.0, 86.0 (Schnitt an Tag 7 = 83.0)
+  const entries = Array.from({ length: 10 }, (_, i) => {
+    const day = String(i + 1).padStart(2, "0");
+    return {
+      date: `2026-08-${day}`,
+      weight: 80.0 + i,
+      calories: 2000 + i * 100
+    };
+  });
+
+  const rollingWeight = calculateRolling7DayAverages(entries, "weight");
+  assertEqual(rollingWeight.length, 10, "10 tägliche Datenpunkte");
+  assertEqual(rollingWeight[0].value, 80.0, "Tag 1 Schnitt = 80.0 kg");
+  // Tag 7 (Index 6): Werte 80, 81, 82, 83, 84, 85, 86 -> Schnitt = 83.0
+  assertEqual(rollingWeight[6].value, 83.0, "Tag 7 Schnitt der ersten 7 Tage = 83.0 kg");
+  assertEqual(rollingWeight[6].count, 7, "7 Tage im Fenster");
+
+  // Tag 10 (Index 9): Werte Tag 4-10 (83, 84, 85, 86, 87, 88, 89) -> Schnitt = 86.0
+  assertEqual(rollingWeight[9].value, 86.0, "Tag 10 Schnitt = 86.0 kg");
+});
+
 export async function runGoalTests() {
   const results = [];
 

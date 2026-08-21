@@ -105,6 +105,34 @@ export function calculateMovingAverage(entries, valueKey, windowSize = 7) {
   });
 }
 
+export function calculateRolling7DayAverages(allDailyEntries = [], valueKey = "weight") {
+  const sorted = [...allDailyEntries]
+    .filter((entry) => entry[valueKey] !== null && entry[valueKey] !== undefined)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  if (!sorted.length) return [];
+
+  return sorted.map((entry) => {
+    const targetDate = new Date(`${entry.date}T00:00:00`);
+    const startDate = new Date(targetDate);
+    startDate.setDate(startDate.getDate() - 6);
+
+    const windowEntries = sorted.filter((item) => {
+      const itemDate = new Date(`${item.date}T00:00:00`);
+      return itemDate >= startDate && itemDate <= targetDate;
+    });
+
+    const sum = windowEntries.reduce((acc, item) => acc + item[valueKey], 0);
+    const avg = Number((sum / windowEntries.length).toFixed(1));
+
+    return {
+      date: entry.date,
+      value: avg,
+      count: windowEntries.length
+    };
+  });
+}
+
 export function calculateTrendSummary(dailyEntries, bodyFatEntries, circumferenceEntries = []) {
   const calorieEntries = dailyEntries.filter((entry) => entry.calories !== null && entry.calories !== undefined);
   const proteinEntries = dailyEntries.filter((entry) => entry.protein !== null && entry.protein !== undefined);

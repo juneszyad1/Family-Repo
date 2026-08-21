@@ -1,5 +1,5 @@
 import { getActiveGoals, getBodyFatEntries, getCircumferenceEntries, getDailyEntries, getSettings, getWorkoutSessions } from "../database.js";
-import { calculateAdaptiveTdee, calculateMovingAverage, calculateTrendSummary, filterEntriesByRange } from "../calculations.js";
+import { calculateAdaptiveTdee, calculateMovingAverage, calculateRolling7DayAverages, calculateTrendSummary, filterEntriesByRange } from "../calculations.js";
 import { getTrackedStrengthExercises, extractExerciseProgression } from "../training/workout-calculations.js";
 import { GOAL_TYPES, calculateExpectedValueToday, getGoalPoints } from "../goals.js";
 import { escapeHtml, formatDate, formatNumber, formatShortDate, sortByDateDesc, todayIsoDate } from "../utils.js";
@@ -22,6 +22,14 @@ const COMBINED_SERIES = [
   { key: "sleep", label: "Schlafdauer", valueKey: "sleepHours", unit: "h", axis: "sleep", defaultVisible: false }
 ];
 const selectedCombinedSeries = new Set(COMBINED_SERIES.filter((series) => series.defaultVisible).map((series) => series.key));
+
+const ROLLING_SERIES = [
+  { key: "weight", label: "Ø Gewicht", valueKey: "weight", unit: "kg", axis: "weight", defaultVisible: true },
+  { key: "calories", label: "Ø Kalorien", valueKey: "calories", unit: "kcal", axis: "calories", defaultVisible: true },
+  { key: "protein", label: "Ø Protein", valueKey: "protein", unit: "g", axis: "protein", defaultVisible: false },
+  { key: "sleep", label: "Ø Schlafdauer", valueKey: "sleepHours", unit: "h", axis: "sleep", defaultVisible: false }
+];
+const selectedRollingSeries = new Set(ROLLING_SERIES.filter((series) => series.defaultVisible).map((series) => series.key));
 
 export function getRangeLabel(range) {
   return RANGE_OPTIONS.find((option) => option.value === range)?.label || "30 Tage";
@@ -548,6 +556,35 @@ function renderExerciseProgressionChart(container, progression) {
   });
 }
 
+function renderRollingChartShell(range, dailyEntries) {
+  return `
+    <section class="card" aria-label="Gleitender 7-Tage-Durchschnitt">
+      <div class="card-body">
+        <div class="chart-header">
+          <div>
+            <span class="status-pill">Glättung · 1 Woche</span>
+            <h2 class="section-title">Gleitender 7-Tage-Durchschnitt</h2>
+          </div>
+        </div>
+        <p class="muted settings-note">Zeigt für jeden einzelnen Tag den berechneten Durchschnittswert der jeweils letzten 7 Tage (Tag selbst + 6 Tage vorher), um tägliche Schwankungen sauber herauszufiltern.</p>
+        <fieldset class="choice-group compact-choice-group">
+          <legend>7-Tage-Kurven</legend>
+          ${ROLLING_SERIES.map((series) => `
+            <label>
+              <input type="checkbox" value="${series.key}" data-rolling-toggle ${selectedRollingSeries.has(series.key) ? "checked" : ""}>
+              ${series.label}
+            </label>
+          `).join("")}
+        </fieldset>
+        <div class="chart-frame tall-chart-frame">
+          <canvas id="rolling-chart" aria-label="Gleitender 7-Tage-Durchschnitt für ${getRangeLabel(range)}" role="img"></canvas>
+        </div>
+        <p class="chart-summary">${dailyEntries.length} Tage im Zeitraum mit täglicher 7-Tage-Mittelwert-Berechnung.</p>
+      </div>
+    </section>
+  `;
+}
+
 function renderTrendContent({ dailyEntries, bodyFatEntries, circumferenceEntries, settings, range, activeGoals, workoutSessions, tdeeData, selectedExerciseId }) {
   const filteredDaily = filterEntriesByRange(dailyEntries, range);
   const filteredBodyFat = filterEntriesByRange(bodyFatEntries, range);
@@ -569,12 +606,13 @@ function renderTrendContent({ dailyEntries, bodyFatEntries, circumferenceEntries
     ${renderSummary(summary)}
     ${renderTdeeCard(tdeeData)}
     ${renderExerciseProgressionSection(workoutSessions, selectedExerciseId)}
+    ${hasCombinedData ? renderRollingChartShell(range, filteredDaily) : ""}
     ${hasCombinedData ? renderCombinedChartShell(range, filteredDaily) : ""}
     <p class="chart-summary">Zusätzlich im Zeitraum: ${bodyFatCount} KFA-, ${circumferenceCount} Umfang- und ${skinfoldCount} Hautfaltenmessungen.</p>
   `;
 }
 
-function renderCharts(container, { dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals, range, workoutSessions }) {
+function renderCharts(container, { dailyEntries, allDailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals, range, workoutSessions }) {
   destroyCharts();
 
   const warning = container.querySelector("[data-chart-warning]");
@@ -619,6 +657,32 @@ function renderCharts(container, { dailyEntries, bodyFatEntries, circumferenceEn
     protein: success,
     sleep: violet
   };
+
+  const rollingDatasets = ROLLING_SERIES
+    .filter((series) => selectedRollingSeries.has(series.key))
+    .map((series) => {
+      const fullRolling = calculateRolling7DayAverages(allDailyEntries || dailyEntries, series.valueKey);
+      const rangeDateSet = new Set(sortedDailyEntries.map((d) => d.date));
+      const inRange = fullRolling.filter((r) => rangeDateSet.has(r.date));
+      return lineDataset(
+        `${series.label} (${series.unit})`,
+        inRange.map((entry) => ({ x: formatDate(entry.date), y: entry.value })),
+        combinedColors[series.key]
+      );
+    })
+    .map((dataset, index) => ({
+      ...dataset,
+      yAxisID: ROLLING_SERIES.filter((series) => selectedRollingSeries.has(series.key))[index].axis
+    }));
+
+  createChart(container.querySelector("#rolling-chart"), {
+    type: "line",
+    data: {
+      datasets: rollingDatasets
+    },
+    options: combinedChartOptions(range)
+  });
+
   const combinedDatasets = COMBINED_SERIES
     .filter((series) => selectedCombinedSeries.has(series.key))
     .map((series) => lineDataset(
@@ -837,6 +901,7 @@ async function loadTrends(container, range = "30d") {
 
     currentChartData = {
       dailyEntries: filteredDaily,
+      allDailyEntries: dailyEntries,
       bodyFatEntries: filteredBodyFat,
       circumferenceEntries: filteredCircumference,
       settings,
@@ -885,6 +950,15 @@ function initializeTrends(container) {
             renderExerciseProgressionChart(container, progression);
           }
         }
+      }
+      return;
+    }
+
+    if (t.matches("[data-rolling-toggle]")) {
+      if (t.checked) selectedRollingSeries.add(t.value);
+      else selectedRollingSeries.delete(t.value);
+      if (currentChartData) {
+        tryRenderCharts(container, currentChartData);
       }
       return;
     }
