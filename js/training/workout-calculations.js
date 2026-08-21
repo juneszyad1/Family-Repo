@@ -295,3 +295,33 @@ export function extractExerciseProgression(sessions = [], exerciseIdentifier) {
     progressWeightPercent: calcProg(lastPoint.topWeight, firstPoint.topWeight)
   };
 }
+
+export function getLastPerformanceForExercise(sessions = [], exerciseIdentifier, currentSessionId = null) {
+  if (!exerciseIdentifier) return null;
+
+  const completed = sessions
+    .filter((s) => s.status === WORKOUT_STATUS.COMPLETED && s.workoutType === WORKOUT_TYPES.STRENGTH && s.id !== currentSessionId)
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  for (const session of completed) {
+    const foundExercise = (session.exercises || []).find(
+      (e) => e.exerciseId === exerciseIdentifier || e.exerciseNameSnapshot === exerciseIdentifier
+    );
+    if (!foundExercise) continue;
+
+    const completedSets = (foundExercise.sets || []).filter((s) => s.completed && (Number(s.actualReps) > 0 || Number(s.actualWeight) > 0));
+    if (completedSets.length === 0) continue;
+
+    return {
+      sessionDate: session.date,
+      planName: session.planNameSnapshot || "Training",
+      sets: completedSets.map((s, idx) => ({
+        setIndex: idx,
+        actualReps: Number(s.actualReps) || 0,
+        actualWeight: Number(s.actualWeight) || 0
+      }))
+    };
+  }
+
+  return null;
+}

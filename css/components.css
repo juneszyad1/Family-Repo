@@ -1468,6 +1468,96 @@
   accent-color: var(--primary);
 }
 
+.rest-timer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface-raised) 90%, transparent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), var(--specular);
+  backdrop-filter: blur(20px);
+  margin-bottom: 12px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.rest-timer-bar.is-running {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface-raised));
+}
+
+.rest-timer-bar.is-finished {
+  border-color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 15%, var(--surface-raised));
+}
+
+.rest-timer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rest-timer-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.rest-timer-bar.is-running .rest-timer-label {
+  color: var(--primary);
+}
+
+.rest-timer-bar.is-finished .rest-timer-label {
+  color: var(--warning);
+}
+
+.rest-timer-clock {
+  font-size: 1.4rem;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.rest-timer-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.compact-button {
+  padding: 6px 10px;
+  min-height: 36px;
+  font-size: 0.78rem;
+}
+
+.set-meta-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ghost-set-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--text-secondary) 12%, transparent);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  max-width: fit-content;
+  font-variant-numeric: tabular-nums;
+}
+
+.ghost-autofill-btn {
+  font-size: 0.74rem;
+  padding: 4px 8px;
+  min-height: 32px;
+}
+
 .is-complete {
   border-color: color-mix(in srgb, var(--success) 50%, var(--border));
   background: color-mix(in srgb, var(--success) 8%, var(--surface-raised));

@@ -3,15 +3,32 @@ import {
   getWorkoutPlans, getWorkoutSessions, saveCustomExercise, saveWorkoutPlan, saveWorkoutSession,
   toggleExerciseFavorite
 } from "../database.js";
-import { createId, escapeHtml, formatDate, formatNumber, todayIsoDate } from "../utils.js";
+import { createId, escapeHtml, formatDate, formatNumber, todayIsoDate, triggerHaptic } from "../utils.js";
 import { filterExercises, getBuiltInExercises } from "../training/exercise-library.js";
 import { completeSession, createSessionFromPlan } from "../training/workout-sessions.js";
-import { calculateWorkoutStatistics, compareWorkoutWithPrevious, detectWorkoutPRs, summarizeWorkout } from "../training/workout-calculations.js";
+import {
+  calculateWorkoutStatistics, compareWorkoutWithPrevious, detectWorkoutPRs,
+  getLastPerformanceForExercise, summarizeWorkout
+} from "../training/workout-calculations.js";
 import { validateCustomExercise, validateWorkoutPlan } from "../training/workout-validation.js";
 import { CATEGORY_LABELS, EQUIPMENT_LABELS, MOVEMENT_PATTERN_LABELS, SIDE_MODE_LABELS, STRETCH_CATEGORY_LABELS, WORKOUT_STATUS, WORKOUT_TYPE_LABELS, WORKOUT_TYPES } from "../training/training-constants.js";
 import { StretchTimer } from "../training/stretch-timer.js";
+import { RestTimer } from "../training/rest-timer.js";
 
-const state = { tab: "plans", plans: [], sessions: [], custom: [], favorites: [], editingPlan: null, activeSession: null, workoutSummary: null, historyType: "all", picker: { query: "", category: "", equipment: "", movementPattern: "", favorites: false, custom: false, recent: false }, timers: new Map() };
+const state = {
+  tab: "plans",
+  plans: [],
+  sessions: [],
+  custom: [],
+  favorites: [],
+  editingPlan: null,
+  activeSession: null,
+  workoutSummary: null,
+  historyType: "all",
+  picker: { query: "", category: "", equipment: "", movementPattern: "", favorites: false, custom: false, recent: false },
+  timers: new Map(),
+  restTimer: null
+};
 export const TRAINING_TABS = [["plans","Pläne"],["history","Historie"],["library","Übungen"],["stats","Statistik"]];
 const typeOptions = Object.entries(WORKOUT_TYPE_LABELS).map(([v,l]) => `<option value="${v}">${l}</option>`).join("");
 const duration = (seconds) => seconds == null ? "--" : `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,"0")} min`;
@@ -251,22 +268,131 @@ function statsView() {
   </section>`;
 }
 
+function restTimerBar() {
+  if (!state.restTimer || !state.activeSession || state.activeSession.status !== WORKOUT_STATUS.IN_PROGRESS || state.activeSession.workoutType !== WORKOUT_TYPES.STRENGTH) return "";
+  const isRunning = state.restTimer.status === "running";
+  const isFinished = state.restTimer.status === "finished";
+  const timeStr = duration(state.restTimer.remainingSeconds);
+
+  return `
+    <div class="rest-timer-bar ${isRunning ? "is-running" : ""} ${isFinished ? "is-finished" : ""}" data-rest-timer-bar>
+      <div class="rest-timer-info">
+        <span class="rest-timer-label">${isFinished ? "Pause beendet!" : "Satzpause"}</span>
+        <strong class="rest-timer-clock" data-rest-clock>${timeStr}</strong>
+      </div>
+      <div class="rest-timer-controls">
+        <button type="button" class="button secondary compact-button" data-rest-adjust="-30" aria-label="30 Sekunden abziehen">-30s</button>
+        <button type="button" class="button secondary compact-button" data-rest-adjust="+30" aria-label="30 Sekunden hinzufügen">+30s</button>
+        ${isRunning
+          ? `<button type="button" class="button secondary compact-button" data-rest-pause>Pause</button>`
+          : `<button type="button" class="button compact-button" data-rest-start>Start</button>`}
+        <button type="button" class="icon-button" data-rest-stop aria-label="Pausen-Timer stoppen">×</button>
+      </div>
+    </div>
+  `;
+}
+
 function sessionView(session) {
   const readonly = session.status !== WORKOUT_STATUS.IN_PROGRESS; const summary = summarizeWorkout(session);
-  return `<form class="view-stack" data-session-form><section class="card"><div class="card-body"><div class="training-heading"><div><span class="status-pill">${WORKOUT_TYPE_LABELS[session.workoutType]}</span><h2>${escapeHtml(session.planNameSnapshot)}</h2><p class="muted">${readonly?"Abgeschlossen":"Laufendes Training"}</p></div><button type="button" class="button secondary" data-close-session>Schließen</button></div>${readonly?`<div class="stat-strip"><div class="stat-cell"><p class="stat-label">Übungen</p><p class="stat-value">${summary.exerciseCount}</p></div>${session.workoutType==="strength"?`<div class="stat-cell"><p class="stat-label">Sätze</p><p class="stat-value">${summary.completedSets}</p></div><div class="stat-cell"><p class="stat-label">Wdh.</p><p class="stat-value">${summary.totalReps}</p></div><div class="stat-cell"><p class="stat-label">Volumen</p><p class="stat-value">${formatNumber(summary.totalVolume,{maximumFractionDigits:1})} <span class="stat-unit">kg</span></p></div>`:`<div class="stat-cell"><p class="stat-label">Durchgänge</p><p class="stat-value">${summary.completedSets||0}</p></div>`}</div>`:""}<div class="form-grid"><label class="field"><span>Datum</span><input name="date" type="date" value="${session.date}" ${readonly?"":"readonly"}></label><label class="field"><span>Trainingsnotiz</span><textarea name="notes">${escapeHtml(session.notes||"")}</textarea></label></div></div></section>
+  return `<form class="view-stack" data-session-form>
+    ${!readonly ? restTimerBar() : ""}
+    <section class="card"><div class="card-body"><div class="training-heading"><div><span class="status-pill">${WORKOUT_TYPE_LABELS[session.workoutType]}</span><h2>${escapeHtml(session.planNameSnapshot)}</h2><p class="muted">${readonly?"Abgeschlossen":"Laufendes Training"}</p></div><button type="button" class="button secondary" data-close-session>Schließen</button></div>${readonly?`<div class="stat-strip"><div class="stat-cell"><p class="stat-label">Übungen</p><p class="stat-value">${summary.exerciseCount}</p></div>${session.workoutType==="strength"?`<div class="stat-cell"><p class="stat-label">Sätze</p><p class="stat-value">${summary.completedSets}</p></div><div class="stat-cell"><p class="stat-label">Wdh.</p><p class="stat-value">${summary.totalReps}</p></div><div class="stat-cell"><p class="stat-label">Volumen</p><p class="stat-value">${formatNumber(summary.totalVolume,{maximumFractionDigits:1})} <span class="stat-unit">kg</span></p></div>`:`<div class="stat-cell"><p class="stat-label">Durchgänge</p><p class="stat-value">${summary.completedSets||0}</p></div>`}</div>`:""}<div class="form-grid"><label class="field"><span>Datum</span><input name="date" type="date" value="${session.date}" ${readonly?"":"readonly"}></label><label class="field"><span>Trainingsnotiz</span><textarea name="notes">${escapeHtml(session.notes||"")}</textarea></label></div></div></section>
     ${session.workoutType===WORKOUT_TYPES.OTHER?`<section class="card"><div class="card-body"><label class="field"><span>Dauer (Minuten)</span><input data-other-duration type="number" min="0" max="1440" value="${Math.round((session.durationSeconds||0)/60)}"></label></div></section>`:session.exercises.map((exercise,index)=>sessionExercise(exercise,index,session.workoutType,readonly)).join("")}
     <div class="sticky-action">${readonly?`<button class="button" data-show-summary="${session.id}">Zusammenfassung anzeigen</button><button class="button secondary" data-save-completed>Änderungen speichern</button>`:`<button class="button" data-complete-session>Training abschließen</button><button class="button danger" data-cancel-session>Training abbrechen</button>`}</div></form>`;
 }
+
 function sessionExercise(exercise,index,type,readonly) {
   const firstOpenExercise = state.activeSession?.exercises.find((item) => item.sets.some((set) => !set.completed));
   const firstOpenSet = firstOpenExercise?.sets.find((set) => !set.completed);
-  const setRows=exercise.sets.map((set,i)=> type===WORKOUT_TYPES.STRENGTH ? `<div class="set-row session-set ${set.completed?"is-complete":""} ${set.id===firstOpenSet?.id?"is-current":""}" data-session-set="${set.id}"><strong>Satz ${i+1}</strong><label>Wdh. · Ziel ${set.plannedReps??"–"}<input type="number" inputmode="numeric" min="0" max="1000" value="${set.actualReps??""}" data-actual-reps></label><label>kg · Ziel ${formatNumber(set.plannedWeight,{maximumFractionDigits:1})}<input type="number" inputmode="decimal" min="0" max="1000" step="0.1" value="${set.actualWeight??""}" data-actual-weight></label><label class="set-check"><input type="checkbox" data-set-completed ${set.completed?"checked":""}><span>${set.completed?"Erledigt":"Satz abschließen"}</span></label>${readonly?"":`<button type="button" class="icon-button danger" data-remove-session-set aria-label="Satz entfernen">×</button>`}</div>` : `<div class="stretch-round ${set.completed?"is-complete":""} ${set.id===firstOpenSet?.id?"is-current":""}" data-session-set="${set.id}"><label class="set-check"><input type="checkbox" data-set-completed ${set.completed?"checked":""}><span>Durchgang ${i+1}: ${set.completed?"Erledigt":"Offen"}</span></label></div>`).join("");
+  const lastPerf = (!readonly && type === WORKOUT_TYPES.STRENGTH)
+    ? getLastPerformanceForExercise(state.sessions, exercise.exerciseId || exercise.exerciseNameSnapshot, state.activeSession?.id)
+    : null;
+
+  const setRows = exercise.sets.map((set, i) => {
+    if (type === WORKOUT_TYPES.STRENGTH) {
+      const lastSet = lastPerf?.sets?.[i];
+      const ghostReps = lastSet ? `z. B. ${lastSet.actualReps}` : "";
+      const ghostWeight = lastSet ? `z. B. ${formatNumber(lastSet.actualWeight, { maximumFractionDigits: 1 })}` : "";
+
+      return `
+        <div class="set-row session-set ${set.completed ? "is-complete" : ""} ${set.id === firstOpenSet?.id ? "is-current" : ""}" data-session-set="${set.id}">
+          <div class="set-meta-info">
+            <strong>Satz ${i + 1}</strong>
+            ${lastSet ? `<span class="ghost-set-pill" title="Letzte Einheit (${formatDate(lastPerf.sessionDate)})">Vorher: ${formatNumber(lastSet.actualWeight, { maximumFractionDigits: 1 })}kg × ${lastSet.actualReps}</span>` : ""}
+          </div>
+          <label>Wdh. · Ziel ${set.plannedReps ?? "–"}
+            <input type="number" inputmode="numeric" min="0" max="1000" value="${set.actualReps ?? ""}" placeholder="${ghostReps}" data-actual-reps>
+          </label>
+          <label>kg · Ziel ${formatNumber(set.plannedWeight, { maximumFractionDigits: 1 })}
+            <input type="number" inputmode="decimal" min="0" max="1000" step="0.1" value="${set.actualWeight ?? ""}" placeholder="${ghostWeight}" data-actual-weight>
+          </label>
+          <label class="set-check">
+            <input type="checkbox" data-set-completed ${set.completed ? "checked" : ""}>
+            <span>${set.completed ? "Erledigt" : "Satz abschließen"}</span>
+          </label>
+          ${readonly ? "" : `<button type="button" class="icon-button danger" data-remove-session-set aria-label="Satz entfernen">×</button>`}
+        </div>
+      `;
+    }
+
+    return `
+      <div class="stretch-round ${set.completed ? "is-complete" : ""} ${set.id === firstOpenSet?.id ? "is-current" : ""}" data-session-set="${set.id}">
+        <label class="set-check">
+          <input type="checkbox" data-set-completed ${set.completed ? "checked" : ""}>
+          <span>Durchgang ${i + 1}: ${set.completed ? "Erledigt" : "Offen"}</span>
+        </label>
+      </div>
+    `;
+  }).join("");
+
   const timerRemaining = exercise.timerState?.endsAt ? Math.max(0,Math.ceil((exercise.timerState.endsAt-Date.now())/1000)) : exercise.timerState?.remainingSeconds ?? exercise.durationSeconds;
-  return `<article class="exercise-card ${exercise.id===firstOpenExercise?.id?"is-current-exercise":""}" data-session-exercise="${exercise.id}"><div class="exercise-header"><div><span class="metric-label">Übung ${index+1}${exercise.id===firstOpenExercise?.id?" · Aktuell":""}</span><h3>${escapeHtml(exercise.exerciseNameSnapshot)}</h3>${type===WORKOUT_TYPES.STRETCHING?`<p class="muted">${exercise.durationSeconds} Sekunden · ${SIDE_MODE_LABELS[exercise.sideMode]}</p>`:""}</div></div><div class="set-list">${setRows}</div>${!readonly&&type===WORKOUT_TYPES.STRENGTH?`<button type="button" class="button secondary" data-add-session-set>Satz hinzufügen</button>`:""}${!readonly&&type===WORKOUT_TYPES.STRETCHING?`<div class="timer" data-timer><strong data-timer-time>${timerRemaining}</strong><span data-timer-status>${timerRemaining===0?"Zeit abgelaufen":exercise.timerState?.status==="paused"?"Pausiert":"Bereit"}</span><div class="compact-actions"><button type="button" class="button" data-timer-start>Start/Fortsetzen</button><button type="button" class="button secondary" data-timer-pause>Pause</button><button type="button" class="button secondary" data-timer-reset>Zurücksetzen</button></div></div>`:""}<label class="field"><span>Übungsnotiz</span><input value="${escapeHtml(exercise.notes||"")}" data-session-exercise-notes></label>${!readonly&&index<state.activeSession.exercises.length-1?`<button type="button" class="button secondary" data-next-exercise>Nächste Übung</button>`:""}</article>`;
+
+  return `
+    <article class="exercise-card ${exercise.id===firstOpenExercise?.id?"is-current-exercise":""}" data-session-exercise="${exercise.id}">
+      <div class="exercise-header">
+        <div>
+          <span class="metric-label">Übung ${index+1}${exercise.id===firstOpenExercise?.id?" · Aktuell":""}</span>
+          <h3>${escapeHtml(exercise.exerciseNameSnapshot)}</h3>
+          ${type===WORKOUT_TYPES.STRETCHING?`<p class="muted">${exercise.durationSeconds} Sekunden · ${SIDE_MODE_LABELS[exercise.sideMode]}</p>`:""}
+        </div>
+        ${lastPerf ? `
+          <button type="button" class="button secondary compact-button ghost-autofill-btn" data-autofill-exercise="${exercise.id}" title="Werte aus vorheriger Einheit (${formatDate(lastPerf.sessionDate)}) für alle Sätze übernehmen">
+            Werte aus letzter Einheit
+          </button>
+        ` : ""}
+      </div>
+      <div class="set-list">${setRows}</div>
+      ${!readonly&&type===WORKOUT_TYPES.STRENGTH?`<button type="button" class="button secondary" data-add-session-set>Satz hinzufügen</button>`:""}
+      ${!readonly&&type===WORKOUT_TYPES.STRETCHING?`<div class="timer" data-timer><strong data-timer-time>${timerRemaining}</strong><span data-timer-status>${timerRemaining===0?"Zeit abgelaufen":exercise.timerState?.status==="paused"?"Pausiert":"Bereit"}</span><div class="compact-actions"><button type="button" class="button" data-timer-start>Start/Fortsetzen</button><button type="button" class="button secondary" data-timer-pause>Pause</button><button type="button" class="button secondary" data-timer-reset>Zurücksetzen</button></div></div>`:""}
+      <label class="field"><span>Übungsnotiz</span><input value="${escapeHtml(exercise.notes||"")}" data-session-exercise-notes></label>
+      ${!readonly&&index<state.activeSession.exercises.length-1?`<button type="button" class="button secondary" data-next-exercise>Nächste Übung</button>`:""}
+    </article>
+  `;
+}
+
+function ensureRestTimer(container) {
+  if (!state.restTimer) {
+    state.restTimer = new RestTimer(90, () => {
+      const clock = container.querySelector("[data-rest-clock]");
+      if (clock && state.restTimer) {
+        clock.textContent = duration(state.restTimer.remainingSeconds);
+        const bar = container.querySelector("[data-rest-timer-bar]");
+        if (bar) {
+          bar.classList.toggle("is-running", state.restTimer.status === "running");
+          bar.classList.toggle("is-finished", state.restTimer.status === "finished");
+          const label = bar.querySelector(".rest-timer-label");
+          if (label) {
+            label.textContent = state.restTimer.status === "finished" ? "Pause beendet!" : "Satzpause";
+          }
+        }
+      }
+    });
+  }
 }
 
 function renderContent(container) {
   state.timers.forEach((timer)=>timer.destroy()); state.timers.clear();
+  ensureRestTimer(container);
   let content = state.activeSession && state.tab==="session" ? sessionView(state.activeSession) : state.editingPlan ? planEditor(state.editingPlan) : state.tab==="plans" ? planList() : state.tab==="history" ? historyView() : state.tab==="library" ? libraryView() : statsView();
   const isSession = state.activeSession && state.tab === "session";
   document.body.classList.toggle("workout-focus", Boolean(isSession && state.activeSession.status === WORKOUT_STATUS.IN_PROGRESS));
@@ -309,7 +435,50 @@ function bindEvents(container) {
       if(button.hasAttribute("data-add-session-set")){const ex=state.activeSession.exercises.find((x)=>x.id===button.closest("[data-session-exercise]").dataset.sessionExercise);const last=ex.sets.at(-1)||{};ex.sets.push({id:createId("session-set"),plannedReps:last.plannedReps??0,plannedWeight:last.plannedWeight??0,actualReps:last.actualReps??0,actualWeight:last.actualWeight??0,completed:false});await persistActive(container);renderContent(container);return;}
       if(button.hasAttribute("data-remove-session-set")){const ex=state.activeSession.exercises.find((x)=>x.id===button.closest("[data-session-exercise]").dataset.sessionExercise);if(ex.sets.length>1)ex.sets=ex.sets.filter((s)=>s.id!==button.closest("[data-session-set]").dataset.sessionSet);await persistActive(container);renderContent(container);return;}
       if(button.hasAttribute("data-next-exercise")){button.closest("[data-session-exercise]").nextElementSibling?.scrollIntoView({behavior:"smooth",block:"start"});await persistActive(container);return;}
-      if(button.hasAttribute("data-complete-session")){const form=button.closest("form"),fd=new FormData(form);state.activeSession.notes=fd.get("notes")||"";const invalid=state.activeSession.workoutType===WORKOUT_TYPES.STRENGTH&&state.activeSession.exercises.some((x)=>x.sets.some((s)=>s.actualReps<0||s.actualReps>1000||s.actualWeight<0||s.actualWeight>1000));if(invalid)throw new Error("Wiederholungen und Gewicht müssen zwischen 0 und 1000 liegen.");const other=form.querySelector("[data-other-duration]");const completed=completeSession(state.activeSession);if(other)completed.durationSeconds=Number(other.value)*60;const prs=detectWorkoutPRs(completed,state.sessions);const comparison=compareWorkoutWithPrevious(completed,state.sessions);state.activeSession=completed;await persistActive(container);state.workoutSummary={session:completed,prs,comparison};renderContent(container);return;}
+      if(button.dataset.autofillExercise){
+        const ex=state.activeSession.exercises.find((x)=>x.id===button.dataset.autofillExercise);
+        if(ex){
+          const lastPerf=getLastPerformanceForExercise(state.sessions,ex.exerciseId||ex.exerciseNameSnapshot,state.activeSession.id);
+          if(lastPerf&&lastPerf.sets.length){
+            ex.sets.forEach((set,i)=>{
+              const prev=lastPerf.sets[i]||lastPerf.sets.at(-1);
+              if(prev){
+                set.actualReps=prev.actualReps;
+                set.actualWeight=prev.actualWeight;
+              }
+            });
+            triggerHaptic("medium");
+            await persistActive(container);
+            renderContent(container);
+            statusMessage(container,"Werte aus der letzten Einheit übernommen.");
+          }
+        }
+        return;
+      }
+      if(button.hasAttribute("data-rest-start")){
+        ensureRestTimer(container);
+        state.restTimer.start();
+        renderContent(container);
+        return;
+      }
+      if(button.hasAttribute("data-rest-pause")){
+        state.restTimer?.pause();
+        renderContent(container);
+        return;
+      }
+      if(button.hasAttribute("data-rest-stop")){
+        state.restTimer?.stop();
+        renderContent(container);
+        return;
+      }
+      if(button.dataset.restAdjust){
+        const delta=Number(button.dataset.restAdjust)||30;
+        ensureRestTimer(container);
+        state.restTimer.addTime(delta);
+        renderContent(container);
+        return;
+      }
+      if(button.hasAttribute("data-complete-session")){const form=button.closest("form"),fd=new FormData(form);state.activeSession.notes=fd.get("notes")||"";const invalid=state.activeSession.workoutType===WORKOUT_TYPES.STRENGTH&&state.activeSession.exercises.some((x)=>x.sets.some((s)=>s.actualReps<0||s.actualReps>1000||s.actualWeight<0||s.actualWeight>1000));if(invalid)throw new Error("Wiederholungen und Gewicht müssen zwischen 0 und 1000 liegen.");const other=form.querySelector("[data-other-duration]");const completed=completeSession(state.activeSession);if(other)completed.durationSeconds=Number(other.value)*60;const prs=detectWorkoutPRs(completed,state.sessions);const comparison=compareWorkoutWithPrevious(completed,state.sessions);state.activeSession=completed;triggerHaptic("success");await persistActive(container);state.workoutSummary={session:completed,prs,comparison};renderContent(container);return;}
       if(button.hasAttribute("data-cancel-session")){if(confirm("Training abbrechen? Die Einheit bleibt als abgebrochen in der Historie.")){state.activeSession={...state.activeSession,status:WORKOUT_STATUS.CANCELLED,completedAt:new Date().toISOString()};await persistActive(container);state.tab="history";renderContent(container);}return;}
       if(button.hasAttribute("data-save-completed")){await persistActive(container);statusMessage(container,"Änderungen gespeichert.");return;}
       if(button.matches("[data-timer-start],[data-timer-pause],[data-timer-reset]")){const exEl=button.closest("[data-session-exercise]"),ex=state.activeSession.exercises.find((x)=>x.id===exEl.dataset.sessionExercise);let timer=state.timers.get(ex.id);if(!timer){timer=new StretchTimer(ex.durationSeconds,({remainingSeconds,status,endsAt})=>{ex.timerState={remainingSeconds,status,endsAt};exEl.querySelector("[data-timer-time]").textContent=remainingSeconds;exEl.querySelector("[data-timer-status]").textContent={ready:"Bereit",running:"Läuft",paused:"Pausiert",finished:"Zeit abgelaufen"}[status];});timer.remainingSeconds=ex.timerState?.endsAt?Math.max(0,Math.ceil((ex.timerState.endsAt-Date.now())/1000)):ex.timerState?.remainingSeconds??ex.durationSeconds;state.timers.set(ex.id,timer);}if(button.hasAttribute("data-timer-start")){timer.start();await persistActive(container);}if(button.hasAttribute("data-timer-pause")){timer.pause();await persistActive(container);}if(button.hasAttribute("data-timer-reset")){timer.reset();await persistActive(container);}return;}
@@ -337,7 +506,18 @@ function bindEvents(container) {
     if(t.hasAttribute("data-picker-category")){state.picker.category=t.value;renderContent(container);return;}if(t.hasAttribute("data-picker-equipment")){state.picker.equipment=t.value;renderContent(container);return;}if(t.hasAttribute("data-picker-movement")){state.picker.movementPattern=t.value;renderContent(container);return;}if(t.hasAttribute("data-picker-favorites")){state.picker.favorites=t.checked;renderContent(container);return;}if(t.hasAttribute("data-picker-custom")){state.picker.custom=t.checked;renderContent(container);return;}if(t.hasAttribute("data-picker-recent")){state.picker.recent=t.checked;renderContent(container);return;}
     if(t.hasAttribute("data-side-mode"))mutatePlanExercise(t,(item)=>item.sideMode=t.value);
     if(t.hasAttribute("data-history-filter")){state.historyType=t.value;renderContent(container);return;}
-    if(t.hasAttribute("data-set-completed")){const ex=state.activeSession.exercises.find((x)=>x.id===t.closest("[data-session-exercise]").dataset.sessionExercise),set=ex.sets.find((s)=>s.id===t.closest("[data-session-set]").dataset.sessionSet);set.completed=t.checked;await persistActive(container);renderContent(container);}
+    if(t.hasAttribute("data-set-completed")){
+      const ex=state.activeSession.exercises.find((x)=>x.id===t.closest("[data-session-exercise]").dataset.sessionExercise);
+      const set=ex.sets.find((s)=>s.id===t.closest("[data-session-set]").dataset.sessionSet);
+      set.completed=t.checked;
+      triggerHaptic("light");
+      if(t.checked && state.activeSession.workoutType===WORKOUT_TYPES.STRENGTH){
+        ensureRestTimer(container);
+        state.restTimer.start(90);
+      }
+      await persistActive(container);
+      renderContent(container);
+    }
   });
   container.addEventListener("submit",async(event)=>{event.preventDefault();const form=event.target;
     try{if(form.hasAttribute("data-plan-form")){const fd=new FormData(form);state.editingPlan.name=fd.get("name").trim();state.editingPlan.description=fd.get("description").trim();if(state.editingPlan.workoutType===WORKOUT_TYPES.OTHER)state.editingPlan.durationSeconds=Number(fd.get("otherDuration"))*60;state.editingPlan.exercises.forEach((x,i)=>x.order=i+1);const validIds=new Set([...getBuiltInExercises(state.editingPlan.workoutType),...state.custom].map((x)=>x.id));const errors=validateWorkoutPlan(state.editingPlan,validIds);if(errors.length)throw new Error(errors.join(" "));await saveWorkoutPlan(state.editingPlan);state.editingPlan=null;await loadState();renderContent(container);statusMessage(container,"Trainingsplan gespeichert.");}

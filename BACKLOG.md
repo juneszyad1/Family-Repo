@@ -6,15 +6,17 @@ Strukturierte Übersicht geplanter Features und Optimierungen für spätere Entw
 
 ## 1. Gym-Ergonomie & Trainingsablauf
 
-* **Auto-Fill / Ghosting aus der vorherigen Einheit:**
-  * Beim Öffnen einer Übung im Training werden die tatsächlich absolvierten Gewichte und Wiederholungen des letzten Trainings als dezente Platzhalter (Ghost-Text) angezeigt.
-  * Schnelle Übernahme per Klick oder Antippen, um Tipparbeit zwischen den Sätzen zu minimieren.
-* **Integrierter Satzpausen-Timer:**
-  * Konfigurierbarer Rest-Timer (z. B. 60s, 90s, 120s, 180s), der automatisch nach dem Abhaken eines Kraftsatzes in der Sticky-Leiste startet.
-  * Akustischer Signalton und haptisches Feedback bei Ablauf.
-* **Haptisches Feedback (Web Vibration API):**
-  * Taktile Bestätigung (`navigator.vibrate(15)`) beim Abhaken von Sätzen und Runden.
-  * Vibrationsmuster beim Ablauf von Satzpausen- und Stretching-Timern.
+* **[ERLEDIGT] Auto-Fill / Ghosting aus der vorherigen Einheit:**
+  * Tatsächlich absolvierte Gewichte und Wiederholungen des letzten Trainings werden als dezente Ghost-Pills und Platzhalter angezeigt.
+  * Schnelle 1-Klick-Übernahme aller Werte der letzten Einheit via "Werte aus letzter Einheit".
+* **[ERLEDIGT] Integrierter Satzpausen-Timer:**
+  * Automatischer Rest-Timer (Default 90s) in der Session-Leiste beim Abhaken eines Kraftsatzes.
+  * Schnelltasten `+30s` / `-30s`, Pause, Start, Stop.
+  * Doppel-Chime (Web Audio API) und Vibrationsmuster bei Ablauf.
+* **[ERLEDIGT] Haptisches Feedback (Web Vibration API):**
+  * Taktile Bestätigung (`triggerHaptic("light")`) beim Abhaken von Sätzen und Runden.
+  * PR- und Workout-Abschluss-Impuls (`triggerHaptic("success")`).
+  * Vibrationsmuster (`triggerHaptic("timer-finished")`) beim Ablauf von Satzpausen- und Stretching-Timern.
 * **Swipe-Gesten in Listen:**
   * Wischgesten zum schnellen Löschen oder Bearbeiten von Einträgen und Sätzen auf Touchscreens.
 

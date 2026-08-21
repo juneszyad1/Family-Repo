@@ -60,5 +60,44 @@ export function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+    .replaceAll("'", "&#39;");
+}
+
+export function triggerHaptic(type = "light") {
+  if (typeof navigator === "undefined" || !("vibrate" in navigator)) return;
+  try {
+    if (type === "light") {
+      navigator.vibrate(15);
+    } else if (type === "medium") {
+      navigator.vibrate(30);
+    } else if (type === "success") {
+      navigator.vibrate([20, 35, 20]);
+    } else if (type === "timer-finished") {
+      navigator.vibrate([100, 60, 100, 60, 250]);
+    }
+  } catch {
+    // Vibration safely ignored
+  }
+}
+
+export function playChime() {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.3);
+  } catch {
+    // Audio synthesis safely ignored
+  }
 }

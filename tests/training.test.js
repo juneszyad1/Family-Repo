@@ -2,9 +2,10 @@ import { STRENGTH_EXERCISES } from "../js/data/strength-exercises.js";
 import { STRETCH_EXERCISES } from "../js/data/stretch-exercises.js";
 import { EXERCISE_CATEGORIES, EQUIPMENT_TYPES, STRETCH_CATEGORIES, STRETCH_TYPES } from "../js/training/training-constants.js";
 import { filterExercises } from "../js/training/exercise-library.js";
-import { calculateSetVolume, calculateStretchPlannedDuration, calculateWorkoutDuration, calculateWorkoutVolume, calculateCompletedSetCount, calculateTotalReps, estimate1RM, detectWorkoutPRs, compareWorkoutWithPrevious, getTrackedStrengthExercises, extractExerciseProgression } from "../js/training/workout-calculations.js";
+import { calculateSetVolume, calculateStretchPlannedDuration, calculateWorkoutDuration, calculateWorkoutVolume, calculateCompletedSetCount, calculateTotalReps, estimate1RM, detectWorkoutPRs, compareWorkoutWithPrevious, getTrackedStrengthExercises, extractExerciseProgression, getLastPerformanceForExercise } from "../js/training/workout-calculations.js";
 import { validateCustomExercise, validateWorkoutPlan } from "../js/training/workout-validation.js";
 import { completeSession, createSessionFromPlan } from "../js/training/workout-sessions.js";
+import { RestTimer } from "../js/training/rest-timer.js";
 
 const tests=[]; const test=(name,fn)=>tests.push({name,fn});
 const assert=(condition,message)=>{if(!condition)throw new Error(message)};
@@ -159,6 +160,65 @@ test("extractExerciseProgression berechnet korrekte 1RM- und Gewichtssteigerung"
   equal(prog.totalSessionsTracked, 2, "2 Einheiten getrackt");
   equal(prog.progressWeightPercent, 25, "+25% Maximalgewicht-Steigerung (80 kg -> 100 kg)");
   equal(prog.allTimeMaxWeight, 100, "100 kg All-Time Max");
+});
+
+test("getLastPerformanceForExercise liefert korrekte Sätze aus der vorherigen Einheit", () => {
+  const sessions = [
+    {
+      id: "s1",
+      status: "completed",
+      workoutType: "strength",
+      date: "2026-08-01",
+      planNameSnapshot: "Push A",
+      exercises: [
+        { exerciseId: "bench-press", exerciseNameSnapshot: "Bankdrücken", sets: [{ actualReps: 10, actualWeight: 80, completed: true }, { actualReps: 8, actualWeight: 85, completed: true }] }
+      ]
+    },
+    {
+      id: "s2",
+      status: "completed",
+      workoutType: "strength",
+      date: "2026-08-10",
+      planNameSnapshot: "Push B",
+      exercises: [
+        { exerciseId: "bench-press", exerciseNameSnapshot: "Bankdrücken", sets: [{ actualReps: 10, actualWeight: 85, completed: true }, { actualReps: 6, actualWeight: 90, completed: true }] }
+      ]
+    }
+  ];
+
+  const lastPerf = getLastPerformanceForExercise(sessions, "bench-press", "current-session-id");
+  assert(lastPerf !== null, "Vorherige Leistung muss gefunden werden");
+  equal(lastPerf.sessionDate, "2026-08-10", "Muss die jüngste Einheit vom 10.08. nehmen");
+  equal(lastPerf.sets.length, 2, "2 Sätze müssen vorhanden sein");
+  equal(lastPerf.sets[0].actualWeight, 85, "1. Satz: 85 kg");
+  equal(lastPerf.sets[1].actualWeight, 90, "2. Satz: 90 kg");
+});
+
+test("RestTimer startet, pausiert und passt Restzeit an", () => {
+  let tickCount = 0;
+  const timer = new RestTimer(90, () => {
+    tickCount++;
+  });
+
+  equal(timer.status, "ready", "Status muss ready sein");
+  equal(timer.remainingSeconds, 90, "90 Sekunden Startwert");
+
+  timer.start();
+  equal(timer.status, "running", "Status muss running sein");
+
+  timer.addTime(30);
+  equal(timer.remainingSeconds, 120, "+30s muss 120s ergeben");
+
+  timer.addTime(-60);
+  equal(timer.remainingSeconds, 60, "-60s muss 60s ergeben");
+
+  timer.pause();
+  equal(timer.status, "paused", "Status muss paused sein");
+
+  timer.reset(90);
+  equal(timer.status, "ready", "Reset muss status ready herstellen");
+  equal(timer.remainingSeconds, 90, "Reset muss 90s herstellen");
+  timer.destroy();
 });
 
 export async function runTrainingTests(){const results=[];for(const item of tests){try{await item.fn();results.push({name:item.name,passed:true})}catch(error){results.push({name:item.name,passed:false,error})}}return results;}
