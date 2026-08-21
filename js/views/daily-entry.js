@@ -73,7 +73,7 @@ export function applyFormErrors(form, errors, errorSlot) {
     }
 
     const field = form.elements.namedItem(fieldName);
-    const wrapper = field?.closest(".field");
+    const wrapper = field?.closest(".field, .grouped-input-row");
     if (!field || !wrapper) return;
     const errorId = `${form.dataset.errorScope}-${fieldName}-error`;
     field.setAttribute("aria-invalid", "true");
@@ -450,38 +450,64 @@ export function renderDailyEntry() {
         </div>
         <div data-errors></div>
         <div data-status role="status" aria-live="polite" aria-atomic="true"></div>
-        <form class="form-grid" data-daily-form data-error-scope="daily" novalidate>
-          <label class="field">
+        <form data-daily-form data-error-scope="daily" novalidate>
+          <label class="field date-field-row">
             <span>Datum</span>
             <input type="date" name="date" required>
           </label>
 
-          <label class="field">
-            <span>Gewicht</span>
-            <span class="input-shell"><input type="text" name="weight" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-numeric="decimal" placeholder="92,4"><span class="input-unit">kg</span></span>
-          </label>
+          <div class="grouped-input-section">
+            <label class="grouped-input-row">
+              <span class="grouped-input-label">
+                <span class="dot-indicator dot-primary"></span>
+                Gewicht
+              </span>
+              <span class="grouped-input-control">
+                <input type="text" name="weight" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-numeric="decimal" placeholder="–">
+                <span class="input-unit">kg</span>
+              </span>
+            </label>
 
-          <label class="field">
-            <span>Kalorien</span>
-            <span class="input-shell"><input type="text" name="calories" inputmode="numeric" pattern="[0-9]+" data-numeric="integer" placeholder="2150"><span class="input-unit">kcal</span></span>
-          </label>
+            <label class="grouped-input-row">
+              <span class="grouped-input-label">
+                <span class="dot-indicator dot-warning"></span>
+                Kalorien
+              </span>
+              <span class="grouped-input-control">
+                <input type="text" name="calories" inputmode="numeric" pattern="[0-9]+" data-numeric="integer" placeholder="–">
+                <span class="input-unit">kcal</span>
+              </span>
+            </label>
 
-          <label class="field">
-            <span>Protein</span>
-            <span class="input-shell"><input type="text" name="protein" inputmode="numeric" pattern="[0-9]+" data-numeric="integer" placeholder="154"><span class="input-unit">g</span></span>
-          </label>
+            <label class="grouped-input-row">
+              <span class="grouped-input-label">
+                <span class="dot-indicator dot-success"></span>
+                Protein
+              </span>
+              <span class="grouped-input-control">
+                <input type="text" name="protein" inputmode="numeric" pattern="[0-9]+" data-numeric="integer" placeholder="–">
+                <span class="input-unit">g</span>
+              </span>
+            </label>
 
-          <label class="field">
-            <span>Schlafdauer</span>
-            <span class="input-shell"><input type="text" name="sleepHours" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-numeric="decimal" placeholder="7,5"><span class="input-unit">Std.</span></span>
-          </label>
+            <label class="grouped-input-row">
+              <span class="grouped-input-label">
+                <span class="dot-indicator dot-violet"></span>
+                Schlafdauer
+              </span>
+              <span class="grouped-input-control">
+                <input type="text" name="sleepHours" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-numeric="decimal" placeholder="–">
+                <span class="input-unit">Std.</span>
+              </span>
+            </label>
+          </div>
 
-          <label class="field field-full">
+          <label class="field note-field">
             <span>Notiz</span>
-            <textarea name="note" rows="3" placeholder="Optional"></textarea>
+            <textarea name="note" rows="2" placeholder="Optional"></textarea>
           </label>
 
-          <div class="form-actions field-full">
+          <div class="form-actions">
             <button class="button" type="submit" data-submit-label>Speichern</button>
             <button class="button secondary" type="button" data-reset-form>Zurücksetzen</button>
           </div>
@@ -500,28 +526,42 @@ export function renderDailyEntry() {
         <h2 class="section-title" data-circumference-form-mode>Neue Umfangmessung</h2>
         <p class="muted settings-note">Arm- und Beinumfang zählen nur als Progress-Tracking und werden nicht für die KFA-Berechnung verwendet.</p>
         <div data-circumference-errors></div>
-        <form class="form-grid" data-circumference-form data-error-scope="circumference" novalidate>
-          <label class="field">
+        <form data-circumference-form data-error-scope="circumference" novalidate>
+          <label class="field date-field-row">
             <span>Datum</span>
             <input type="date" name="date" required>
           </label>
 
-          <label class="field">
-            <span>Armumfang</span>
-            <span class="input-shell"><input type="text" name="arm" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-numeric="decimal" placeholder="34,5"><span class="input-unit">cm</span></span>
-          </label>
+          <div class="grouped-input-section">
+            <label class="grouped-input-row">
+              <span class="grouped-input-label">
+                <span class="dot-indicator dot-primary"></span>
+                Armumfang
+              </span>
+              <span class="grouped-input-control">
+                <input type="text" name="arm" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-numeric="decimal" placeholder="–">
+                <span class="input-unit">cm</span>
+              </span>
+            </label>
 
-          <label class="field">
-            <span>Beinumfang</span>
-            <span class="input-shell"><input type="text" name="leg" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-numeric="decimal" placeholder="58,0"><span class="input-unit">cm</span></span>
-          </label>
+            <label class="grouped-input-row">
+              <span class="grouped-input-label">
+                <span class="dot-indicator dot-success"></span>
+                Beinumfang
+              </span>
+              <span class="grouped-input-control">
+                <input type="text" name="leg" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" data-numeric="decimal" placeholder="–">
+                <span class="input-unit">cm</span>
+              </span>
+            </label>
+          </div>
 
-          <label class="field field-full">
+          <label class="field note-field">
             <span>Notiz</span>
             <textarea name="note" rows="2" placeholder="Optional"></textarea>
           </label>
 
-          <div class="form-actions field-full">
+          <div class="form-actions">
             <button class="button" type="submit" data-circumference-submit-label>Umfang speichern</button>
             <button class="button secondary" type="button" data-reset-circumference-form>Zurücksetzen</button>
           </div>

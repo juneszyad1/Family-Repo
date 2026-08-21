@@ -1085,6 +1085,108 @@
   gap: 16px;
 }
 
+/* Grouped Input Section (Apple Health / Inset Form Style) */
+.grouped-input-section {
+  display: flex;
+  flex-direction: column;
+  margin: 12px 0 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  box-shadow: var(--specular);
+  overflow: hidden;
+}
+
+.grouped-input-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 58px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  transition: background-color 150ms ease;
+  cursor: text;
+}
+
+.grouped-input-row:last-child {
+  border-bottom: none;
+}
+
+.grouped-input-row:focus-within {
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface-raised));
+}
+
+.grouped-input-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.dot-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot-primary { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
+.dot-warning { background: var(--warning); box-shadow: 0 0 8px var(--warning); }
+.dot-success { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.dot-violet { background: #a78bfa; box-shadow: 0 0 8px #a78bfa; }
+
+.grouped-input-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.grouped-input-control input {
+  width: 100%;
+  max-width: 140px;
+  height: 42px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-primary);
+  font-family: "Arial Narrow", "Aptos Narrow", ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.65rem;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding: 0;
+}
+
+.grouped-input-control input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.grouped-input-control .input-unit {
+  padding-right: 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 750;
+  min-width: 28px;
+}
+
+.date-field-row {
+  margin-bottom: 4px;
+}
+
+.note-field {
+  margin-bottom: 18px;
+}
+
 .input-shell {
   display: flex;
   min-width: 0;
