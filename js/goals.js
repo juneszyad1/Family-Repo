@@ -84,17 +84,125 @@ export function calculateRequiredRate(goal) {
   };
 }
 
-export function calculateExpectedValueToday(goal, today = new Date()) {
-  const { durationDays, requiredDailyRate } = calculateRequiredRate(goal);
+export function getGoalPoints(goal) {
+  if (!goal) return [];
+  const sortedMilestones = (goal.milestones || [])
+    .filter((m) => m && m.date && m.targetValue !== null && m.targetValue !== undefined)
+    .sort((a, b) => a.date.localeCompare(b.date));
 
-  if (requiredDailyRate === null) {
-    return null;
+  return [
+    { date: goal.startDate, value: goal.startValue, label: "Start" },
+    ...sortedMilestones.map((m, index) => ({
+      id: m.id,
+      date: m.date,
+      value: m.targetValue,
+      label: m.label || `Zwischenziel ${index + 1}`
+    })),
+    { date: goal.targetDate, value: goal.targetValue, label: "Ziel" }
+  ];
+}
+
+export function calculateExpectedValueToday(goal, today = new Date()) {
+  const sortedMilestones = (goal.milestones || [])
+    .filter((m) => m && m.date && m.targetValue !== null && m.targetValue !== undefined)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  if (!sortedMilestones.length) {
+    const { durationDays, requiredDailyRate } = calculateRequiredRate(goal);
+
+    if (requiredDailyRate === null) {
+      return null;
+    }
+
+    const elapsedDays = differenceInCalendarDays(today, goal.startDate);
+    const clampedElapsedDays = clamp(elapsedDays, 0, durationDays);
+
+    return round(goal.startValue + requiredDailyRate * clampedElapsedDays, 2);
   }
 
-  const elapsedDays = differenceInCalendarDays(today, goal.startDate);
-  const clampedElapsedDays = clamp(elapsedDays, 0, durationDays);
+  const points = getGoalPoints(goal);
+  const todayDate = toDate(today);
+  const startObj = toDate(points[0].date);
+  const endObj = toDate(points[points.length - 1].date);
 
-  return round(goal.startValue + requiredDailyRate * clampedElapsedDays, 2);
+  if (differenceInCalendarDays(todayDate, startObj) <= 0) {
+    return round(points[0].value, 2);
+  }
+  if (differenceInCalendarDays(todayDate, endObj) >= 0) {
+    return round(points[points.length - 1].value, 2);
+  }
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const d1 = toDate(p1.date);
+    const d2 = toDate(p2.date);
+
+    if (differenceInCalendarDays(todayDate, d1) >= 0 && differenceInCalendarDays(d2, todayDate) >= 0) {
+      const segDuration = differenceInCalendarDays(d2, d1);
+      const segElapsed = differenceInCalendarDays(todayDate, d1);
+      const segChange = p2.value - p1.value;
+      const rate = segDuration > 0 ? segChange / segDuration : 0;
+      return round(p1.value + rate * segElapsed, 2);
+    }
+  }
+
+  return round(points[points.length - 1].value, 2);
+}
+
+export function analyzeMilestones(goal, currentValue, today = new Date()) {
+  if (!goal.milestones || !Array.isArray(goal.milestones) || goal.milestones.length === 0) {
+    return {
+      milestones: [],
+      activeMilestone: null
+    };
+  }
+
+  const directionFactor = getDirectionFactor(goal);
+  const sorted = [...goal.milestones]
+    .filter((m) => m && m.date && m.targetValue !== null && m.targetValue !== undefined)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  let previousPoint = { date: goal.startDate, value: goal.startValue };
+  const analyzed = sorted.map((milestone, index) => {
+    const isTargetReached = currentValue !== null && (milestone.targetValue - currentValue) * directionFactor <= 0;
+    const isPast = differenceInCalendarDays(today, milestone.date) > 0;
+    const daysRemaining = differenceInCalendarDays(milestone.date, today);
+    const durationFromPrev = differenceInCalendarDays(milestone.date, previousPoint.date);
+    const changeFromPrev = milestone.targetValue - previousPoint.value;
+    const requiredWeeklyRate = durationFromPrev > 0 ? (changeFromPrev / durationFromPrev) * 7 : null;
+
+    let status;
+    if (isTargetReached) {
+      status = GOAL_STATUS.COMPLETED;
+    } else if (isPast) {
+      status = GOAL_STATUS.OVERDUE;
+    } else {
+      status = "upcoming";
+    }
+
+    const item = {
+      id: milestone.id || `ms-${index}`,
+      date: milestone.date,
+      targetValue: milestone.targetValue,
+      label: milestone.label || `Zwischenschritt ${index + 1}`,
+      isCompleted: isTargetReached,
+      isOverdue: isPast && !isTargetReached,
+      daysRemaining,
+      requiredWeeklyRate: round(requiredWeeklyRate, 2),
+      status
+    };
+
+    previousPoint = { date: milestone.date, value: milestone.targetValue };
+    return item;
+  });
+
+  const activeMilestone = analyzed.find((m) => !m.isCompleted) || analyzed[analyzed.length - 1] || null;
+
+  return {
+    milestones: analyzed,
+    activeMilestone
+  };
 }
 
 function valueForEntry(entry, valueKey) {
@@ -526,6 +634,8 @@ export function analyzeGoal(goal, entries, todayInput = new Date()) {
     warnings.push("Körperfettmessungen mit einer Zange sind Schätzwerte. Große kurzfristige Veränderungen können durch Messabweichungen entstehen.");
   }
 
+  const milestoneAnalysis = analyzeMilestones(goal, current.value, today);
+
   const analysis = {
     goalId: goal.id,
     goalType: goal.type,
@@ -542,6 +652,8 @@ export function analyzeGoal(goal, entries, todayInput = new Date()) {
     scheduleDeviation,
     valueProgress: progress.valueProgress,
     timeProgress: progress.timeProgress,
+    milestones: milestoneAnalysis.milestones,
+    activeMilestone: milestoneAnalysis.activeMilestone,
     trends,
     primaryTrend,
     remainingRequiredDailyRate: remainingRequired.remainingRequiredDailyRate,

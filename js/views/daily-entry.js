@@ -53,21 +53,39 @@ function normalizeCircumferenceEntry(values) {
   };
 }
 
-function renderErrorList(errors) {
-  const messages = Object.values(errors);
-
-  if (!messages.length) {
-    return "";
-  }
-
-  return `
-    <div class="alert danger" role="alert">
-      ${messages.map((message) => `<p>${message}</p>`).join("")}
-    </div>
-  `;
+function clearFormErrors(form, errorSlot) {
+  errorSlot.innerHTML = "";
+  form.querySelectorAll("[aria-invalid]").forEach((field) => {
+    field.removeAttribute("aria-invalid");
+    field.removeAttribute("aria-describedby");
+  });
+  form.querySelectorAll(".field-error").forEach((error) => error.remove());
 }
 
-function renderHistory(entries) {
+export function applyFormErrors(form, errors, errorSlot) {
+  clearFormErrors(form, errorSlot);
+  let firstInvalidField = null;
+
+  Object.entries(errors).forEach(([fieldName, message]) => {
+    if (fieldName === "form") {
+      errorSlot.innerHTML = `<div class="alert danger" role="alert"><p>${escapeHtml(message)}</p></div>`;
+      return;
+    }
+
+    const field = form.elements.namedItem(fieldName);
+    const wrapper = field?.closest(".field");
+    if (!field || !wrapper) return;
+    const errorId = `${form.dataset.errorScope}-${fieldName}-error`;
+    field.setAttribute("aria-invalid", "true");
+    field.setAttribute("aria-describedby", errorId);
+    wrapper.insertAdjacentHTML("beforeend", `<span class="field-error" id="${errorId}">${escapeHtml(message)}</span>`);
+    firstInvalidField ||= field;
+  });
+
+  (firstInvalidField || (errors.form ? form.querySelector("input, textarea, select") : null))?.focus();
+}
+
+function renderHistory(entries, expanded = false) {
   if (!entries.length) {
     return `
       <section class="card empty-state">
@@ -77,12 +95,14 @@ function renderHistory(entries) {
     `;
   }
 
+  const sortedEntries = sortByDateDesc(entries);
+  const visibleEntries = expanded ? sortedEntries : sortedEntries.slice(0, 3);
   return `
     <section class="card">
       <div class="card-body">
         <h2 class="section-title">Letzte Einträge</h2>
         <div class="entry-list">
-          ${sortByDateDesc(entries)
+          ${visibleEntries
             .map(
               (entry) => `
                 <article class="entry-row" data-entry-id="${entry.id}">
@@ -105,12 +125,13 @@ function renderHistory(entries) {
             )
             .join("")}
         </div>
+        ${entries.length > 3 ? `<button class="button secondary history-toggle" type="button" data-toggle-history>${expanded ? "Weniger anzeigen" : `Alle ${entries.length} anzeigen`}</button>` : ""}
       </div>
     </section>
   `;
 }
 
-function renderCircumferenceHistory(entries) {
+function renderCircumferenceHistory(entries, expanded = false) {
   if (!entries.length) {
     return `
       <section class="card empty-state">
@@ -120,12 +141,14 @@ function renderCircumferenceHistory(entries) {
     `;
   }
 
+  const sortedEntries = sortByDateDesc(entries);
+  const visibleEntries = expanded ? sortedEntries : sortedEntries.slice(0, 3);
   return `
     <section class="card">
       <div class="card-body">
         <h2 class="section-title">Letzte Umfangmessungen</h2>
         <div class="entry-list">
-          ${sortByDateDesc(entries)
+          ${visibleEntries
             .map(
               (entry) => `
                 <article class="entry-row" data-circumference-id="${entry.id}">
@@ -146,6 +169,7 @@ function renderCircumferenceHistory(entries) {
             )
             .join("")}
         </div>
+        ${entries.length > 3 ? `<button class="button secondary history-toggle" type="button" data-toggle-circumference-history>${expanded ? "Weniger anzeigen" : `Alle ${entries.length} anzeigen`}</button>` : ""}
       </div>
     </section>
   `;
@@ -193,17 +217,17 @@ function resetCircumferenceForm(form) {
   form.querySelector("[data-circumference-submit-label]").textContent = "Umfang speichern";
 }
 
-async function refreshHistory(container) {
+async function refreshHistory(container, expanded = false) {
   const history = container.querySelector("[data-history]");
   const entries = await getDailyEntries();
-  history.innerHTML = renderHistory(entries);
+  history.innerHTML = renderHistory(entries, expanded);
   return entries;
 }
 
-async function refreshCircumferenceHistory(container) {
+async function refreshCircumferenceHistory(container, expanded = false) {
   const history = container.querySelector("[data-circumference-history]");
   const entries = await getCircumferenceEntries();
-  history.innerHTML = renderCircumferenceHistory(entries);
+  history.innerHTML = renderCircumferenceHistory(entries, expanded);
   return entries;
 }
 
@@ -234,6 +258,8 @@ async function initializeDailyView(container) {
   const circumferenceErrorSlot = container.querySelector("[data-circumference-errors]");
   let entries = [];
   let circumferenceEntries = [];
+  let historyExpanded = false;
+  let circumferenceHistoryExpanded = false;
 
   form.elements.date.value = todayIsoDate();
   circumferenceForm.elements.date.value = todayIsoDate();
@@ -256,7 +282,7 @@ async function initializeDailyView(container) {
     event.preventDefault();
     const values = getFormValues(form);
     const errors = validateDailyEntryForm(values);
-    errorSlot.innerHTML = renderErrorList(errors);
+    applyFormErrors(form, errors, errorSlot);
 
     if (hasErrors(errors)) {
       return;
@@ -274,7 +300,8 @@ async function initializeDailyView(container) {
       }
 
       resetForm(form);
-      entries = await refreshHistory(container);
+      clearFormErrors(form, errorSlot);
+      entries = await refreshHistory(container, historyExpanded);
       showStatus(container, "Tagesdaten gespeichert.");
     } catch (error) {
       console.error(error);
@@ -286,7 +313,7 @@ async function initializeDailyView(container) {
     event.preventDefault();
     const values = getCircumferenceFormValues(circumferenceForm);
     const errors = validateCircumferenceForm(values);
-    circumferenceErrorSlot.innerHTML = renderErrorList(errors);
+    applyFormErrors(circumferenceForm, errors, circumferenceErrorSlot);
 
     if (hasErrors(errors)) {
       return;
@@ -295,7 +322,8 @@ async function initializeDailyView(container) {
     try {
       await saveCircumferenceEntry(normalizeCircumferenceEntry(values));
       resetCircumferenceForm(circumferenceForm);
-      circumferenceEntries = await refreshCircumferenceHistory(container);
+      clearFormErrors(circumferenceForm, circumferenceErrorSlot);
+      circumferenceEntries = await refreshCircumferenceHistory(container, circumferenceHistoryExpanded);
       showStatus(container, "Umfangmessung gespeichert.");
     } catch (error) {
       console.error(error);
@@ -304,18 +332,28 @@ async function initializeDailyView(container) {
   });
 
   circumferenceForm.querySelector("[data-reset-circumference-form]").addEventListener("click", () => {
-    circumferenceErrorSlot.innerHTML = "";
+    clearFormErrors(circumferenceForm, circumferenceErrorSlot);
     resetCircumferenceForm(circumferenceForm);
     showStatus(container, "");
   });
 
   form.querySelector("[data-reset-form]").addEventListener("click", () => {
-    errorSlot.innerHTML = "";
+    clearFormErrors(form, errorSlot);
     resetForm(form);
     showStatus(container, "");
   });
 
   container.addEventListener("click", async (event) => {
+    if (event.target.closest("[data-toggle-history]")) {
+      historyExpanded = !historyExpanded;
+      await refreshHistory(container, historyExpanded);
+      return;
+    }
+    if (event.target.closest("[data-toggle-circumference-history]")) {
+      circumferenceHistoryExpanded = !circumferenceHistoryExpanded;
+      await refreshCircumferenceHistory(container, circumferenceHistoryExpanded);
+      return;
+    }
     const button = event.target.closest("[data-action]");
     const row = event.target.closest("[data-entry-id]");
 
@@ -331,7 +369,7 @@ async function initializeDailyView(container) {
 
     if (button.dataset.action === "edit") {
       setFormEntry(form, entry);
-      errorSlot.innerHTML = "";
+      clearFormErrors(form, errorSlot);
       form.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
@@ -345,7 +383,7 @@ async function initializeDailyView(container) {
 
       try {
         await deleteDailyEntry(entry.id);
-        entries = await refreshHistory(container);
+        entries = await refreshHistory(container, historyExpanded);
         showStatus(container, "Eintrag gelöscht.");
       } catch (error) {
         console.error(error);
@@ -369,8 +407,9 @@ async function initializeDailyView(container) {
     }
 
     if (button.dataset.circumferenceAction === "edit") {
+      circumferenceForm.closest("details").open = true;
       setCircumferenceFormEntry(circumferenceForm, entry);
-      circumferenceErrorSlot.innerHTML = "";
+      clearFormErrors(circumferenceForm, circumferenceErrorSlot);
       circumferenceForm.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
@@ -384,7 +423,7 @@ async function initializeDailyView(container) {
 
       try {
         await deleteCircumferenceEntry(entry.id);
-        circumferenceEntries = await refreshCircumferenceHistory(container);
+        circumferenceEntries = await refreshCircumferenceHistory(container, circumferenceHistoryExpanded);
         showStatus(container, "Umfangmessung gelöscht.");
       } catch (error) {
         console.error(error);
@@ -410,8 +449,8 @@ export function renderDailyEntry() {
           <a class="button secondary" href="#/body-fat">KFA eintragen</a>
         </div>
         <div data-errors></div>
-        <div data-status></div>
-        <form class="form-grid" data-daily-form novalidate>
+        <div data-status role="status" aria-live="polite" aria-atomic="true"></div>
+        <form class="form-grid" data-daily-form data-error-scope="daily" novalidate>
           <label class="field">
             <span>Datum</span>
             <input type="date" name="date" required>
@@ -450,12 +489,18 @@ export function renderDailyEntry() {
       </div>
     </section>
 
-    <section class="card entry-composer secondary-composer">
+    <div data-history>
+      <section class="card skeleton" aria-label="Einträge werden geladen"></section>
+    </div>
+
+    <details class="secondary-section">
+      <summary>Umfang messen und Verlauf anzeigen</summary>
+      <section class="card entry-composer secondary-composer">
       <div class="card-body">
         <h2 class="section-title" data-circumference-form-mode>Neue Umfangmessung</h2>
         <p class="muted settings-note">Arm- und Beinumfang zählen nur als Progress-Tracking und werden nicht für die KFA-Berechnung verwendet.</p>
         <div data-circumference-errors></div>
-        <form class="form-grid" data-circumference-form novalidate>
+        <form class="form-grid" data-circumference-form data-error-scope="circumference" novalidate>
           <label class="field">
             <span>Datum</span>
             <input type="date" name="date" required>
@@ -482,21 +527,12 @@ export function renderDailyEntry() {
           </div>
         </form>
       </div>
-    </section>
-
-    <div data-history>
-      <section class="card empty-state">
-        <h2>Einträge werden geladen</h2>
-        <p>Einen Moment bitte.</p>
       </section>
-    </div>
 
-    <div data-circumference-history>
-      <section class="card empty-state">
-        <h2>Umfangmessungen werden geladen</h2>
-        <p>Einen Moment bitte.</p>
-      </section>
-    </div>
+      <div data-circumference-history>
+        <section class="card skeleton" aria-label="Umfangmessungen werden geladen"></section>
+      </div>
+    </details>
   `;
   fragment.append(container);
   initializeDailyView(container);

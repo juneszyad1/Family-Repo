@@ -2,6 +2,7 @@ import {
   GOAL_STATUS,
   GOAL_TYPES,
   analyzeGoal,
+  analyzeMilestones,
   calculateExpectedValueToday,
   calculateGoalProgress,
   calculateLinearTrend,
@@ -12,6 +13,7 @@ import {
   calculateRequiredRate,
   calculateScheduleDeviation,
   differenceInCalendarDays,
+  getGoalPoints,
   resolveStartValue
 } from "../js/goals.js";
 
@@ -246,6 +248,101 @@ test("analyzeGoal warnt bei alter KFA-Messung", () => {
     { date: "2026-07-08", bodyFatPercentage: 23.8 }
   ], "2026-08-15");
   assert(analysis.warnings.some((warning) => warning.includes("älteren Messung")), "Warnung für alte KFA-Messung fehlt");
+});
+
+test("getGoalPoints liefert Start, sortierte Zwischenschritte und Zielpunkt", () => {
+  const goalWithMilestones = {
+    ...weightGoal,
+    startValue: 100,
+    targetValue: 92,
+    startDate: "2026-07-01",
+    targetDate: "2027-01-01",
+    milestones: [
+      { id: "m2", date: "2026-11-01", targetValue: 93, label: "Zweiter Zwischenschritt" },
+      { id: "m1", date: "2026-09-01", targetValue: 95, label: "Erster Zwischenschritt" }
+    ]
+  };
+  const points = getGoalPoints(goalWithMilestones);
+  assertEqual(points.length, 4, "Anzahl Punkte falsch");
+  assertEqual(points[0].date, "2026-07-01", "Startdatum falsch");
+  assertEqual(points[1].date, "2026-09-01", "Erster Zwischenschritt falsch sortiert");
+  assertEqual(points[1].value, 95, "Erster Zwischenschritt-Wert falsch");
+  assertEqual(points[2].date, "2026-11-01", "Zweiter Zwischenschritt falsch sortiert");
+  assertEqual(points[3].date, "2027-01-01", "Zieldatum falsch");
+});
+
+test("calculateExpectedValueToday interpoliert stückweise linear mit Zwischenschritten", () => {
+  const goalWithMilestones = {
+    ...weightGoal,
+    startValue: 100,
+    targetValue: 92,
+    startDate: "2026-07-01",
+    targetDate: "2027-01-01",
+    milestones: [
+      { id: "m1", date: "2026-09-01", targetValue: 95, label: "5kg abgenommen" }
+    ]
+  };
+
+  // Am Startdatum
+  assertEqual(calculateExpectedValueToday(goalWithMilestones, "2026-07-01"), 100, "Startwert falsch");
+
+  // Am Zwischenschritt-Datum (01.09.2026) -> genau 95.0 kg
+  assertEqual(calculateExpectedValueToday(goalWithMilestones, "2026-09-01"), 95, "Zwischenschritt-Sollwert falsch");
+
+  // Am Zieldatum (01.01.2027) -> genau 92.0 kg
+  assertEqual(calculateExpectedValueToday(goalWithMilestones, "2027-01-01"), 92, "Zieltermin-Sollwert falsch");
+
+  // Vor Startdatum -> Startwert
+  assertEqual(calculateExpectedValueToday(goalWithMilestones, "2026-06-15"), 100, "Vor-Startwert falsch");
+
+  // Nach Zieldatum -> Endwert
+  assertEqual(calculateExpectedValueToday(goalWithMilestones, "2027-02-01"), 92, "Nach-Zieltermin-Wert falsch");
+});
+
+test("analyzeMilestones ermittelt Status, Resttage und nächstes Zwischenziel", () => {
+  const goalWithMilestones = {
+    ...weightGoal,
+    startValue: 100,
+    targetValue: 92,
+    startDate: "2026-07-01",
+    targetDate: "2027-01-01",
+    milestones: [
+      { id: "m1", date: "2026-09-01", targetValue: 95, label: "5kg weniger" },
+      { id: "m2", date: "2026-11-01", targetValue: 93.5, label: "6.5kg weniger" }
+    ]
+  };
+
+  // Stand 15.08.2026 bei 96 kg: erstes Zwischenziel noch nicht erreicht aber aktiv
+  const analysis1 = analyzeMilestones(goalWithMilestones, 96, "2026-08-15");
+  assertEqual(analysis1.milestones.length, 2, "Anzahl Milestones falsch");
+  assertEqual(analysis1.activeMilestone.id, "m1", "Aktives Zwischenziel falsch");
+  assertEqual(analysis1.milestones[0].isCompleted, false, "Erstes Zwischenziel sollte unvollständig sein");
+  assertEqual(analysis1.milestones[0].isOverdue, false, "Erstes Zwischenziel sollte nicht überfällig sein");
+
+  // Stand 15.09.2026 bei 94.5 kg: erstes Zwischenziel erreicht (94.5 <= 95), zweites aktiv
+  const analysis2 = analyzeMilestones(goalWithMilestones, 94.5, "2026-09-15");
+  assertEqual(analysis2.milestones[0].isCompleted, true, "Erstes Zwischenziel sollte abgeschlossen sein");
+  assertEqual(analysis2.activeMilestone.id, "m2", "Zweites Zwischenziel sollte aktiv sein");
+
+  // Stand 15.09.2026 bei 96 kg: erstes Zwischenziel überfällig (15.09 > 01.09 und 96 > 95)
+  const analysis3 = analyzeMilestones(goalWithMilestones, 96, "2026-09-15");
+  assertEqual(analysis3.milestones[0].isOverdue, true, "Erstes Zwischenziel sollte überfällig sein");
+});
+
+test("analyzeGoal bindet Milestones und activeMilestone in das Ergebnis ein", () => {
+  const goalWithMilestones = {
+    ...weightGoal,
+    startValue: 100,
+    targetValue: 92,
+    startDate: "2026-07-01",
+    targetDate: "2027-01-01",
+    milestones: [
+      { id: "m1", date: "2026-09-01", targetValue: 95 }
+    ]
+  };
+  const analysis = analyzeGoal(goalWithMilestones, [{ date: "2026-08-15", weight: 96 }], "2026-08-15");
+  assertEqual(analysis.milestones.length, 1, "Milestones im Gesamtergebnis fehlen");
+  assertEqual(analysis.activeMilestone.id, "m1", "Aktives Milestone im Gesamtergebnis fehlt");
 });
 
 export async function runGoalTests() {

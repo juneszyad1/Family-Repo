@@ -83,6 +83,9 @@ function renderGoalSummary(goal, dailyEntries, bodyFatEntries) {
         </div>
         <div class="dashboard-goal-grid">
           <p><strong>Zieldatum</strong><span>${formatDate(goal.targetDate)}</span></p>
+          ${analysis.activeMilestone && !analysis.activeMilestone.isCompleted ? `
+            <p><strong>Nächster Zwischenschritt</strong><span>${formatNumber(analysis.activeMilestone.targetValue, { maximumFractionDigits: 1 })} ${unit} bis ${formatDate(analysis.activeMilestone.date)}</span></p>
+          ` : ""}
           <p><strong>Soll heute</strong><span>${formatNumber(analysis.expectedValueToday, { maximumFractionDigits: 1 })} ${unit}</span></p>
           <p><strong>Abweichung</strong><span>${deviationText}</span></p>
           <p><strong>Primärtrend</strong><span>${primaryTrend?.available ? `${formatNumber(primaryTrend.weeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche` : "Noch nicht verfügbar"}</span></p>
@@ -116,7 +119,7 @@ function renderTrainingSummary(sessions, plans) {
   const counts = completed.filter((s) => { const d=new Date(`${s.date}T12:00:00`); const start=new Date(); start.setDate(start.getDate()-6); start.setHours(0,0,0,0); return d>=start; }).reduce((acc,s)=>({...acc,[s.workoutType]:(acc[s.workoutType]||0)+1}),{});
   const week = Array.from({length:7},(_,index)=>{const date=new Date();date.setHours(12,0,0,0);date.setDate(date.getDate()-6+index);const iso=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;const daySessions=completed.filter((s)=>s.date===iso);return `<li class="${daySessions.length?"has-training":""}"><strong>${new Intl.DateTimeFormat("de-DE",{weekday:"short"}).format(date)}</strong><span>${daySessions.length?daySessions.map((s)=>WORKOUT_TYPE_LABELS[s.workoutType]).join(", "):"Kein Training"}</span></li>`}).join("");
   const quickPlans=plans.filter((p)=>!p.isArchived).slice(0,3);
-  return `<section class="card dashboard-training-card"><div class="card-body"><div class="section-heading"><div><p class="metric-label">Bewegung</p><h2 class="section-title">Training</h2></div><a class="text-link" href="#/training">Alle öffnen →</a></div><div class="dashboard-training-grid"><div class="training-highlight"><p class="metric-label">Letztes Training</p><p><strong>${last?escapeHtmlSafe(last.planNameSnapshot):"Noch keines"}</strong>${last?`<br><span class="muted">${formatDate(last.date)} · ${WORKOUT_TYPE_LABELS[last.workoutType]} · ${Math.round((last.durationSeconds||0)/60)} min</span>`:""}</p></div><div class="training-count"><strong>${calculateWeeklyWorkoutCount(completed)}</strong><span>Einheiten<br>in 7 Tagen</span><small>${counts.strength||0} Kraft · ${counts.stretching||0} Stretch</small></div></div><h3 class="subsection-title">Wochenrhythmus</h3><ul class="week-overview">${week}</ul>${quickPlans.length?`<h3 class="subsection-title">Schnellstart</h3><div class="quick-plan-list">${quickPlans.map((p)=>`<a href="#/training"><strong>${escapeHtmlSafe(p.name)}</strong><span>${WORKOUT_TYPE_LABELS[p.workoutType]} →</span></a>`).join("")}</div>`:""}<a class="button" href="#/training">Training starten</a></div></section>`;
+  return `<section class="card dashboard-training-card"><div class="card-body"><div class="section-heading"><div><p class="metric-label">Bewegung</p><h2 class="section-title">Training</h2></div><a class="text-link" href="#/training">Alle öffnen →</a></div><div class="dashboard-training-grid"><div class="training-highlight"><p class="metric-label">Letztes Training</p><p><strong>${last?escapeHtmlSafe(last.planNameSnapshot):"Noch keines"}</strong>${last?`<br><span class="muted">${formatDate(last.date)} · ${WORKOUT_TYPE_LABELS[last.workoutType]} · ${Math.round((last.durationSeconds||0)/60)} min</span>`:""}</p></div><div class="training-count"><strong>${calculateWeeklyWorkoutCount(completed)}</strong><span>Einheiten<br>in 7 Tagen</span><small>${counts.strength||0} Kraft · ${counts.stretching||0} Stretch</small></div></div><h3 class="subsection-title">Wochenrhythmus</h3><ul class="week-overview">${week}</ul>${quickPlans.length?`<h3 class="subsection-title">Schnellstart</h3><div class="quick-plan-list">${quickPlans.map((p)=>`<a href="#/training?startPlan=${encodeURIComponent(p.id)}"><strong>${escapeHtmlSafe(p.name)}</strong><span>${WORKOUT_TYPE_LABELS[p.workoutType]} starten →</span></a>`).join("")}</div>`:""}<a class="button" href="#/training">Training starten</a></div></section>`;
 }
 function escapeHtmlSafe(value) { const node=document.createElement("span"); node.textContent=value||""; return node.innerHTML; }
 
@@ -126,8 +129,6 @@ function renderDashboardContent({ dailyEntries, bodyFatEntries, circumferenceEnt
   const latestWeight = getLatestEntry(dailyEntries, "weight");
   const latestBodyFat = getLatestEntry(bodyFatEntries, "bodyFatPercentage");
   const latestSleep = getLatestEntry(dailyEntries, "sleepHours");
-  const latestArm = getLatestEntry(circumferenceEntries, "arm");
-  const latestLeg = getLatestEntry(circumferenceEntries, "leg");
   const weightChange = calculateWeightChange(dailyEntries);
   const averageWeight = calculateAverageWeightLast7Days(dailyEntries);
   const caloriesToday = todayEntry?.calories ?? null;
@@ -156,14 +157,9 @@ function renderDashboardContent({ dailyEntries, bodyFatEntries, circumferenceEnt
         <div class="hero-facts">
           <div><span>7-Tage-Schnitt</span><strong>${formatNumber(averageWeight, { maximumFractionDigits: 1 })} kg</strong></div>
           <div><span>Körperfett</span><strong>${formatNumber(latestBodyFat?.bodyFatPercentage, { maximumFractionDigits: 1 })} %</strong></div>
+          <div><span>Schlaf</span><strong>${formatNumber(latestSleep?.sleepHours, { maximumFractionDigits: 1 })} h</strong></div>
         </div>
       </div>
-    </section>
-
-    <section class="dashboard-vitals" aria-label="Weitere Körperwerte">
-      <article><span>Schlaf</span><strong>${formatNumber(latestSleep?.sleepHours, { maximumFractionDigits: 1 })} h</strong><small>${latestSleep ? formatDate(latestSleep.date) : "Kein Wert"}</small></article>
-      <article><span>Arm</span><strong>${formatNumber(latestArm?.arm, { maximumFractionDigits: 1 })} cm</strong><small>${latestArm ? formatDate(latestArm.date) : "Kein Wert"}</small></article>
-      <article><span>Bein</span><strong>${formatNumber(latestLeg?.leg, { maximumFractionDigits: 1 })} cm</strong><small>${latestLeg ? formatDate(latestLeg.date) : "Kein Wert"}</small></article>
     </section>
 
     <section class="card nutrition-card">
@@ -179,17 +175,6 @@ function renderDashboardContent({ dailyEntries, bodyFatEntries, circumferenceEnt
     ${renderTrainingSummary(workoutSessions, workoutPlans)}
 
     ${renderGoalSummaries(activeGoals, dailyEntries, bodyFatEntries)}
-
-    <section class="card quick-action-card">
-      <div class="card-body">
-        <h2 class="section-title">Schnellaktionen</h2>
-        <div class="button-row">
-          <a class="button" href="#/daily">Tagesdaten</a>
-          <a class="button secondary" href="#/body-fat">KFA messen</a>
-          <a class="button secondary" href="#/goals">Ziele</a>
-        </div>
-      </div>
-    </section>
 
     ${
       hasNutritionToday
@@ -252,10 +237,7 @@ export function renderDashboard() {
   const container = document.createElement("section");
   container.className = "view-stack";
   container.innerHTML = `
-    <section class="card empty-state">
-      <h2>Dashboard wird geladen</h2>
-      <p>Einen Moment bitte.</p>
-    </section>
+    <section class="card skeleton" aria-label="Dashboard wird geladen"></section>
   `;
   fragment.append(container);
   initializeDashboard(container);

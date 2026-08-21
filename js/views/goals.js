@@ -71,6 +71,84 @@ function entriesForType(type, dailyEntries, bodyFatEntries) {
   return type === GOAL_TYPES.BODY_FAT ? bodyFatEntries : dailyEntries;
 }
 
+function createMilestoneRow(milestone = {}, unit = "kg") {
+  const row = document.createElement("div");
+  row.className = "milestone-row";
+  row.dataset.milestoneRow = "true";
+  if (milestone.id) {
+    row.dataset.milestoneId = milestone.id;
+  }
+
+  row.innerHTML = `
+    <label class="field">
+      <span>Datum</span>
+      <input type="date" name="milestoneDate" value="${milestone.date || ""}" required>
+    </label>
+    <label class="field">
+      <span data-milestone-unit-label>Zielwert (${unit})</span>
+      <input type="text" name="milestoneTargetValue" inputmode="decimal" pattern="[0-9]+([,.][0-9]+)?" value="${milestone.targetValue ?? ""}" placeholder="z. B. 90.0" required>
+    </label>
+    <label class="field field-full-mobile">
+      <span>Bezeichnung</span>
+      <input type="text" name="milestoneLabel" value="${milestone.label || ""}" placeholder="z. B. Zwischenziel 1">
+    </label>
+    <button class="icon-button danger" type="button" data-remove-milestone aria-label="Zwischenschritt entfernen">Löschen</button>
+  `;
+
+  return row;
+}
+
+function getMilestonesFromForm(form) {
+  const rows = form.querySelectorAll("[data-milestone-row]");
+  const milestones = [];
+  rows.forEach((row) => {
+    const date = row.querySelector('[name="milestoneDate"]')?.value || "";
+    const targetValue = toNumberOrNull(row.querySelector('[name="milestoneTargetValue"]')?.value);
+    const label = row.querySelector('[name="milestoneLabel"]')?.value || "";
+    const id = row.dataset.milestoneId || undefined;
+    if (date || targetValue !== null || (label && label.trim())) {
+      milestones.push({ id, date, targetValue, label: label.trim() });
+    }
+  });
+  return milestones;
+}
+
+function renderMilestonesTimeline(milestones, unit) {
+  if (!milestones || !milestones.length) return "";
+
+  return `
+    <div class="milestones-timeline">
+      <h3 class="milestones-timeline-title">Zwischenschritte</h3>
+      <div class="milestone-steps">
+        ${milestones.map((m, index) => {
+          let pillClass = "upcoming";
+          let statusLabel = `bis ${formatDate(m.date)}`;
+          if (m.isCompleted) {
+            pillClass = "completed";
+            statusLabel = "Erreicht";
+          } else if (m.isOverdue) {
+            pillClass = "overdue";
+            statusLabel = "Überfällig";
+          }
+
+          return `
+            <div class="milestone-step ${m.isCompleted ? "completed" : ""} ${m.isOverdue ? "overdue" : ""}">
+              <div class="milestone-step-info">
+                <strong>${m.label || `Zwischenschritt ${index + 1}`}</strong>
+                <span>${formatDate(m.date)} · ${m.daysRemaining >= 0 ? `in ${m.daysRemaining} Tagen` : `vor ${Math.abs(m.daysRemaining)} Tagen`}</span>
+              </div>
+              <div class="milestone-step-value">
+                <strong>${formatNumber(m.targetValue, { maximumFractionDigits: 1 })} ${unit}</strong>
+                <span class="milestone-pill ${pillClass}">${statusLabel}</span>
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function getGoalFormValues(form, dailyEntries, bodyFatEntries) {
   const formData = new FormData(form);
   const type = formData.get("type");
@@ -92,6 +170,8 @@ function getGoalFormValues(form, dailyEntries, bodyFatEntries) {
     targetDate = requestedWeeks ? addWeeks(startDate, requestedWeeks) : "";
   }
 
+  const milestones = getMilestonesFromForm(form);
+
   return {
     type,
     inputMode,
@@ -101,6 +181,7 @@ function getGoalFormValues(form, dailyEntries, bodyFatEntries) {
     targetValue,
     requestedChange,
     requestedWeeks,
+    milestones,
     startValueResolution
   };
 }
@@ -115,6 +196,34 @@ function validateGoal(values) {
   if (values.targetValue === null) errors.push("Bitte Zielwert oder Reduktion eintragen.");
   if (values.startDate && values.targetDate && values.targetDate <= values.startDate) {
     errors.push("Der Zieltermin muss nach dem Startdatum liegen.");
+  }
+
+  (values.milestones || []).forEach((m, idx) => {
+    const num = idx + 1;
+    if (!m.date) {
+      errors.push(`Zwischenschritt #${num}: Bitte Datum auswählen.`);
+    } else {
+      if (values.startDate && m.date <= values.startDate) {
+        errors.push(`Zwischenschritt #${num}: Datum muss nach dem Startdatum liegen.`);
+      }
+      if (values.targetDate && m.date >= values.targetDate) {
+        errors.push(`Zwischenschritt #${num}: Datum muss vor dem Zieltermin liegen.`);
+      }
+    }
+    if (m.targetValue === null || Number.isNaN(m.targetValue)) {
+      errors.push(`Zwischenschritt #${num}: Bitte Zielwert eintragen.`);
+    }
+  });
+
+  if (values.milestones && values.milestones.length > 1) {
+    for (let i = 0; i < values.milestones.length - 1; i++) {
+      if (values.milestones[i].date && values.milestones[i + 1].date) {
+        if (values.milestones[i].date >= values.milestones[i + 1].date) {
+          errors.push("Die Zwischenschritte müssen chronologisch aufeinanderfolgen.");
+          break;
+        }
+      }
+    }
   }
 
   return errors;
@@ -136,6 +245,8 @@ function resetGoalForm(form) {
   form.reset();
   form.elements.startDate.value = todayIsoDate();
   delete form.dataset.editingGoalId;
+  const container = form.querySelector("[data-milestones-container]");
+  if (container) container.innerHTML = "";
   cardBody.querySelector("[data-form-title]").textContent = "Ziel erstellen";
   form.querySelector("[data-submit-label]").textContent = "Ziel speichern";
   syncInputModeVisibility(form);
@@ -152,6 +263,15 @@ function setGoalFormValues(form, goal) {
   form.elements.requestedChange.value = goal.requestedChange ?? "";
   form.elements.requestedWeeks.value = goal.requestedWeeks ?? "";
   form.dataset.editingGoalId = goal.id;
+
+  const container = form.querySelector("[data-milestones-container]");
+  if (container) {
+    container.innerHTML = "";
+    (goal.milestones || []).forEach((m) => {
+      container.appendChild(createMilestoneRow(m, unitLabel(goal.type)));
+    });
+  }
+
   cardBody.querySelector("[data-form-title]").textContent = "Ziel bearbeiten";
   form.querySelector("[data-submit-label]").textContent = "Änderungen speichern";
   syncInputModeVisibility(form);
@@ -201,6 +321,21 @@ function renderTrendDetail(key, trend, goal, analysis) {
   `;
 }
 
+function renderMilestoneDetails(milestones, unit, changeUnit) {
+  if (!milestones || !milestones.length) return "";
+
+  return `
+    <section class="muted-panel">
+      <h3>Zwischenschritte Übersicht</h3>
+      <div class="detail-grid">
+        ${milestones.map((m, idx) => `
+          <p><strong>${m.label || `Schritt ${idx + 1}`} (${formatDate(m.date)})</strong><span>${formatNumber(m.targetValue, { maximumFractionDigits: 1 })} ${unit} ${m.requiredWeeklyRate !== null ? `· ${formatSigned(m.requiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/W` : ""}</span></p>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
 function renderGoalDetails(goal, analysis) {
   const unit = unitLabel(goal.type);
   const changeUnit = changeUnitLabel(goal.type);
@@ -224,6 +359,7 @@ function renderGoalDetails(goal, analysis) {
             <p><strong>Ab heute benötigt</strong><span>${formatSigned(analysis.remainingRequiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</span></p>
           </div>
         </section>
+        ${renderMilestoneDetails(analysis.milestones, unit, changeUnit)}
         ${["days7", "days14", "days30"].map((key) => renderTrendDetail(key, analysis.trends[key], goal, analysis)).join("")}
       </div>
     </details>
@@ -290,6 +426,7 @@ function renderGoalCard(goal, dailyEntries, bodyFatEntries) {
           <p><strong>Benötigt:</strong> ${formatNumber(analysis.requiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</p>
           <p><strong>Ab heute benötigt:</strong> ${formatNumber(analysis.remainingRequiredWeeklyRate, { maximumFractionDigits: 2 })} ${changeUnit}/Woche</p>
         </div>
+        ${renderMilestonesTimeline(analysis.milestones, unit)}
         <div class="trend-strip">
           ${["days7", "days14", "days30"].map((key) => {
             const trend = analysis.trends[key];
@@ -389,6 +526,8 @@ function updateDerivedFields(container, dailyEntries, bodyFatEntries) {
 async function initializeGoals(container) {
   const form = container.querySelector("[data-goal-form]");
   const status = container.querySelector("[data-status]");
+  const milestonesContainer = form.querySelector("[data-milestones-container]");
+  const addMilestoneButton = form.querySelector("[data-add-milestone]");
   let dailyEntries = [];
   let bodyFatEntries = [];
   let goals = [];
@@ -403,6 +542,28 @@ async function initializeGoals(container) {
     console.error(error);
     status.innerHTML = renderStatus("Ziele konnten nicht geladen werden.", "danger");
   }
+
+  addMilestoneButton?.addEventListener("click", () => {
+    const type = form.elements.type.value;
+    milestonesContainer.appendChild(createMilestoneRow({}, unitLabel(type)));
+    updateDerivedFields(container, dailyEntries, bodyFatEntries);
+  });
+
+  milestonesContainer?.addEventListener("click", (event) => {
+    const removeBtn = event.target.closest("[data-remove-milestone]");
+    if (removeBtn) {
+      const row = removeBtn.closest("[data-milestone-row]");
+      row?.remove();
+      updateDerivedFields(container, dailyEntries, bodyFatEntries);
+    }
+  });
+
+  form.elements.type.addEventListener("change", () => {
+    const unit = unitLabel(form.elements.type.value);
+    form.querySelectorAll("[data-milestone-unit-label]").forEach((el) => {
+      el.textContent = `Zielwert (${unit})`;
+    });
+  });
 
   form.addEventListener("input", () => {
     syncInputModeVisibility(form);
@@ -440,7 +601,8 @@ async function initializeGoals(container) {
         startValue: values.startValue,
         targetValue: values.targetValue,
         requestedChange: values.requestedChange,
-        requestedWeeks: values.requestedWeeks
+        requestedWeeks: values.requestedWeeks,
+        milestones: values.milestones
       });
       resetGoalForm(form);
       status.innerHTML = renderStatus(wasEditing ? "Ziel aktualisiert." : "Ziel gespeichert.");
@@ -536,6 +698,13 @@ export function renderGoals() {
             <span>Zeitraum in Wochen</span>
             <input type="number" name="requestedWeeks" min="1" step="1" inputmode="numeric">
           </label>
+          <div class="milestones-section field-full">
+            <div class="milestones-header">
+              <strong>Zwischenschritte (optional)</strong>
+              <button class="button secondary" type="button" data-add-milestone>+ Zwischenschritt hinzufügen</button>
+            </div>
+            <div class="milestones-container" data-milestones-container></div>
+          </div>
           <p class="muted field-full" data-start-value-info></p>
           <div class="field-full" data-goal-preview></div>
           <div class="form-actions field-full">

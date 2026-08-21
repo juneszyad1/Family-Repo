@@ -3,8 +3,8 @@ export function todayIsoDate() {
 }
 
 export function createId(prefix = "id") {
-  if ("crypto" in window && typeof window.crypto.randomUUID === "function") {
-    return window.crypto.randomUUID();
+  if (typeof globalThis !== "undefined" && globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
   }
 
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;

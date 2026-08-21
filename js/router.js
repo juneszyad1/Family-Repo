@@ -7,7 +7,7 @@ import { renderGoals } from "./views/goals.js";
 import { renderSettings } from "./views/settings.js";
 import { renderTrainingDashboard } from "./views/training-dashboard.js";
 
-const routes = {
+export const routes = {
   dashboard: {
     title: "Dashboard",
     render: renderDashboard
@@ -22,6 +22,8 @@ const routes = {
   },
   "body-fat": {
     title: "KFA-Messung",
+    parentNav: "daily",
+    parentLabel: "Eintragen",
     render: renderBodyFat
   },
   trends: {
@@ -30,10 +32,14 @@ const routes = {
   },
   "progress-photos": {
     title: "Fortschrittsbilder",
+    parentNav: "trends",
+    parentLabel: "Trends",
     render: renderProgressPhotos
   },
   goals: {
     title: "Ziele",
+    parentNav: "settings",
+    parentLabel: "Mehr",
     render: renderGoals
   },
   settings: {
@@ -42,14 +48,19 @@ const routes = {
   }
 };
 
-function getRouteFromHash() {
-  const route = window.location.hash.replace(/^#\/?/, "");
+export function getRouteFromHash(hash = window.location.hash) {
+  const route = hash.replace(/^#\/?/, "").split("?")[0];
   return routes[route] ? route : "dashboard";
 }
 
+export function getNavigationRoute(routeName) {
+  return routes[routeName]?.parentNav || routeName;
+}
+
 function setActiveNavigation(routeName) {
+  const activeRoute = getNavigationRoute(routeName);
   document.querySelectorAll(".nav-item").forEach((item) => {
-    if (item.dataset.route === routeName) {
+    if (item.dataset.route === activeRoute) {
       item.setAttribute("aria-current", "page");
     } else {
       item.removeAttribute("aria-current");
@@ -63,8 +74,12 @@ function renderRoute() {
   const view = document.querySelector("#app-view");
   const title = document.querySelector("#view-title");
 
+  if (routeName !== "training") document.body.classList.remove("workout-focus");
   title.textContent = route.title;
   view.innerHTML = "";
+  if (route.parentNav) {
+    view.insertAdjacentHTML("beforeend", `<a class="route-context-link" href="#/${route.parentNav}">← Zurück zu ${route.parentLabel}</a>`);
+  }
   view.append(route.render());
   setActiveNavigation(routeName);
   view.focus({ preventScroll: true });

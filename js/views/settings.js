@@ -2,6 +2,7 @@ import { getSettings, saveSettings } from "../database.js";
 import { deleteEverything, exportDailyCsv, exportJsonBackup, importBackup, readJsonFile } from "../export-import.js";
 import { seedDemoData } from "../seed-data.js";
 import { toNumberOrNull } from "../utils.js";
+import { APP_VERSION_LABEL } from "../config.js";
 
 function normalizeSettings(form) {
   const formData = new FormData(form);
@@ -237,9 +238,15 @@ export function renderSettings() {
         <h2 class="section-title">Mehr Bereiche</h2>
         <div class="button-row">
           <a class="button secondary" href="#/goals">Ziele</a>
-          <a class="button secondary" href="#/body-fat">KFA</a>
-          <a class="button secondary" href="#/progress-photos">Fortschrittsbilder</a>
         </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-body">
+        <h2 class="section-title">App & Updates</h2>
+        <p class="muted settings-note">Installierte Version: Fitness Tracker ${APP_VERSION_LABEL}</p>
+        <button class="button secondary" type="button" id="app-update-button">Nach Updates suchen</button>
       </div>
     </section>
 
@@ -298,6 +305,7 @@ export function renderSettings() {
         <button class="button danger" type="button" data-delete-all>Alles löschen</button>
       </div>
     </section>
+
   `;
   fragment.append(container);
   initializeSettings(container);

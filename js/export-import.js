@@ -122,6 +122,17 @@ function normalizeGoal(goal) {
     inputMode: goal.inputMode || "targetValue",
     requestedChange: goal.requestedChange ?? null,
     requestedWeeks: goal.requestedWeeks ?? null,
+    milestones: Array.isArray(goal.milestones)
+      ? goal.milestones
+          .filter((m) => m && m.date && m.targetValue !== null && m.targetValue !== undefined)
+          .map((m) => ({
+            id: m.id || createId("milestone"),
+            date: m.date,
+            targetValue: Number(m.targetValue),
+            label: (m.label || "").trim()
+          }))
+          .sort((a, b) => a.date.localeCompare(b.date))
+      : [],
     status: goal.status || "active",
     createdAt: goal.createdAt || new Date().toISOString(),
     updatedAt: goal.updatedAt || new Date().toISOString(),

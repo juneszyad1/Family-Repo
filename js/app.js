@@ -1,6 +1,7 @@
 import { initRouter } from "./router.js";
 import { getSettings } from "./database.js";
-import { APP_VERSION_LABEL } from "./config.js";
+
+let serviceWorkerRegistration = null;
 
 function applyTheme(theme) {
   const supportedThemes = ["light", "dark", "pink", "champagne", "midnight-violet", "walnut", "tokyo-night"];
@@ -37,18 +38,7 @@ async function registerServiceWorker() {
       }
     });
     const registration = await navigator.serviceWorker.register("./service-worker.js", { updateViaCache: "none" });
-    const updateButton = document.querySelector("#app-update-button");
-
-    updateButton?.addEventListener("click", async () => {
-      showConnectionStatus("Update wird geprüft ...", "info");
-      try {
-        await registration.update();
-        showConnectionStatus("Update geladen. Die App aktualisiert sich nach der Aktivierung.", "success");
-      } catch (error) {
-        console.warn("Update-Prüfung fehlgeschlagen.", error);
-        showConnectionStatus("Update konnte gerade nicht geprüft werden.", "warning");
-      }
-    });
+    serviceWorkerRegistration = registration;
 
     registration.addEventListener("updatefound", () => {
       const worker = registration.installing;
@@ -56,20 +46,12 @@ async function registerServiceWorker() {
 
       worker.addEventListener("statechange", () => {
         if (worker.state === "installed" && navigator.serviceWorker.controller) {
-          showConnectionStatus("Neue App-Version installiert. Tippe auf Update oder öffne die App neu.", "success");
+          showConnectionStatus("Eine neue App-Version ist verfügbar.", "success");
         }
       });
     });
   } catch (error) {
     console.warn("Service Worker konnte nicht registriert werden.", error);
-  }
-}
-
-function initializeVersionLabel() {
-  const version = document.querySelector("#app-version");
-
-  if (version) {
-    version.textContent = APP_VERSION_LABEL;
   }
 }
 
@@ -105,11 +87,26 @@ function initializeConnectionStatus() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  initializeVersionLabel();
   initializeTheme();
   initializeConnectionStatus();
   initRouter();
   registerServiceWorker();
+});
+
+document.addEventListener("click", async (event) => {
+  if (!event.target.closest("#app-update-button")) return;
+  if (!serviceWorkerRegistration) {
+    showConnectionStatus("Update-Prüfung ist in diesem Browser nicht verfügbar.", "warning");
+    return;
+  }
+  showConnectionStatus("Update wird geprüft ...", "info");
+  try {
+    await serviceWorkerRegistration?.update();
+    showConnectionStatus("Update-Prüfung abgeschlossen.", "success");
+  } catch (error) {
+    console.warn("Update-Prüfung fehlgeschlagen.", error);
+    showConnectionStatus("Update konnte gerade nicht geprüft werden.", "warning");
+  }
 });
 
 window.addEventListener("fitness-settings-updated", (event) => {

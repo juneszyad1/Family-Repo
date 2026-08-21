@@ -1,6 +1,6 @@
 import { getActiveGoals, getBodyFatEntries, getCircumferenceEntries, getDailyEntries, getSettings } from "../database.js";
 import { calculateMovingAverage, calculateTrendSummary, filterEntriesByRange } from "../calculations.js";
-import { GOAL_TYPES, calculateExpectedValueToday } from "../goals.js";
+import { GOAL_TYPES, calculateExpectedValueToday, getGoalPoints } from "../goals.js";
 import { formatDate, formatNumber, sortByDateDesc, todayIsoDate } from "../utils.js";
 
 const RANGE_OPTIONS = [
@@ -15,10 +15,15 @@ const RANGE_OPTIONS = [
 const chartInstances = [];
 const COMBINED_SERIES = [
   { key: "weight", label: "Gewicht", valueKey: "weight", unit: "kg", axis: "weight", defaultVisible: true },
-  { key: "calories", label: "Kalorien", valueKey: "calories", unit: "kcal", axis: "calories", defaultVisible: true },
-  { key: "protein", label: "Protein", valueKey: "protein", unit: "g", axis: "protein", defaultVisible: true },
-  { key: "sleep", label: "Schlafdauer", valueKey: "sleepHours", unit: "h", axis: "sleep", defaultVisible: true }
+  { key: "calories", label: "Kalorien", valueKey: "calories", unit: "kcal", axis: "calories", defaultVisible: false },
+  { key: "protein", label: "Protein", valueKey: "protein", unit: "g", axis: "protein", defaultVisible: false },
+  { key: "sleep", label: "Schlafdauer", valueKey: "sleepHours", unit: "h", axis: "sleep", defaultVisible: false }
 ];
+const selectedCombinedSeries = new Set(COMBINED_SERIES.filter((series) => series.defaultVisible).map((series) => series.key));
+
+export function getRangeLabel(range) {
+  return RANGE_OPTIONS.find((option) => option.value === range)?.label || "30 Tage";
+}
 
 function destroyCharts() {
   while (chartInstances.length) {
@@ -67,8 +72,8 @@ function chartOptions(title) {
   };
 }
 
-function combinedChartOptions() {
-  const options = chartOptions("Kompletter 30-Tage-Chart");
+function combinedChartOptions(range) {
+  const options = chartOptions(`Übersicht · ${getRangeLabel(range)}`);
   const textColor = getCssColor("--text-secondary");
   const borderColor = getCssColor("--border");
 
@@ -133,12 +138,10 @@ function pointDataset(label, data, color, shape = "circle") {
 }
 
 function goalPathDataset(label, goal, color) {
+  const points = getGoalPoints(goal);
   return {
     label,
-    data: [
-      { x: formatDate(goal.startDate), y: goal.startValue },
-      { x: formatDate(goal.targetDate), y: goal.targetValue }
-    ],
+    data: points.map((p) => ({ x: formatDate(p.date), y: p.value })),
     borderColor: color,
     backgroundColor: color,
     borderDash: [2, 6],
@@ -153,6 +156,15 @@ function goalMarkerDatasets(goal, today, color, textColor) {
   const datasets = [
     pointDataset("Zielpunkt", [{ x: formatDate(goal.targetDate), y: goal.targetValue }], color, "triangle")
   ];
+
+  if (goal.milestones && Array.isArray(goal.milestones) && goal.milestones.length > 0) {
+    const milestonePoints = goal.milestones
+      .filter((m) => m && m.date && m.targetValue !== null && m.targetValue !== undefined)
+      .map((m) => ({ x: formatDate(m.date), y: m.targetValue }));
+    if (milestonePoints.length > 0) {
+      datasets.push(pointDataset("Zwischenziele", milestonePoints, color, "circle"));
+    }
+  }
 
   if (expectedValueToday !== null) {
     datasets.push(pointDataset("Sollwert heute", [{ x: formatDate(today), y: expectedValueToday }], textColor, "rectRot"));
@@ -187,19 +199,15 @@ function renderSummary(summary) {
     ["Gewicht", `${formatNumber(summary.weightChange, { maximumFractionDigits: 1 })} kg`],
     ["Schlaf", `${formatNumber(summary.sleepChange, { maximumFractionDigits: 1 })} h`],
     ["KFA", `${formatNumber(summary.bodyFatChange, { maximumFractionDigits: 1 })} %`],
-    ["Armumfang", `${formatNumber(summary.armChange, { maximumFractionDigits: 1 })} cm`],
-    ["Beinumfang", `${formatNumber(summary.legChange, { maximumFractionDigits: 1 })} cm`],
-    ["Niedrigstes Gewicht", `${formatNumber(summary.lowestWeight, { maximumFractionDigits: 1 })} kg`],
-    ["Höchstes Gewicht", `${formatNumber(summary.highestWeight, { maximumFractionDigits: 1 })} kg`],
     ["Erfasste Tage", formatNumber(summary.trackedDays, { maximumFractionDigits: 0 })]
   ];
 
   return `
-    <section class="summary-grid">
+    <section class="trend-summary" aria-label="Zusammenfassung des Zeitraums">
       ${items
         .map(
           ([label, value]) => `
-            <article class="card metric compact-metric">
+            <article class="metric compact-metric">
               <p class="metric-label">${label}</p>
               <p class="metric-value">${value}</p>
             </article>
@@ -210,36 +218,45 @@ function renderSummary(summary) {
   `;
 }
 
-function renderCombinedChartShell() {
+function renderCombinedChartShell(range, dailyEntries) {
   return `
     <section class="card">
       <div class="card-body">
-        <h2 class="section-title">Kompletter 30-Tage-Chart</h2>
+        <h2 class="section-title">Übersicht · ${getRangeLabel(range)}</h2>
         <fieldset class="choice-group compact-choice-group">
           <legend>Kurven</legend>
           ${COMBINED_SERIES.map((series) => `
             <label>
-              <input type="checkbox" value="${series.key}" data-combined-toggle ${series.defaultVisible ? "checked" : ""}>
+              <input type="checkbox" value="${series.key}" data-combined-toggle ${selectedCombinedSeries.has(series.key) ? "checked" : ""}>
               ${series.label}
             </label>
           `).join("")}
         </fieldset>
         <div class="chart-frame tall-chart-frame">
-          <canvas id="combined-chart"></canvas>
+          <canvas id="combined-chart" aria-label="Kombinierter Trend für ${getRangeLabel(range)}" role="img"></canvas>
         </div>
+        <p class="chart-summary">${dailyEntries.length} erfasste Tage im Zeitraum. Für eine klare Darstellung ist standardmäßig nur Gewicht aktiv.</p>
+        ${renderDataAlternative(dailyEntries)}
       </div>
     </section>
   `;
 }
 
-function renderChartShell(title, id) {
+function renderDataAlternative(entries) {
+  const rows = [...entries].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 12);
+  if (!rows.length) return "";
+  return `<details class="data-alternative"><summary>Daten als Tabelle anzeigen</summary><div class="trend-table-wrap"><table class="trend-table"><caption class="muted">Die letzten ${rows.length} Tageswerte im gewählten Zeitraum</caption><thead><tr><th>Datum</th><th>Gewicht</th><th>Kalorien</th><th>Protein</th><th>Schlaf</th></tr></thead><tbody>${rows.map((entry) => `<tr><td>${formatDate(entry.date)}</td><td>${formatNumber(entry.weight, { maximumFractionDigits: 1 })} kg</td><td>${formatNumber(entry.calories, { maximumFractionDigits: 0 })} kcal</td><td>${formatNumber(entry.protein, { maximumFractionDigits: 0 })} g</td><td>${formatNumber(entry.sleepHours, { maximumFractionDigits: 1 })} h</td></tr>`).join("")}</tbody></table></div></details>`;
+}
+
+function renderChartShell(title, id, summary) {
   return `
     <section class="card">
       <div class="card-body">
         <h2 class="section-title">${title}</h2>
         <div class="chart-frame">
-          <canvas id="${id}"></canvas>
+          <canvas id="${id}" aria-label="${title} im ausgewählten Zeitraum" role="img"></canvas>
         </div>
+        <p class="chart-summary">${summary}</p>
       </div>
     </section>
   `;
@@ -261,6 +278,14 @@ function renderTrendContent({ dailyEntries, bodyFatEntries, circumferenceEntries
   const summary = calculateTrendSummary(filteredDaily, filteredBodyFat, filteredCircumference);
   const hasAnyData = filteredDaily.length || filteredBodyFat.length || filteredCircumference.length;
   const hasGoals = activeGoals.length > 0;
+  const countValues = (entries, key) => entries.filter((entry) => entry[key] !== null && entry[key] !== undefined).length;
+  const weightCount = countValues(filteredDaily, "weight");
+  const calorieCount = countValues(filteredDaily, "calories");
+  const proteinCount = countValues(filteredDaily, "protein");
+  const bodyFatCount = countValues(filteredBodyFat, "bodyFatPercentage");
+  const circumferenceCount = filteredCircumference.filter((entry) => entry.arm != null || entry.leg != null).length;
+  const skinfoldCount = filteredBodyFat.filter((entry) => entry.skinfoldSum != null).length;
+  const hasCombinedData = COMBINED_SERIES.some((series) => countValues(filteredDaily, series.valueKey) > 0);
 
   if (!hasAnyData && !hasGoals) {
     return renderEmptyMessage();
@@ -268,17 +293,12 @@ function renderTrendContent({ dailyEntries, bodyFatEntries, circumferenceEntries
 
   return `
     ${renderSummary(summary)}
-    ${renderCombinedChartShell()}
-    ${renderChartShell("Gewicht", "weight-chart")}
-    ${renderChartShell("Körperfettanteil", "body-fat-chart")}
-    ${renderChartShell("Kalorien", "calories-chart")}
-    ${renderChartShell("Protein", "protein-chart")}
-    ${renderChartShell("Arm- und Beinumfang", "circumference-chart")}
-    ${renderChartShell("Hautfalten", "skinfold-chart")}
+    ${hasCombinedData ? renderCombinedChartShell(range, filteredDaily) : ""}
+    <p class="chart-summary">Zusätzlich im Zeitraum: ${bodyFatCount} KFA-, ${circumferenceCount} Umfang- und ${skinfoldCount} Hautfaltenmessungen.</p>
   `;
 }
 
-function renderCharts(container, { dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals }) {
+function renderCharts(container, { dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals, range }) {
   destroyCharts();
 
   const warning = container.querySelector("[data-chart-warning]");
@@ -310,9 +330,6 @@ function renderCharts(container, { dailyEntries, bodyFatEntries, circumferenceEn
   const weightGoal = activeGoals.find((goal) => goal.type === GOAL_TYPES.WEIGHT);
   const bodyFatGoal = activeGoals.find((goal) => goal.type === GOAL_TYPES.BODY_FAT);
 
-  const selectedCombinedSeries = new Set(
-    [...container.querySelectorAll("[data-combined-toggle]:checked")].map((input) => input.value)
-  );
   const combinedColors = {
     weight: primary,
     calories: warningColor,
@@ -336,7 +353,7 @@ function renderCharts(container, { dailyEntries, bodyFatEntries, circumferenceEn
     data: {
       datasets: combinedDatasets
     },
-    options: combinedChartOptions()
+    options: combinedChartOptions(range)
   });
 
   const weightEntries = entriesForValue(sortedDailyEntries, "weight");
@@ -467,10 +484,12 @@ async function loadTrends(container, range = "30d") {
     const filteredCircumference = filterEntriesByRange(circumferenceEntries, range);
 
     content.innerHTML = renderTrendContent({ dailyEntries, bodyFatEntries, circumferenceEntries, settings, range, activeGoals });
-    const chartData = { dailyEntries: filteredDaily, bodyFatEntries: filteredBodyFat, circumferenceEntries: filteredCircumference, settings, activeGoals };
+    const chartData = { dailyEntries: filteredDaily, bodyFatEntries: filteredBodyFat, circumferenceEntries: filteredCircumference, settings, activeGoals, range };
     tryRenderCharts(container, chartData);
     container.querySelectorAll("[data-combined-toggle]").forEach((input) => {
       input.addEventListener("change", () => {
+        if (input.checked) selectedCombinedSeries.add(input.value);
+        else selectedCombinedSeries.delete(input.value);
         tryRenderCharts(container, chartData);
       });
     });
@@ -512,10 +531,7 @@ export function renderTrends() {
     </section>
     <div data-chart-warning></div>
     <div class="view-stack" data-trend-content>
-      <section class="card empty-state">
-        <h2>Trends werden geladen</h2>
-        <p>Einen Moment bitte.</p>
-      </section>
+      <section class="card skeleton" aria-label="Trends werden geladen"></section>
     </div>
     <section class="card">
       <div class="card-body">

@@ -64,10 +64,11 @@
       import { runGoalTests } from "./goals.test.js";
       import { runInputTests } from "./input.test.js";
       import { runTrainingTests } from "./training.test.js";
+      import { runUiTests } from "./ui.test.js";
 
       const summary = document.querySelector("#summary");
       const resultsContainer = document.querySelector("#results");
-      const results = [...await runGoalTests(), ...await runTrainingTests(), ...await runInputTests()];
+      const results = [...await runGoalTests(), ...await runTrainingTests(), ...await runInputTests(), ...await runUiTests()];
       const failed = results.filter((result) => !result.passed);
 
       summary.textContent = `${results.length - failed.length}/${results.length} Tests bestanden`;

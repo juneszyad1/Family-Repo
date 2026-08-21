@@ -12,6 +12,7 @@ import { CATEGORY_LABELS, EQUIPMENT_LABELS, MOVEMENT_PATTERN_LABELS, SIDE_MODE_L
 import { StretchTimer } from "../training/stretch-timer.js";
 
 const state = { tab: "plans", plans: [], sessions: [], custom: [], favorites: [], editingPlan: null, activeSession: null, historyType: "all", picker: { query: "", category: "", equipment: "", movementPattern: "", favorites: false, custom: false, recent: false }, timers: new Map() };
+export const TRAINING_TABS = [["plans","Pläne"],["history","Historie"],["library","Übungen"],["stats","Statistik"]];
 const typeOptions = Object.entries(WORKOUT_TYPE_LABELS).map(([v,l]) => `<option value="${v}">${l}</option>`).join("");
 const duration = (seconds) => seconds == null ? "--" : `${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,"0")} min`;
 const statusMessage = (container, text, type = "success") => { const node = container.querySelector("[data-training-status]"); if (node) node.innerHTML = text ? `<div class="alert ${type}" role="status"><p>${escapeHtml(text)}</p></div>` : ""; };
@@ -23,8 +24,22 @@ async function loadState() {
 
 function navigation() {
   return `<div class="training-tabs" role="tablist" aria-label="Trainingsbereiche">
-    ${[["plans","Pläne"],["history","Historie"],["library","Übungen"],["stats","Statistik"]].map(([id,label]) => `<button type="button" role="tab" class="training-tab" aria-selected="${state.tab===id}" data-tab="${id}">${label}</button>`).join("")}
+    ${TRAINING_TABS.map(([id,label]) => `<button type="button" role="tab" id="training-tab-${id}" class="training-tab" aria-selected="${state.tab===id}" aria-controls="training-panel-${id}" tabindex="${state.tab===id?"0":"-1"}" data-tab="${id}">${label}</button>`).join("")}
   </div>`;
+}
+
+export function getNextTrainingTab(currentTab, key) {
+  const index = Math.max(0, TRAINING_TABS.findIndex(([id]) => id === currentTab));
+  if (key === "Home") return TRAINING_TABS[0][0];
+  if (key === "End") return TRAINING_TABS.at(-1)[0];
+  if (key === "ArrowRight") return TRAINING_TABS[(index + 1) % TRAINING_TABS.length][0];
+  if (key === "ArrowLeft") return TRAINING_TABS[(index - 1 + TRAINING_TABS.length) % TRAINING_TABS.length][0];
+  return currentTab;
+}
+
+export function getRequestedPlanId(hash = window.location.hash) {
+  const query = hash.split("?")[1] || "";
+  return new URLSearchParams(query).get("startPlan");
 }
 
 function resumePanel() {
@@ -100,29 +115,37 @@ function sessionView(session) {
     <div class="sticky-action">${readonly?`<button class="button" data-save-completed>Änderungen speichern</button>`:`<button class="button" data-complete-session>Training abschließen</button><button class="button danger" data-cancel-session>Training abbrechen</button>`}</div></form>`;
 }
 function sessionExercise(exercise,index,type,readonly) {
-  const setRows=exercise.sets.map((set,i)=> type===WORKOUT_TYPES.STRENGTH ? `<div class="set-row session-set ${set.completed?"is-complete":""}" data-session-set="${set.id}"><strong>Satz ${i+1}</strong><label>Wdh.<input type="number" inputmode="numeric" min="0" max="1000" value="${set.actualReps??""}" data-actual-reps></label><label>kg<input type="number" inputmode="decimal" min="0" max="1000" step="0.1" value="${set.actualWeight??""}" data-actual-weight></label><label class="set-check"><input type="checkbox" data-set-completed ${set.completed?"checked":""}><span>${set.completed?"Erledigt":"Offen"}</span></label>${readonly?"":`<button type="button" class="icon-button danger" data-remove-session-set>×</button>`}</div>` : `<div class="stretch-round ${set.completed?"is-complete":""}" data-session-set="${set.id}"><label class="set-check"><input type="checkbox" data-set-completed ${set.completed?"checked":""}><span>Durchgang ${i+1}: ${set.completed?"Erledigt":"Offen"}</span></label></div>`).join("");
+  const firstOpenExercise = state.activeSession?.exercises.find((item) => item.sets.some((set) => !set.completed));
+  const firstOpenSet = firstOpenExercise?.sets.find((set) => !set.completed);
+  const setRows=exercise.sets.map((set,i)=> type===WORKOUT_TYPES.STRENGTH ? `<div class="set-row session-set ${set.completed?"is-complete":""} ${set.id===firstOpenSet?.id?"is-current":""}" data-session-set="${set.id}"><strong>Satz ${i+1}</strong><label>Wdh. · Ziel ${set.plannedReps??"–"}<input type="number" inputmode="numeric" min="0" max="1000" value="${set.actualReps??""}" data-actual-reps></label><label>kg · Ziel ${formatNumber(set.plannedWeight,{maximumFractionDigits:1})}<input type="number" inputmode="decimal" min="0" max="1000" step="0.1" value="${set.actualWeight??""}" data-actual-weight></label><label class="set-check"><input type="checkbox" data-set-completed ${set.completed?"checked":""}><span>${set.completed?"Erledigt":"Satz abschließen"}</span></label>${readonly?"":`<button type="button" class="icon-button danger" data-remove-session-set aria-label="Satz entfernen">×</button>`}</div>` : `<div class="stretch-round ${set.completed?"is-complete":""} ${set.id===firstOpenSet?.id?"is-current":""}" data-session-set="${set.id}"><label class="set-check"><input type="checkbox" data-set-completed ${set.completed?"checked":""}><span>Durchgang ${i+1}: ${set.completed?"Erledigt":"Offen"}</span></label></div>`).join("");
   const timerRemaining = exercise.timerState?.endsAt ? Math.max(0,Math.ceil((exercise.timerState.endsAt-Date.now())/1000)) : exercise.timerState?.remainingSeconds ?? exercise.durationSeconds;
-  return `<article class="exercise-card" data-session-exercise="${exercise.id}"><div class="exercise-header"><div><span class="metric-label">Übung ${index+1}</span><h3>${escapeHtml(exercise.exerciseNameSnapshot)}</h3>${type===WORKOUT_TYPES.STRETCHING?`<p class="muted">${exercise.durationSeconds} Sekunden · ${SIDE_MODE_LABELS[exercise.sideMode]}</p>`:""}</div></div><div class="set-list">${setRows}</div>${!readonly&&type===WORKOUT_TYPES.STRENGTH?`<button type="button" class="button secondary" data-add-session-set>Satz hinzufügen</button>`:""}${!readonly&&type===WORKOUT_TYPES.STRETCHING?`<div class="timer" data-timer><strong data-timer-time>${timerRemaining}</strong><span data-timer-status>${timerRemaining===0?"Zeit abgelaufen":exercise.timerState?.status==="paused"?"Pausiert":"Bereit"}</span><div class="compact-actions"><button type="button" class="button" data-timer-start>Start/Fortsetzen</button><button type="button" class="button secondary" data-timer-pause>Pause</button><button type="button" class="button secondary" data-timer-reset>Zurücksetzen</button></div></div>`:""}<label class="field"><span>Übungsnotiz</span><input value="${escapeHtml(exercise.notes||"")}" data-session-exercise-notes></label>${!readonly&&index<state.activeSession.exercises.length-1?`<button type="button" class="button secondary" data-next-exercise>Nächste Übung</button>`:""}</article>`;
+  return `<article class="exercise-card ${exercise.id===firstOpenExercise?.id?"is-current-exercise":""}" data-session-exercise="${exercise.id}"><div class="exercise-header"><div><span class="metric-label">Übung ${index+1}${exercise.id===firstOpenExercise?.id?" · Aktuell":""}</span><h3>${escapeHtml(exercise.exerciseNameSnapshot)}</h3>${type===WORKOUT_TYPES.STRETCHING?`<p class="muted">${exercise.durationSeconds} Sekunden · ${SIDE_MODE_LABELS[exercise.sideMode]}</p>`:""}</div></div><div class="set-list">${setRows}</div>${!readonly&&type===WORKOUT_TYPES.STRENGTH?`<button type="button" class="button secondary" data-add-session-set>Satz hinzufügen</button>`:""}${!readonly&&type===WORKOUT_TYPES.STRETCHING?`<div class="timer" data-timer><strong data-timer-time>${timerRemaining}</strong><span data-timer-status>${timerRemaining===0?"Zeit abgelaufen":exercise.timerState?.status==="paused"?"Pausiert":"Bereit"}</span><div class="compact-actions"><button type="button" class="button" data-timer-start>Start/Fortsetzen</button><button type="button" class="button secondary" data-timer-pause>Pause</button><button type="button" class="button secondary" data-timer-reset>Zurücksetzen</button></div></div>`:""}<label class="field"><span>Übungsnotiz</span><input value="${escapeHtml(exercise.notes||"")}" data-session-exercise-notes></label>${!readonly&&index<state.activeSession.exercises.length-1?`<button type="button" class="button secondary" data-next-exercise>Nächste Übung</button>`:""}</article>`;
 }
 
 function renderContent(container) {
   state.timers.forEach((timer)=>timer.destroy()); state.timers.clear();
   let content = state.activeSession && state.tab==="session" ? sessionView(state.activeSession) : state.editingPlan ? planEditor(state.editingPlan) : state.tab==="plans" ? planList() : state.tab==="history" ? historyView() : state.tab==="library" ? libraryView() : statsView();
-  container.innerHTML = `<div data-training-status></div>${navigation()}${resumePanel()}${content}`;
+  const isSession = state.activeSession && state.tab === "session";
+  document.body.classList.toggle("workout-focus", Boolean(isSession && state.activeSession.status === WORKOUT_STATUS.IN_PROGRESS));
+  const activeTab = TRAINING_TABS.some(([id]) => id === state.tab) ? state.tab : "plans";
+  const tabPanels = TRAINING_TABS.map(([id]) => `<div role="tabpanel" id="training-panel-${id}" aria-labelledby="training-tab-${id}" tabindex="0" ${id===activeTab?"":"hidden"}>${id===activeTab?`${resumePanel()}${content}`:""}</div>`).join("");
+  container.innerHTML = `<div data-training-status aria-live="polite"></div>${isSession?"":navigation()}${isSession?content:tabPanels}`;
 }
 function mutatePlanExercise(target, callback) { const el=target.closest("[data-plan-exercise]"); const item=state.editingPlan.exercises.find((x)=>x.id===el?.dataset.planExercise); if(item) callback(item,el); }
 async function persistActive(container) { if (!state.activeSession) return; await saveWorkoutSession(state.activeSession); state.sessions=await getWorkoutSessions(); }
+async function startPlan(container, planId) { if(state.activeSession?.status===WORKOUT_STATUS.IN_PROGRESS)throw new Error("Schließe oder verwirf zuerst das laufende Training.");const plan=state.plans.find((x)=>x.id===planId);if(!plan)throw new Error("Der ausgewählte Trainingsplan wurde nicht gefunden.");state.activeSession=createSessionFromPlan(plan,state.custom);await saveWorkoutSession(state.activeSession);state.tab="session";renderContent(container); }
+function selectTrainingTab(container, tabId, focus = false) { state.tab=tabId;state.editingPlan=null;if(state.activeSession?.status!==WORKOUT_STATUS.IN_PROGRESS)state.activeSession=null;renderContent(container);if(focus)container.querySelector(`[data-tab="${tabId}"]`)?.focus(); }
 
 function bindEvents(container) {
   container.addEventListener("click", async (event) => {
     const button=event.target.closest("button"); if(!button) return;
     try {
-      if(button.dataset.tab){state.tab=button.dataset.tab;state.editingPlan=null;if(state.activeSession?.status!==WORKOUT_STATUS.IN_PROGRESS)state.activeSession=null;renderContent(container);return;}
+      if(button.dataset.tab){selectTrainingTab(container,button.dataset.tab);return;}
       if(button.hasAttribute("data-new-plan")){state.editingPlan=blankPlan();renderContent(container);return;}
       if(button.hasAttribute("data-cancel-plan")){state.editingPlan=null;renderContent(container);return;}
       if(button.dataset.editPlan){state.editingPlan=structuredClone(state.plans.find((p)=>p.id===button.dataset.editPlan));renderContent(container);return;}
       if(button.dataset.archivePlan){const p=state.plans.find((x)=>x.id===button.dataset.archivePlan);await saveWorkoutPlan({...p,isArchived:!p.isArchived});await loadState();renderContent(container);return;}
-      if(button.dataset.startPlan){if(state.activeSession?.status===WORKOUT_STATUS.IN_PROGRESS)throw new Error("Schließe oder verwirf zuerst das laufende Training.");const p=state.plans.find((x)=>x.id===button.dataset.startPlan);state.activeSession=createSessionFromPlan(p,state.custom);await saveWorkoutSession(state.activeSession);state.tab="session";renderContent(container);return;}
+      if(button.dataset.startPlan){await startPlan(container,button.dataset.startPlan);return;}
       if(button.hasAttribute("data-resume")){state.tab="session";renderContent(container);return;}
       if(button.hasAttribute("data-discard-session")){if(confirm("Laufendes Training wirklich verwerfen?")){state.activeSession={...state.activeSession,status:WORKOUT_STATUS.CANCELLED,completedAt:new Date().toISOString()};await persistActive(container);state.activeSession=null;renderContent(container);}return;}
       if(button.dataset.addExercise){const id=button.dataset.addExercise;const type=state.editingPlan.workoutType;state.editingPlan.exercises.push(type===WORKOUT_TYPES.STRENGTH?{id:createId("plan-exercise"),exerciseId:id,order:state.editingPlan.exercises.length+1,sets:[{id:createId("set-template"),targetReps:8,targetWeight:0}],notes:""}:{id:createId("plan-stretch"),exerciseId:id,order:state.editingPlan.exercises.length+1,sets:2,durationSeconds:30,sideMode:"both",notes:""});renderContent(container);return;}
@@ -146,6 +169,13 @@ function bindEvents(container) {
       if(button.hasAttribute("data-save-completed")){await persistActive(container);statusMessage(container,"Änderungen gespeichert.");return;}
       if(button.matches("[data-timer-start],[data-timer-pause],[data-timer-reset]")){const exEl=button.closest("[data-session-exercise]"),ex=state.activeSession.exercises.find((x)=>x.id===exEl.dataset.sessionExercise);let timer=state.timers.get(ex.id);if(!timer){timer=new StretchTimer(ex.durationSeconds,({remainingSeconds,status,endsAt})=>{ex.timerState={remainingSeconds,status,endsAt};exEl.querySelector("[data-timer-time]").textContent=remainingSeconds;exEl.querySelector("[data-timer-status]").textContent={ready:"Bereit",running:"Läuft",paused:"Pausiert",finished:"Zeit abgelaufen"}[status];});timer.remainingSeconds=ex.timerState?.endsAt?Math.max(0,Math.ceil((ex.timerState.endsAt-Date.now())/1000)):ex.timerState?.remainingSeconds??ex.durationSeconds;state.timers.set(ex.id,timer);}if(button.hasAttribute("data-timer-start")){timer.start();await persistActive(container);}if(button.hasAttribute("data-timer-pause")){timer.pause();await persistActive(container);}if(button.hasAttribute("data-timer-reset")){timer.reset();await persistActive(container);}return;}
     } catch(error){console.error(error);statusMessage(container,error.message||"Aktion fehlgeschlagen.","danger");}
+  });
+
+  container.addEventListener("keydown", (event) => {
+    const tab = event.target.closest('[role="tab"]');
+    if (!tab || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    selectTrainingTab(container, getNextTrainingTab(tab.dataset.tab, event.key), true);
   });
 
   container.addEventListener("input", async (event)=>{
@@ -173,7 +203,7 @@ function bindEvents(container) {
 }
 
 export function renderTrainingDashboard() {
-  const container=document.createElement("section");container.className="view-stack";container.innerHTML=`<section class="card empty-state"><h2>Training wird geladen</h2><p>Einen Moment bitte.</p></section>`;
-  loadState().then(()=>{renderContent(container);bindEvents(container);}).catch((error)=>{console.error(error);container.innerHTML=`<section class="card empty-state"><h2>Training konnte nicht geladen werden</h2><p>Die lokale Datenbank ist nicht verfügbar.</p></section>`;});
+  const container=document.createElement("section");container.className="view-stack";container.innerHTML=`<section class="card skeleton" aria-label="Training wird geladen"></section>`;
+  loadState().then(async()=>{bindEvents(container);const requestedPlanId=getRequestedPlanId();if(requestedPlanId){window.history.replaceState(null,"","#/training");try{await startPlan(container,requestedPlanId);}catch(error){renderContent(container);statusMessage(container,error.message||"Training konnte nicht gestartet werden.","danger");}}else{renderContent(container);}}).catch((error)=>{console.error(error);container.innerHTML=`<section class="card empty-state"><h2>Training konnte nicht geladen werden</h2><p>Die lokale Datenbank ist nicht verfügbar.</p></section>`;});
   return container;
 }

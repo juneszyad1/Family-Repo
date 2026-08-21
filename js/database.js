@@ -373,6 +373,17 @@ export async function saveGoal(goalData) {
     inputMode: goalData.inputMode,
     requestedChange: goalData.requestedChange ?? null,
     requestedWeeks: goalData.requestedWeeks ?? null,
+    milestones: Array.isArray(goalData.milestones)
+      ? goalData.milestones
+          .filter((m) => m && m.date && m.targetValue !== null && m.targetValue !== undefined)
+          .map((m) => ({
+            id: m.id || createId("milestone"),
+            date: m.date,
+            targetValue: Number(m.targetValue),
+            label: (m.label || "").trim()
+          }))
+          .sort((a, b) => a.date.localeCompare(b.date))
+      : (existingGoal?.milestones || []),
     status: goalData.status || "active",
     createdAt: existingGoal?.createdAt || goalData.createdAt || now,
     updatedAt: now,
