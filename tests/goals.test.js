@@ -401,6 +401,26 @@ test("calculateRolling7DayAverages berechnet tägliche 7-Tage-Durchschnitte exak
   assertEqual(rollingWeight[9].value, 86.0, "Tag 10 Schnitt = 86.0 kg");
 });
 
+test("calculateRolling7DayAverages handhabt Lücken und targetDates sauber ohne Verschiebung", async () => {
+  const { calculateRolling7DayAverages } = await import("../js/calculations.js");
+  // Nur Tag 1 (80 kg) und Tag 10 (85 kg) getrackt
+  const entries = [
+    { date: "2026-08-01", weight: 80, calories: 2000 },
+    { date: "2026-08-10", weight: 85, calories: 2200 }
+  ];
+
+  const targetDates = ["2026-08-01", "2026-08-05", "2026-08-10"];
+  const res = calculateRolling7DayAverages(entries, "weight", targetDates);
+
+  assertEqual(res.length, 3, "3 Zielzeitpunkte");
+  assertEqual(res[0].date, "2026-08-01", "Tag 1");
+  assertEqual(res[0].value, 80, "Tag 1 Schnitt = 80 kg");
+  assertEqual(res[1].date, "2026-08-05", "Tag 5");
+  assertEqual(res[1].value, 80, "Tag 5 (Tag 1 liegt im 7-Tage-Fenster) = 80 kg");
+  assertEqual(res[2].date, "2026-08-10", "Tag 10");
+  assertEqual(res[2].value, 85, "Tag 10 (Tag 1 liegt > 7 Tage zurück) = 85 kg");
+});
+
 export async function runGoalTests() {
   const results = [];
 

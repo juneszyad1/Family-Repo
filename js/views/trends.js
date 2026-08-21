@@ -154,7 +154,8 @@ function lineDataset(label, data, color, dashed = false) {
     borderDash: dashed ? [6, 6] : [],
     tension: 0.28,
     pointRadius: 3,
-    pointHoverRadius: 5
+    pointHoverRadius: 5,
+    spanGaps: true
   };
 }
 
@@ -457,6 +458,9 @@ function renderFullscreenChart(container, chartData, mode = activeFullscreenMode
 
   const { dailyEntries, allDailyEntries, range } = chartData;
   const sortedDailyEntries = sortByDateDesc(dailyEntries).sort((a, b) => a.date.localeCompare(b.date));
+  const chartDates = Array.from(new Set(sortedDailyEntries.map((d) => d.date))).sort();
+  const chartLabels = chartDates.map(formatDate);
+
   const primary = getCssColor("--primary");
   const success = getCssColor("--success");
   const warningColor = getCssColor("--warning");
@@ -474,12 +478,12 @@ function renderFullscreenChart(container, chartData, mode = activeFullscreenMode
     datasets = ROLLING_SERIES
       .filter((series) => selectedRollingSeries.has(series.key))
       .map((series) => {
-        const fullRolling = calculateRolling7DayAverages(allDailyEntries || dailyEntries, series.valueKey);
-        const rangeDateSet = new Set(sortedDailyEntries.map((d) => d.date));
-        const inRange = fullRolling.filter((r) => rangeDateSet.has(r.date));
+        const fullRolling = calculateRolling7DayAverages(allDailyEntries || dailyEntries, series.valueKey, chartDates);
+        const rollingMap = new Map(fullRolling.map((item) => [item.date, item.value]));
+        const data = chartDates.map((date) => rollingMap.get(date) ?? null);
         return lineDataset(
           `${series.label} (${series.unit})`,
-          inRange.map((entry) => ({ x: formatDate(entry.date), y: entry.value })),
+          data,
           colors[series.key]
         );
       })
@@ -490,11 +494,20 @@ function renderFullscreenChart(container, chartData, mode = activeFullscreenMode
   } else {
     datasets = COMBINED_SERIES
       .filter((series) => selectedCombinedSeries.has(series.key))
-      .map((series) => lineDataset(
-        `${series.label} (${series.unit})`,
-        entriesForValue(sortedDailyEntries, series.valueKey).map((entry) => ({ x: formatDate(entry.date), y: entry[series.valueKey] })),
-        colors[series.key]
-      ))
+      .map((series) => {
+        const valueMap = new Map();
+        sortedDailyEntries.forEach((entry) => {
+          if (entry[series.valueKey] !== null && entry[series.valueKey] !== undefined) {
+            valueMap.set(entry.date, entry[series.valueKey]);
+          }
+        });
+        const data = chartDates.map((date) => valueMap.get(date) ?? null);
+        return lineDataset(
+          `${series.label} (${series.unit})`,
+          data,
+          colors[series.key]
+        );
+      })
       .map((dataset, index) => ({
         ...dataset,
         yAxisID: COMBINED_SERIES.filter((series) => selectedCombinedSeries.has(series.key))[index].axis
@@ -504,6 +517,7 @@ function renderFullscreenChart(container, chartData, mode = activeFullscreenMode
   fullscreenChartInstance = new window.Chart(canvas, {
     type: "line",
     data: {
+      labels: chartLabels,
       datasets
     },
     options: combinedChartOptions(range, true)
@@ -683,15 +697,18 @@ function renderCharts(container, { dailyEntries, allDailyEntries, bodyFatEntries
     sleep: violet
   };
 
+  const chartDates = Array.from(new Set(sortedDailyEntries.map((d) => d.date))).sort();
+  const chartLabels = chartDates.map(formatDate);
+
   const rollingDatasets = ROLLING_SERIES
     .filter((series) => selectedRollingSeries.has(series.key))
     .map((series) => {
-      const fullRolling = calculateRolling7DayAverages(allDailyEntries || dailyEntries, series.valueKey);
-      const rangeDateSet = new Set(sortedDailyEntries.map((d) => d.date));
-      const inRange = fullRolling.filter((r) => rangeDateSet.has(r.date));
+      const fullRolling = calculateRolling7DayAverages(allDailyEntries || dailyEntries, series.valueKey, chartDates);
+      const rollingMap = new Map(fullRolling.map((item) => [item.date, item.value]));
+      const data = chartDates.map((date) => rollingMap.get(date) ?? null);
       return lineDataset(
         `${series.label} (${series.unit})`,
-        inRange.map((entry) => ({ x: formatDate(entry.date), y: entry.value })),
+        data,
         combinedColors[series.key]
       );
     })
@@ -703,6 +720,7 @@ function renderCharts(container, { dailyEntries, allDailyEntries, bodyFatEntries
   createChart(container.querySelector("#rolling-chart"), {
     type: "line",
     data: {
+      labels: chartLabels,
       datasets: rollingDatasets
     },
     options: combinedChartOptions(range)
@@ -710,11 +728,20 @@ function renderCharts(container, { dailyEntries, allDailyEntries, bodyFatEntries
 
   const combinedDatasets = COMBINED_SERIES
     .filter((series) => selectedCombinedSeries.has(series.key))
-    .map((series) => lineDataset(
-      `${series.label} (${series.unit})`,
-      entriesForValue(sortedDailyEntries, series.valueKey).map((entry) => ({ x: formatDate(entry.date), y: entry[series.valueKey] })),
-      combinedColors[series.key]
-    ))
+    .map((series) => {
+      const valueMap = new Map();
+      sortedDailyEntries.forEach((entry) => {
+        if (entry[series.valueKey] !== null && entry[series.valueKey] !== undefined) {
+          valueMap.set(entry.date, entry[series.valueKey]);
+        }
+      });
+      const data = chartDates.map((date) => valueMap.get(date) ?? null);
+      return lineDataset(
+        `${series.label} (${series.unit})`,
+        data,
+        combinedColors[series.key]
+      );
+    })
     .map((dataset, index) => ({
       ...dataset,
       yAxisID: COMBINED_SERIES.filter((series) => selectedCombinedSeries.has(series.key))[index].axis
@@ -723,6 +750,7 @@ function renderCharts(container, { dailyEntries, allDailyEntries, bodyFatEntries
   createChart(container.querySelector("#combined-chart"), {
     type: "line",
     data: {
+      labels: chartLabels,
       datasets: combinedDatasets
     },
     options: combinedChartOptions(range)

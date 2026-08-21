@@ -105,28 +105,40 @@ export function calculateMovingAverage(entries, valueKey, windowSize = 7) {
   });
 }
 
-export function calculateRolling7DayAverages(allDailyEntries = [], valueKey = "weight") {
-  const sorted = [...allDailyEntries]
+export function calculateRolling7DayAverages(allDailyEntries = [], valueKey = "weight", targetDates = null) {
+  const validEntries = [...allDailyEntries]
     .filter((entry) => entry[valueKey] !== null && entry[valueKey] !== undefined)
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  if (!sorted.length) return [];
+  if (!validEntries.length) return [];
 
-  return sorted.map((entry) => {
-    const targetDate = new Date(`${entry.date}T00:00:00`);
+  const datesToProcess = targetDates && targetDates.length > 0
+    ? [...targetDates].sort()
+    : validEntries.map((e) => e.date);
+
+  return datesToProcess.map((dateStr) => {
+    const targetDate = new Date(`${dateStr}T00:00:00`);
     const startDate = new Date(targetDate);
     startDate.setDate(startDate.getDate() - 6);
 
-    const windowEntries = sorted.filter((item) => {
+    const windowEntries = validEntries.filter((item) => {
       const itemDate = new Date(`${item.date}T00:00:00`);
       return itemDate >= startDate && itemDate <= targetDate;
     });
+
+    if (!windowEntries.length) {
+      return {
+        date: dateStr,
+        value: null,
+        count: 0
+      };
+    }
 
     const sum = windowEntries.reduce((acc, item) => acc + item[valueKey], 0);
     const avg = Number((sum / windowEntries.length).toFixed(1));
 
     return {
-      date: entry.date,
+      date: dateStr,
       value: avg,
       count: windowEntries.length
     };
