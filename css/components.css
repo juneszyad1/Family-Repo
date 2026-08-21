@@ -1942,14 +1942,20 @@
 /* Chart Header & Fullscreen */
 .chart-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 8px;
 }
 
+.chart-header .status-pill {
+  margin-bottom: 6px;
+  display: inline-block;
+}
+
 .chart-header .section-title {
   margin: 0;
+  line-height: 1.25;
 }
 
 .chart-fullscreen-trigger {

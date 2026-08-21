@@ -424,8 +424,8 @@ function renderCombinedChartShell(range, dailyEntries) {
     <section class="card">
       <div class="card-body">
         <div class="chart-header">
-          <h2 class="section-title">Übersicht · ${getRangeLabel(range)}</h2>
-          <button type="button" class="chart-fullscreen-trigger" data-open-fullscreen aria-label="Diagramm im Vollbild anzeigen">
+          <h2 class="section-title">Übersicht (Tageswerte) · ${getRangeLabel(range)}</h2>
+          <button type="button" class="chart-fullscreen-trigger" data-open-fullscreen="combined" aria-label="Tageswert-Diagramm im Vollbild anzeigen">
             ⛶
           </button>
         </div>
@@ -448,41 +448,63 @@ function renderCombinedChartShell(range, dailyEntries) {
   `;
 }
 
-function renderFullscreenCombinedChart(container, chartData) {
+let activeFullscreenMode = "combined";
+
+function renderFullscreenChart(container, chartData, mode = activeFullscreenMode) {
   destroyFullscreenChart();
   const canvas = container.querySelector("#fullscreen-chart");
   if (!window.Chart || !canvas || !chartData) return;
 
-  const { dailyEntries, range } = chartData;
+  const { dailyEntries, allDailyEntries, range } = chartData;
   const sortedDailyEntries = sortByDateDesc(dailyEntries).sort((a, b) => a.date.localeCompare(b.date));
   const primary = getCssColor("--primary");
   const success = getCssColor("--success");
   const warningColor = getCssColor("--warning");
   const violet = getCssColor("--primary-strong");
 
-  const combinedColors = {
+  const colors = {
     weight: primary,
     calories: warningColor,
     protein: success,
     sleep: violet
   };
 
-  const combinedDatasets = COMBINED_SERIES
-    .filter((series) => selectedCombinedSeries.has(series.key))
-    .map((series) => lineDataset(
-      `${series.label} (${series.unit})`,
-      entriesForValue(sortedDailyEntries, series.valueKey).map((entry) => ({ x: formatDate(entry.date), y: entry[series.valueKey] })),
-      combinedColors[series.key]
-    ))
-    .map((dataset, index) => ({
-      ...dataset,
-      yAxisID: COMBINED_SERIES.filter((series) => selectedCombinedSeries.has(series.key))[index].axis
-    }));
+  let datasets = [];
+  if (mode === "rolling") {
+    datasets = ROLLING_SERIES
+      .filter((series) => selectedRollingSeries.has(series.key))
+      .map((series) => {
+        const fullRolling = calculateRolling7DayAverages(allDailyEntries || dailyEntries, series.valueKey);
+        const rangeDateSet = new Set(sortedDailyEntries.map((d) => d.date));
+        const inRange = fullRolling.filter((r) => rangeDateSet.has(r.date));
+        return lineDataset(
+          `${series.label} (${series.unit})`,
+          inRange.map((entry) => ({ x: formatDate(entry.date), y: entry.value })),
+          colors[series.key]
+        );
+      })
+      .map((dataset, index) => ({
+        ...dataset,
+        yAxisID: ROLLING_SERIES.filter((series) => selectedRollingSeries.has(series.key))[index].axis
+      }));
+  } else {
+    datasets = COMBINED_SERIES
+      .filter((series) => selectedCombinedSeries.has(series.key))
+      .map((series) => lineDataset(
+        `${series.label} (${series.unit})`,
+        entriesForValue(sortedDailyEntries, series.valueKey).map((entry) => ({ x: formatDate(entry.date), y: entry[series.valueKey] })),
+        colors[series.key]
+      ))
+      .map((dataset, index) => ({
+        ...dataset,
+        yAxisID: COMBINED_SERIES.filter((series) => selectedCombinedSeries.has(series.key))[index].axis
+      }));
+  }
 
   fullscreenChartInstance = new window.Chart(canvas, {
     type: "line",
     data: {
-      datasets: combinedDatasets
+      datasets
     },
     options: combinedChartOptions(range, true)
   });
@@ -563,10 +585,13 @@ function renderRollingChartShell(range, dailyEntries) {
         <div class="chart-header">
           <div>
             <span class="status-pill">Glättung · 1 Woche</span>
-            <h2 class="section-title">Gleitender 7-Tage-Durchschnitt</h2>
+            <h2 class="section-title">Gleitender 7-Tage-Durchschnitt · ${getRangeLabel(range)}</h2>
           </div>
+          <button type="button" class="chart-fullscreen-trigger" data-open-fullscreen="rolling" aria-label="Gleitenden 7-Tage-Durchschnitt im Vollbild anzeigen">
+            ⛶
+          </button>
         </div>
-        <p class="muted settings-note">Zeigt für jeden einzelnen Tag den berechneten Durchschnittswert der jeweils letzten 7 Tage (Tag selbst + 6 Tage vorher), um tägliche Schwankungen sauber herauszufiltern.</p>
+        <p class="muted settings-note">Berechnet für jeden Tag den gleitenden Durchschnitt der jeweils vorangegangenen 7 Kalendertage (Tag selbst + 6 Tage vorher), um tägliche Schwankungen sauber herauszufiltern.</p>
         <fieldset class="choice-group compact-choice-group">
           <legend>7-Tage-Kurven</legend>
           ${ROLLING_SERIES.map((series) => `
@@ -827,15 +852,39 @@ function updateCurveToggles(container) {
   });
 }
 
-function openFullscreen(container) {
+function openFullscreen(container, mode = "combined") {
   if (!currentChartData) return;
+  activeFullscreenMode = mode;
   const overlay = container.querySelector("[data-fullscreen-overlay]");
   if (!overlay) return;
   overlay.hidden = false;
   document.body.classList.add("has-fullscreen-chart");
   overlay.querySelector("[data-fullscreen-range]").textContent = getRangeLabel(currentChartData.range);
-  updateCurveToggles(container);
-  renderFullscreenCombinedChart(container, currentChartData);
+  const titleEl = overlay.querySelector(".fullscreen-title");
+  if (titleEl) {
+    titleEl.textContent = mode === "rolling" ? "Gleitender 7-Tage-Durchschnitt" : "Trend-Übersicht (Tageswerte)";
+  }
+
+  const controls = overlay.querySelector(".fullscreen-controls");
+  if (controls) {
+    const seriesList = mode === "rolling" ? ROLLING_SERIES : COMBINED_SERIES;
+    const selectedSet = mode === "rolling" ? selectedRollingSeries : selectedCombinedSeries;
+    const toggleAttr = mode === "rolling" ? "data-fullscreen-rolling-toggle" : "data-fullscreen-combined-toggle";
+
+    controls.innerHTML = `
+      <fieldset class="choice-group compact-choice-group">
+        <legend>${mode === "rolling" ? "7-Tage-Kurven" : "Kurven"}</legend>
+        ${seriesList.map((series) => `
+          <label>
+            <input type="checkbox" value="${series.key}" ${toggleAttr} ${selectedSet.has(series.key) ? "checked" : ""}>
+            ${series.label}
+          </label>
+        `).join("")}
+      </fieldset>
+    `;
+  }
+
+  renderFullscreenChart(container, currentChartData, mode);
 }
 
 function closeFullscreen(container) {
@@ -914,7 +963,7 @@ async function loadTrends(container, range = "30d") {
     const overlay = container.querySelector("[data-fullscreen-overlay]");
     if (overlay && !overlay.hidden) {
       overlay.querySelector("[data-fullscreen-range]").textContent = getRangeLabel(range);
-      renderFullscreenCombinedChart(container, currentChartData);
+      renderFullscreenChart(container, currentChartData, activeFullscreenMode);
     }
   } catch (error) {
     console.error(error);
@@ -963,6 +1012,19 @@ function initializeTrends(container) {
       return;
     }
 
+    if (t.matches("[data-fullscreen-rolling-toggle]")) {
+      if (t.checked) selectedRollingSeries.add(t.value);
+      else selectedRollingSeries.delete(t.value);
+      container.querySelectorAll(`[data-rolling-toggle][value="${t.value}"]`).forEach((input) => {
+        input.checked = t.checked;
+      });
+      if (currentChartData) {
+        tryRenderCharts(container, currentChartData);
+        renderFullscreenChart(container, currentChartData, activeFullscreenMode);
+      }
+      return;
+    }
+
     if (t.matches("[data-combined-toggle], [data-fullscreen-combined-toggle]")) {
       if (t.checked) selectedCombinedSeries.add(t.value);
       else selectedCombinedSeries.delete(t.value);
@@ -971,15 +1033,17 @@ function initializeTrends(container) {
         tryRenderCharts(container, currentChartData);
         const overlay = container.querySelector("[data-fullscreen-overlay]");
         if (overlay && !overlay.hidden) {
-          renderFullscreenCombinedChart(container, currentChartData);
+          renderFullscreenChart(container, currentChartData, activeFullscreenMode);
         }
       }
     }
   });
 
   container.addEventListener("click", (event) => {
-    if (event.target.closest("[data-open-fullscreen]")) {
-      openFullscreen(container);
+    const openFsBtn = event.target.closest("[data-open-fullscreen]");
+    if (openFsBtn) {
+      const mode = openFsBtn.dataset.openFullscreen || "combined";
+      openFullscreen(container, mode);
       return;
     }
     if (event.target.closest("[data-close-fullscreen]")) {
