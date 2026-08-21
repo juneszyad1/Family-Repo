@@ -153,3 +153,55 @@ export function calculateTrendSummary(dailyEntries, bodyFatEntries, circumferenc
     trackedDays: new Set(dailyEntries.map((entry) => entry.date)).size
   };
 }
+
+export function calculateAdaptiveTdee(entries, windowDays = 14, today = new Date()) {
+  const windowEntries = filterEntriesByRange(entries, `${windowDays}d`, today);
+  const validWeights = windowEntries
+    .filter((e) => e.weight !== null && e.weight !== undefined)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const validCalories = windowEntries
+    .filter((e) => e.calories !== null && e.calories !== undefined);
+
+  if (validWeights.length < 5 || validCalories.length < 5) {
+    return {
+      hasSufficientData: false,
+      trackedDaysWithCalories: validCalories.length,
+      trackedDaysWithWeight: validWeights.length,
+      requiredDays: 5,
+      tdee: null,
+      averageCalories: validCalories.length ? Math.round(validCalories.reduce((s, e) => s + e.calories, 0) / validCalories.length) : null,
+      dailyDeficit: null,
+      weeklyWeightChangeRate: null,
+      totalWeightDelta: null
+    };
+  }
+
+  const avgCalories = validCalories.reduce((s, e) => s + e.calories, 0) / validCalories.length;
+  const startChunk = validWeights.slice(0, Math.min(3, Math.ceil(validWeights.length / 3)));
+  const endChunk = validWeights.slice(Math.max(0, validWeights.length - Math.min(3, Math.ceil(validWeights.length / 3))));
+  
+  const startWeightAvg = startChunk.reduce((s, e) => s + e.weight, 0) / startChunk.length;
+  const endWeightAvg = endChunk.reduce((s, e) => s + e.weight, 0) / endChunk.length;
+  
+  const firstDate = new Date(`${validWeights[0].date}T00:00:00`);
+  const lastDate = new Date(`${validWeights[validWeights.length - 1].date}T00:00:00`);
+  const daySpan = Math.max(1, Math.round((lastDate - firstDate) / (1000 * 60 * 60 * 24)));
+  
+  const weightDelta = endWeightAvg - startWeightAvg;
+  const dailySurplusOrDeficit = (weightDelta * 7700) / Math.max(7, daySpan);
+  const estimatedTdee = Math.round(avgCalories - dailySurplusOrDeficit);
+  const weeklyChangeRate = Number(((weightDelta / Math.max(7, daySpan)) * 7).toFixed(2));
+
+  return {
+    hasSufficientData: true,
+    trackedDaysWithCalories: validCalories.length,
+    trackedDaysWithWeight: validWeights.length,
+    requiredDays: 5,
+    tdee: Math.max(500, Math.min(8000, estimatedTdee)),
+    averageCalories: Math.round(avgCalories),
+    dailyDeficit: Math.round(-dailySurplusOrDeficit),
+    weeklyWeightChangeRate: weeklyChangeRate,
+    totalWeightDelta: Number(weightDelta.toFixed(2)),
+    windowDays: daySpan
+  };
+}

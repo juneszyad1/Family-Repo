@@ -976,6 +976,19 @@
   font-size: 0.80rem;
 }
 
+.tdee-overview-card,
+.exercise-progression-card {
+  box-shadow: none;
+}
+
+.exercise-select-field {
+  margin: 14px 0 16px;
+}
+
+.progression-chart-frame {
+  margin-top: 18px;
+}
+
 .dashboard-vitals {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

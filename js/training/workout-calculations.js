@@ -197,3 +197,101 @@ export function compareWorkoutWithPrevious(currentSession, allHistoricalSessions
     exerciseComparisons
   };
 }
+
+export function getTrackedStrengthExercises(sessions = []) {
+  const completed = sessions.filter((s) => s.status === WORKOUT_STATUS.COMPLETED && s.workoutType === WORKOUT_TYPES.STRENGTH);
+  const exerciseMap = new Map();
+
+  completed.forEach((session) => {
+    (session.exercises || []).forEach((exercise) => {
+      const id = exercise.exerciseId || exercise.exerciseNameSnapshot;
+      const name = exercise.exerciseNameSnapshot || "Übung";
+      const stats = calculateExerciseStats(exercise);
+      if (stats.totalSets === 0) return;
+
+      if (!exerciseMap.has(id)) {
+        exerciseMap.set(id, {
+          id,
+          name,
+          count: 0,
+          lastTrainedDate: session.date,
+          allTime1RM: 0,
+          allTimeMaxWeight: 0,
+          totalVolume: 0
+        });
+      }
+
+      const item = exerciseMap.get(id);
+      item.count += 1;
+      if (session.date > item.lastTrainedDate) item.lastTrainedDate = session.date;
+      item.allTime1RM = Math.max(item.allTime1RM, stats.best1RM);
+      item.allTimeMaxWeight = Math.max(item.allTimeMaxWeight, stats.maxWeight);
+      item.totalVolume += stats.totalVolume;
+    });
+  });
+
+  return [...exerciseMap.values()].sort((a, b) => b.count - a.count || b.lastTrainedDate.localeCompare(a.lastTrainedDate));
+}
+
+export function extractExerciseProgression(sessions = [], exerciseIdentifier) {
+  if (!exerciseIdentifier) return null;
+
+  const completed = sessions
+    .filter((s) => s.status === WORKOUT_STATUS.COMPLETED && s.workoutType === WORKOUT_TYPES.STRENGTH)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const dataPoints = [];
+  let exerciseName = "";
+
+  completed.forEach((session) => {
+    const foundExercise = (session.exercises || []).find(
+      (e) => e.exerciseId === exerciseIdentifier || e.exerciseNameSnapshot === exerciseIdentifier
+    );
+    if (!foundExercise) return;
+
+    const stats = calculateExerciseStats(foundExercise);
+    if (stats.totalSets === 0) return;
+
+    exerciseName = stats.exerciseName;
+    dataPoints.push({
+      date: session.date,
+      sessionId: session.id,
+      planName: session.planNameSnapshot || "Training",
+      estimated1RM: stats.best1RM,
+      topWeight: stats.maxWeight,
+      topReps: stats.topSet?.actualReps || 0,
+      totalVolume: stats.totalVolume,
+      completedSets: stats.totalSets,
+      sets: (foundExercise.sets || []).filter((s) => s.completed)
+    });
+  });
+
+  if (!dataPoints.length) return null;
+
+  const firstPoint = dataPoints[0];
+  const lastPoint = dataPoints[dataPoints.length - 1];
+  const allTime1RM = Math.max(...dataPoints.map((d) => d.estimated1RM));
+  const allTimeMaxWeight = Math.max(...dataPoints.map((d) => d.topWeight));
+  const totalLifetimeVolume = dataPoints.reduce((sum, d) => sum + d.totalVolume, 0);
+
+  const calcProg = (latest, initial) => {
+    if (!initial || initial <= 0) return 0;
+    return Math.round(((latest - initial) / initial) * 1000) / 10;
+  };
+
+  return {
+    exerciseIdentifier,
+    exerciseName,
+    dataPoints,
+    firstLoggedDate: firstPoint.date,
+    lastLoggedDate: lastPoint.date,
+    totalSessionsTracked: dataPoints.length,
+    latest1RM: lastPoint.estimated1RM,
+    latestTopWeight: lastPoint.topWeight,
+    allTime1RM,
+    allTimeMaxWeight,
+    totalLifetimeVolume,
+    progress1RMPercent: calcProg(lastPoint.estimated1RM, firstPoint.estimated1RM),
+    progressWeightPercent: calcProg(lastPoint.topWeight, firstPoint.topWeight)
+  };
+}

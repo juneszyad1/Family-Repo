@@ -1,7 +1,8 @@
-import { getActiveGoals, getBodyFatEntries, getCircumferenceEntries, getDailyEntries, getSettings } from "../database.js";
-import { calculateMovingAverage, calculateTrendSummary, filterEntriesByRange } from "../calculations.js";
+import { getActiveGoals, getBodyFatEntries, getCircumferenceEntries, getDailyEntries, getSettings, getWorkoutSessions } from "../database.js";
+import { calculateAdaptiveTdee, calculateMovingAverage, calculateTrendSummary, filterEntriesByRange } from "../calculations.js";
+import { getTrackedStrengthExercises, extractExerciseProgression } from "../training/workout-calculations.js";
 import { GOAL_TYPES, calculateExpectedValueToday, getGoalPoints } from "../goals.js";
-import { formatDate, formatNumber, formatShortDate, sortByDateDesc, todayIsoDate } from "../utils.js";
+import { escapeHtml, formatDate, formatNumber, formatShortDate, sortByDateDesc, todayIsoDate } from "../utils.js";
 
 const RANGE_OPTIONS = [
   { value: "7d", label: "7 Tage" },
@@ -222,6 +223,158 @@ function formatSignedNumber(value, unit = "") {
   return `${sign}${formatNumber(value, { maximumFractionDigits: 1 })}${unit ? ` ${unit}` : ""}`;
 }
 
+function renderTdeeCard(tdeeData) {
+  if (!tdeeData) return "";
+
+  if (!tdeeData.hasSufficientData) {
+    return `
+      <section class="card tdee-overview-card" aria-label="Reale Energiebilanz & TDEE">
+        <div class="card-body">
+          <div class="trend-hero-header">
+            <div>
+              <p class="metric-label">Reale Energiebilanz & TDEE (14 Tage)</p>
+              <p class="hero-value">--<span>kcal/Tag</span></p>
+            </div>
+            <span class="status-pill">${tdeeData.trackedDaysWithCalories}/${tdeeData.requiredDays} Tage erfasst</span>
+          </div>
+          <p class="muted settings-note">Erfasse mindestens ${tdeeData.requiredDays} Tage mit Gewicht und Kalorien im 14-Tage-Fenster, um deinen tatsächlichen täglichen Gesamtenergieverbrauch (TDEE) mathematisch exakt zu ermitteln.</p>
+        </div>
+      </section>
+    `;
+  }
+
+  const deficitText = tdeeData.dailyDeficit >= 0
+    ? `Defizit: ${tdeeData.dailyDeficit} kcal/Tag`
+    : `Überschuss: ${Math.abs(tdeeData.dailyDeficit)} kcal/Tag`;
+  const weightChangeStr = formatSignedNumber(tdeeData.totalWeightDelta, "kg");
+  const weeklyRateStr = formatSignedNumber(tdeeData.weeklyWeightChangeRate, "kg/Wo.");
+
+  return `
+    <section class="card tdee-overview-card" aria-label="Reale Energiebilanz & TDEE">
+      <div class="card-body">
+        <div class="trend-hero-header">
+          <div>
+            <p class="metric-label">Errechneter Gesamtverbrauch (TDEE · 14 Tage)</p>
+            <p class="hero-value">${formatNumber(tdeeData.tdee, { maximumFractionDigits: 0 })}<span>kcal/Tag</span></p>
+          </div>
+          <span class="status-pill ${tdeeData.dailyDeficit >= 0 ? "positive" : ""}">${deficitText}</span>
+        </div>
+        <div class="stat-strip">
+          <div class="stat-cell">
+            <p class="stat-label">Ø Aufnahme</p>
+            <p class="stat-value">${formatNumber(tdeeData.averageCalories, { maximumFractionDigits: 0 })} <span class="stat-unit">kcal</span></p>
+          </div>
+          <div class="stat-cell">
+            <p class="stat-label">Trend-Delta</p>
+            <p class="stat-value">${weightChangeStr}</p>
+          </div>
+          <div class="stat-cell">
+            <p class="stat-label">Fettänderung</p>
+            <p class="stat-value">${weeklyRateStr}</p>
+          </div>
+          <div class="stat-cell">
+            <p class="stat-label">Datenbasis</p>
+            <p class="stat-value">${tdeeData.trackedDaysWithCalories} <span class="stat-unit">Tage</span></p>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderExerciseProgressionSection(workoutSessions = [], selectedExerciseId = null) {
+  const trackedExercises = getTrackedStrengthExercises(workoutSessions);
+
+  if (!trackedExercises.length) {
+    return `
+      <section class="card exercise-progression-card">
+        <div class="card-body">
+          <div class="chart-header">
+            <div>
+              <span class="status-pill">Kraftanalyse</span>
+              <h2 class="section-title">Kraftprogression & 1RM-Verlauf</h2>
+            </div>
+          </div>
+          <p class="muted">Schließe deine ersten Krafttrainingseinheiten ab, um hier detaillierte 1RM- und Kraftverlaufskurven zu sehen.</p>
+        </div>
+      </section>
+    `;
+  }
+
+  const activeExerciseId = selectedExerciseId || trackedExercises[0]?.id;
+  const progression = extractExerciseProgression(workoutSessions, activeExerciseId);
+
+  return `
+    <section class="card exercise-progression-card" data-exercise-progression-card>
+      <div class="card-body">
+        <div class="chart-header">
+          <div>
+            <span class="status-pill">Kraftanalyse</span>
+            <h2 class="section-title">Kraftprogression & 1RM-Verlauf</h2>
+          </div>
+        </div>
+
+        <label class="field exercise-select-field">
+          <span>Übung auswählen</span>
+          <select data-exercise-progression-select>
+            ${trackedExercises.map((ex) => `
+              <option value="${escapeHtml(ex.id)}" ${ex.id === activeExerciseId ? "selected" : ""}>
+                ${escapeHtml(ex.name)} (${ex.count}× · Max: ${formatNumber(ex.allTimeMaxWeight, { maximumFractionDigits: 1 })} kg · 1RM: ${formatNumber(ex.allTime1RM, { maximumFractionDigits: 1 })} kg)
+              </option>
+            `).join("")}
+          </select>
+        </label>
+
+        ${progression ? `
+          <div class="exercise-progression-details" data-exercise-details>
+            <div class="trend-hero-header">
+              <div>
+                <p class="metric-label">All-Time PR (geschätztes 1RM)</p>
+                <p class="hero-value">${formatNumber(progression.allTime1RM, { maximumFractionDigits: 1 })}<span>kg</span></p>
+              </div>
+              <span class="status-pill ${progression.progress1RMPercent >= 0 ? "positive" : ""}">
+                ${progression.progress1RMPercent >= 0 ? `+${progression.progress1RMPercent}%` : `${progression.progress1RMPercent}%`} seit erstem Log
+              </span>
+            </div>
+            <div class="stat-strip">
+              <div class="stat-cell">
+                <p class="stat-label">Maximalgewicht</p>
+                <p class="stat-value">${formatNumber(progression.allTimeMaxWeight, { maximumFractionDigits: 1 })} <span class="stat-unit">kg</span></p>
+              </div>
+              <div class="stat-cell">
+                <p class="stat-label">Letztes 1RM</p>
+                <p class="stat-value">${formatNumber(progression.latest1RM, { maximumFractionDigits: 1 })} <span class="stat-unit">kg</span></p>
+              </div>
+              <div class="stat-cell">
+                <p class="stat-label">Einheiten</p>
+                <p class="stat-value">${progression.totalSessionsTracked}</p>
+              </div>
+              <div class="stat-cell">
+                <p class="stat-label">Gesamtvolumen</p>
+                <p class="stat-value">${formatNumber(progression.totalLifetimeVolume, { maximumFractionDigits: 0 })} <span class="stat-unit">kg</span></p>
+              </div>
+            </div>
+
+            <div class="chart-frame tall-chart-frame progression-chart-frame">
+              <canvas id="exercise-progression-chart" aria-label="Kraftprogression für ${escapeHtml(progression.exerciseName)}" role="img"></canvas>
+            </div>
+
+            <h3 class="subsection-title">Letzte Trainings-Top-Sets</h3>
+            <ul class="stat-list">
+              ${progression.dataPoints.slice(-5).reverse().map((point) => `
+                <li>
+                  <span>${formatDate(point.date)} · ${escapeHtml(point.planName)}</span>
+                  <strong>${formatNumber(point.topWeight, { maximumFractionDigits: 1 })} kg × ${point.topReps} <small class="muted">(${formatNumber(point.estimated1RM, { maximumFractionDigits: 1 })} kg 1RM)</small></strong>
+                </li>
+              `).join("")}
+            </ul>
+          </div>
+        ` : ""}
+      </div>
+    </section>
+  `;
+}
+
 function renderSummary(summary) {
   const weightChangeStr = formatSignedNumber(summary.weightChange, "kg");
 
@@ -356,17 +509,53 @@ function renderEmptyMessage() {
   `;
 }
 
-function renderTrendContent({ dailyEntries, bodyFatEntries, circumferenceEntries, settings, range, activeGoals }) {
+function renderExerciseProgressionChart(container, progression) {
+  const canvas = container.querySelector("#exercise-progression-chart");
+  if (!window.Chart || !canvas || !progression || !progression.dataPoints.length) return;
+
+  const primary = getCssColor("--primary");
+  const textSecondary = getCssColor("--text-secondary");
+
+  const e1rmData = progression.dataPoints.map((d) => ({ x: formatDate(d.date), y: d.estimated1RM }));
+  const topWeightData = progression.dataPoints.map((d) => ({ x: formatDate(d.date), y: d.topWeight }));
+
+  const datasets = [
+    lineDataset("Geschätztes 1RM (kg)", e1rmData, primary),
+    lineDataset("Maximalgewicht (kg)", topWeightData, textSecondary, true)
+  ];
+
+  const options = chartOptions(`${progression.exerciseName} · Progression`);
+  createChart(canvas, {
+    type: "line",
+    data: { datasets },
+    options: {
+      ...options,
+      plugins: {
+        ...options.plugins,
+        tooltip: {
+          callbacks: {
+            afterBody: (context) => {
+              const idx = context[0]?.dataIndex;
+              if (idx === undefined) return "";
+              const point = progression.dataPoints[idx];
+              if (!point) return "";
+              return `Top-Set: ${point.topWeight} kg × ${point.topReps}\nVolumen: ${formatNumber(point.totalVolume, { maximumFractionDigits: 0 })} kg\nPlan: ${point.planName}`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderTrendContent({ dailyEntries, bodyFatEntries, circumferenceEntries, settings, range, activeGoals, workoutSessions, tdeeData, selectedExerciseId }) {
   const filteredDaily = filterEntriesByRange(dailyEntries, range);
   const filteredBodyFat = filterEntriesByRange(bodyFatEntries, range);
   const filteredCircumference = filterEntriesByRange(circumferenceEntries, range);
   const summary = calculateTrendSummary(filteredDaily, filteredBodyFat, filteredCircumference);
-  const hasAnyData = filteredDaily.length || filteredBodyFat.length || filteredCircumference.length;
+  const hasAnyData = filteredDaily.length || filteredBodyFat.length || filteredCircumference.length || (workoutSessions && workoutSessions.length);
   const hasGoals = activeGoals.length > 0;
   const countValues = (entries, key) => entries.filter((entry) => entry[key] !== null && entry[key] !== undefined).length;
-  const weightCount = countValues(filteredDaily, "weight");
-  const calorieCount = countValues(filteredDaily, "calories");
-  const proteinCount = countValues(filteredDaily, "protein");
   const bodyFatCount = countValues(filteredBodyFat, "bodyFatPercentage");
   const circumferenceCount = filteredCircumference.filter((entry) => entry.arm != null || entry.leg != null).length;
   const skinfoldCount = filteredBodyFat.filter((entry) => entry.skinfoldSum != null).length;
@@ -378,12 +567,14 @@ function renderTrendContent({ dailyEntries, bodyFatEntries, circumferenceEntries
 
   return `
     ${renderSummary(summary)}
+    ${renderTdeeCard(tdeeData)}
+    ${renderExerciseProgressionSection(workoutSessions, selectedExerciseId)}
     ${hasCombinedData ? renderCombinedChartShell(range, filteredDaily) : ""}
     <p class="chart-summary">Zusätzlich im Zeitraum: ${bodyFatCount} KFA-, ${circumferenceCount} Umfang- und ${skinfoldCount} Hautfaltenmessungen.</p>
   `;
 }
 
-function renderCharts(container, { dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals, range }) {
+function renderCharts(container, { dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals, range, workoutSessions }) {
   destroyCharts();
 
   const warning = container.querySelector("[data-chart-warning]");
@@ -399,6 +590,13 @@ function renderCharts(container, { dailyEntries, bodyFatEntries, circumferenceEn
   }
 
   warning.innerHTML = "";
+
+  if (workoutSessions && selectedProgressionExerciseId) {
+    const progression = extractExerciseProgression(workoutSessions, selectedProgressionExerciseId);
+    if (progression) {
+      renderExerciseProgressionChart(container, progression);
+    }
+  }
 
   const sortedDailyEntries = sortByDateDesc(dailyEntries).sort((a, b) => a.date.localeCompare(b.date));
   const sortedBodyFatEntries = sortByDateDesc(bodyFatEntries).sort((a, b) => a.date.localeCompare(b.date));
@@ -489,7 +687,7 @@ function renderCharts(container, { dailyEntries, bodyFatEntries, circumferenceEn
     data: {
       labels: calories.map((entry) => formatDate(entry.date)),
       datasets: [
-        { label: "Kalorien", data: calories.map((entry) => entry.calories), backgroundColor: primary },
+        { label: "Kalorien", data: calories.map((entry) => entry.calories), backgroundColor: warningColor },
         { label: "Ziel", data: calories.map(() => calorieTarget), type: "line", borderColor: textSecondary, borderDash: [6, 6], pointRadius: 0 }
       ]
     },
@@ -553,6 +751,8 @@ function tryRenderCharts(container, chartData) {
 }
 
 let currentChartData = null;
+let selectedProgressionExerciseId = null;
+let allWorkoutSessions = [];
 
 function updateCurveToggles(container) {
   container.querySelectorAll("[data-combined-toggle]").forEach((input) => {
@@ -603,20 +803,47 @@ async function loadTrends(container, range = "30d") {
   const content = container.querySelector("[data-trend-content]");
 
   try {
-    const [dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals] = await Promise.all([
+    const [dailyEntries, bodyFatEntries, circumferenceEntries, settings, activeGoals, workoutSessions] = await Promise.all([
       getDailyEntries(),
       getBodyFatEntries(),
       getCircumferenceEntries(),
       getSettings(),
-      getActiveGoals()
+      getActiveGoals(),
+      getWorkoutSessions()
     ]);
+
+    allWorkoutSessions = workoutSessions || [];
+    const trackedExercises = getTrackedStrengthExercises(allWorkoutSessions);
+    if (!selectedProgressionExerciseId && trackedExercises.length) {
+      selectedProgressionExerciseId = trackedExercises[0].id;
+    }
 
     const filteredDaily = filterEntriesByRange(dailyEntries, range);
     const filteredBodyFat = filterEntriesByRange(bodyFatEntries, range);
     const filteredCircumference = filterEntriesByRange(circumferenceEntries, range);
+    const tdeeData = calculateAdaptiveTdee(dailyEntries, 14);
 
-    content.innerHTML = renderTrendContent({ dailyEntries, bodyFatEntries, circumferenceEntries, settings, range, activeGoals });
-    currentChartData = { dailyEntries: filteredDaily, bodyFatEntries: filteredBodyFat, circumferenceEntries: filteredCircumference, settings, activeGoals, range };
+    content.innerHTML = renderTrendContent({
+      dailyEntries,
+      bodyFatEntries,
+      circumferenceEntries,
+      settings,
+      range,
+      activeGoals,
+      workoutSessions: allWorkoutSessions,
+      tdeeData,
+      selectedExerciseId: selectedProgressionExerciseId
+    });
+
+    currentChartData = {
+      dailyEntries: filteredDaily,
+      bodyFatEntries: filteredBodyFat,
+      circumferenceEntries: filteredCircumference,
+      settings,
+      activeGoals,
+      range,
+      workoutSessions: allWorkoutSessions
+    };
     tryRenderCharts(container, currentChartData);
 
     const overlay = container.querySelector("[data-fullscreen-overlay]");
@@ -644,6 +871,24 @@ function initializeTrends(container) {
 
   container.addEventListener("change", (event) => {
     const t = event.target;
+    if (t.matches("[data-exercise-progression-select]")) {
+      selectedProgressionExerciseId = t.value;
+      const card = container.querySelector("[data-exercise-progression-card]");
+      if (card) {
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = renderExerciseProgressionSection(allWorkoutSessions, selectedProgressionExerciseId);
+        const newCard = tempDiv.firstElementChild;
+        if (newCard) {
+          card.replaceWith(newCard);
+          const progression = extractExerciseProgression(allWorkoutSessions, selectedProgressionExerciseId);
+          if (progression) {
+            renderExerciseProgressionChart(container, progression);
+          }
+        }
+      }
+      return;
+    }
+
     if (t.matches("[data-combined-toggle], [data-fullscreen-combined-toggle]")) {
       if (t.checked) selectedCombinedSeries.add(t.value);
       else selectedCombinedSeries.delete(t.value);

@@ -2,7 +2,7 @@ import { STRENGTH_EXERCISES } from "../js/data/strength-exercises.js";
 import { STRETCH_EXERCISES } from "../js/data/stretch-exercises.js";
 import { EXERCISE_CATEGORIES, EQUIPMENT_TYPES, STRETCH_CATEGORIES, STRETCH_TYPES } from "../js/training/training-constants.js";
 import { filterExercises } from "../js/training/exercise-library.js";
-import { calculateSetVolume, calculateStretchPlannedDuration, calculateWorkoutDuration, calculateWorkoutVolume, calculateCompletedSetCount, calculateTotalReps, estimate1RM, detectWorkoutPRs, compareWorkoutWithPrevious } from "../js/training/workout-calculations.js";
+import { calculateSetVolume, calculateStretchPlannedDuration, calculateWorkoutDuration, calculateWorkoutVolume, calculateCompletedSetCount, calculateTotalReps, estimate1RM, detectWorkoutPRs, compareWorkoutWithPrevious, getTrackedStrengthExercises, extractExerciseProgression } from "../js/training/workout-calculations.js";
 import { validateCustomExercise, validateWorkoutPlan } from "../js/training/workout-validation.js";
 import { completeSession, createSessionFromPlan } from "../js/training/workout-sessions.js";
 
@@ -98,6 +98,67 @@ test("Vergleich mit vorherigem Training berechnet prozentuale Differenzen", () =
   equal(comparison.totalComparison.volume.percent, 20, "Volumen-Steigerung muss +20% sein (500 kg -> 600 kg)");
   equal(comparison.exerciseComparisons[0].volumeDiff.percent, 20, "Übungs-Volumensteigerung muss +20% sein");
   equal(comparison.exerciseComparisons[0].weightDiff.percent, 20, "Übungs-Gewichtssteigerung muss +20% sein");
+});
+
+test("getTrackedStrengthExercises aggregiert eindeutige Kraftübungen und PRs", () => {
+  const sessions = [
+    {
+      id: "s1",
+      status: "completed",
+      workoutType: "strength",
+      date: "2026-08-01",
+      exercises: [
+        { exerciseId: "bench-press", exerciseNameSnapshot: "Bankdrücken", sets: [{ actualReps: 10, actualWeight: 80, completed: true }] }
+      ]
+    },
+    {
+      id: "s2",
+      status: "completed",
+      workoutType: "strength",
+      date: "2026-08-05",
+      exercises: [
+        { exerciseId: "bench-press", exerciseNameSnapshot: "Bankdrücken", sets: [{ actualReps: 8, actualWeight: 90, completed: true }] },
+        { exerciseId: "squat", exerciseNameSnapshot: "Kniebeugen", sets: [{ actualReps: 5, actualWeight: 120, completed: true }] }
+      ]
+    }
+  ];
+
+  const tracked = getTrackedStrengthExercises(sessions);
+  equal(tracked.length, 2, "2 Übungen müssen gefunden werden");
+  equal(tracked[0].id, "bench-press", "Bankdrücken muss an 1. Stelle sein (2x trainiert)");
+  equal(tracked[0].allTimeMaxWeight, 90, "All-Time Max Weight muss 90 kg sein");
+  equal(tracked[0].allTime1RM, 114, "All-Time 1RM (90kg x 8) muss 114 kg sein");
+});
+
+test("extractExerciseProgression berechnet korrekte 1RM- und Gewichtssteigerung", () => {
+  const sessions = [
+    {
+      id: "s1",
+      status: "completed",
+      workoutType: "strength",
+      date: "2026-08-01",
+      planNameSnapshot: "Push A",
+      exercises: [
+        { exerciseId: "bench-press", exerciseNameSnapshot: "Bankdrücken", sets: [{ actualReps: 10, actualWeight: 80, completed: true }] }
+      ]
+    },
+    {
+      id: "s2",
+      status: "completed",
+      workoutType: "strength",
+      date: "2026-08-15",
+      planNameSnapshot: "Push A",
+      exercises: [
+        { exerciseId: "bench-press", exerciseNameSnapshot: "Bankdrücken", sets: [{ actualReps: 10, actualWeight: 100, completed: true }] }
+      ]
+    }
+  ];
+
+  const prog = extractExerciseProgression(sessions, "bench-press");
+  assert(prog !== null, "Progression darf nicht null sein");
+  equal(prog.totalSessionsTracked, 2, "2 Einheiten getrackt");
+  equal(prog.progressWeightPercent, 25, "+25% Maximalgewicht-Steigerung (80 kg -> 100 kg)");
+  equal(prog.allTimeMaxWeight, 100, "100 kg All-Time Max");
 });
 
 export async function runTrainingTests(){const results=[];for(const item of tests){try{await item.fn();results.push({name:item.name,passed:true})}catch(error){results.push({name:item.name,passed:false,error})}}return results;}

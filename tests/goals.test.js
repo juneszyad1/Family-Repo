@@ -345,6 +345,39 @@ test("analyzeGoal bindet Milestones und activeMilestone in das Ergebnis ein", ()
   assertEqual(analysis.activeMilestone.id, "m1", "Aktives Milestone im Gesamtergebnis fehlt");
 });
 
+test("calculateAdaptiveTdee berechnet exakten TDEE aus Kalorienaufnahme und 14-Tage-Gewichtsverlust", async () => {
+  const { calculateAdaptiveTdee } = await import("../js/calculations.js");
+
+  // 14 Tage: Täglich 2500 kcal, Gewichtsverlust von 90.0 kg auf 89.0 kg (-1.0 kg in 14 Tagen)
+  // Delta = -1.0 kg * 7700 kcal / 14 Tage = -550 kcal/Tag
+  // TDEE = 2500 - (-550) = 3050 kcal/Tag
+  const entries = Array.from({ length: 14 }, (_, i) => {
+    const day = String(i + 1).padStart(2, "0");
+    const weight = 90.0 - (i * (1.0 / 13));
+    return {
+      date: `2026-08-${day}`,
+      weight: Number(weight.toFixed(2)),
+      calories: 2500
+    };
+  });
+
+  const res = calculateAdaptiveTdee(entries, 14, new Date("2026-08-14T12:00:00"));
+  assertEqual(res.hasSufficientData, true, "Muss genügend Daten haben");
+  assertClose(res.tdee, 3050, 50, "TDEE muss ca. 3050 kcal/Tag sein");
+  assert(res.dailyDeficit > 0, "Defizit muss positiv sein");
+});
+
+test("calculateAdaptiveTdee meldet unzureichende Daten bei weniger als 5 Einträgen", async () => {
+  const { calculateAdaptiveTdee } = await import("../js/calculations.js");
+  const entries = [
+    { date: "2026-08-01", weight: 90, calories: 2000 },
+    { date: "2026-08-02", weight: 89.8, calories: 2100 }
+  ];
+  const res = calculateAdaptiveTdee(entries, 14, new Date("2026-08-02T12:00:00"));
+  assertEqual(res.hasSufficientData, false, "Darf bei 2 Tagen keine Berechnung durchführen");
+  assertEqual(res.tdee, null, "TDEE muss null sein");
+});
+
 export async function runGoalTests() {
   const results = [];
 
