@@ -311,7 +311,29 @@ function renderExerciseProgressionSection(workoutSessions = [], selectedExercise
   }
 
   const activeExerciseId = selectedExerciseId || trackedExercises[0]?.id;
-  const progression = extractExerciseProgression(workoutSessions, activeExerciseId);
+  const progression = extractExerciseProgression(workoutSessions, activeExerciseId, allDailyEntriesCache);
+
+  let heroLabel = "All-Time PR (geschätztes 1RM)";
+  let heroValue = `${formatNumber(progression?.allTime1RM, { maximumFractionDigits: 1 })}<span>kg</span>`;
+  let heroPill = `${(progression?.progress1RMPercent || 0) >= 0 ? `+${progression?.progress1RMPercent}%` : `${progression?.progress1RMPercent}%`} seit erstem Log`;
+
+  if (progression?.isBodyweight) {
+    heroLabel = `All-Time PR (${Math.round(progression.bodyweightRatio * 100)}% BW + Zusatz)`;
+  }
+
+  if (selectedProgressionMetric === "reps") {
+    heroLabel = "All-Time Rekord (Top-Set Wdh.)";
+    heroValue = `${formatNumber(progression?.allTimeMaxReps, { maximumFractionDigits: 0 })}<span>Wdh.</span>`;
+    heroPill = `${(progression?.progressRepsPercent || 0) >= 0 ? `+${progression?.progressRepsPercent}%` : `${progression?.progressRepsPercent}%`} seit erstem Log`;
+  } else if (selectedProgressionMetric === "volume") {
+    heroLabel = "Gesamtvolumen Lifetime";
+    heroValue = `${formatNumber(progression?.totalLifetimeVolume, { maximumFractionDigits: 0 })}<span>kg</span>`;
+    heroPill = `${progression?.totalSessionsTracked || 0} Einheiten`;
+  } else if (selectedProgressionMetric === "weight") {
+    heroLabel = "Maximalgewicht (Zusatz-/Hantellast)";
+    heroValue = `${formatNumber(progression?.allTimeMaxWeight, { maximumFractionDigits: 1 })}<span>kg</span>`;
+    heroPill = `${(progression?.progressWeightPercent || 0) >= 0 ? `+${progression?.progressWeightPercent}%` : `${progression?.progressWeightPercent}%`} seit erstem Log`;
+  }
 
   return `
     <section class="card exercise-progression-card" data-exercise-progression-card>
@@ -334,33 +356,40 @@ function renderExerciseProgressionSection(workoutSessions = [], selectedExercise
           </select>
         </label>
 
+        <div class="range-selector progression-metric-selector" role="group" aria-label="Metrik auswählen" style="margin-top: 10px;">
+          <button type="button" class="range-button ${selectedProgressionMetric === '1rm' ? 'active' : ''}" data-progression-metric="1rm">1RM (kg)</button>
+          <button type="button" class="range-button ${selectedProgressionMetric === 'reps' ? 'active' : ''}" data-progression-metric="reps">Max Reps</button>
+          <button type="button" class="range-button ${selectedProgressionMetric === 'volume' ? 'active' : ''}" data-progression-metric="volume">Volumen</button>
+          <button type="button" class="range-button ${selectedProgressionMetric === 'weight' ? 'active' : ''}" data-progression-metric="weight">Last (kg)</button>
+        </div>
+
         ${progression ? `
           <div class="exercise-progression-details" data-exercise-details>
             <div class="trend-hero-header">
               <div>
-                <p class="metric-label">All-Time PR (geschätztes 1RM)</p>
-                <p class="hero-value">${formatNumber(progression.allTime1RM, { maximumFractionDigits: 1 })}<span>kg</span></p>
+                <p class="metric-label">${heroLabel}</p>
+                <p class="hero-value">${heroValue}</p>
               </div>
-              <span class="status-pill ${progression.progress1RMPercent >= 0 ? "positive" : ""}">
-                ${progression.progress1RMPercent >= 0 ? `+${progression.progress1RMPercent}%` : `${progression.progress1RMPercent}%`} seit erstem Log
+              <span class="status-pill ${((selectedProgressionMetric === 'reps' ? progression.progressRepsPercent : progression.progress1RMPercent) || 0) >= 0 ? "positive" : ""}">
+                ${heroPill}
               </span>
             </div>
             <div class="stat-strip">
               <div class="stat-cell">
-                <p class="stat-label">Maximalgewicht</p>
+                <p class="stat-label">Max. Reps</p>
+                <p class="stat-value">${formatNumber(progression.allTimeMaxReps, { maximumFractionDigits: 0 })} <span class="stat-unit">Wdh.</span></p>
+              </div>
+              <div class="stat-cell">
+                <p class="stat-label">Max. Last</p>
                 <p class="stat-value">${formatNumber(progression.allTimeMaxWeight, { maximumFractionDigits: 1 })} <span class="stat-unit">kg</span></p>
               </div>
               <div class="stat-cell">
-                <p class="stat-label">Letztes 1RM</p>
-                <p class="stat-value">${formatNumber(progression.latest1RM, { maximumFractionDigits: 1 })} <span class="stat-unit">kg</span></p>
+                <p class="stat-label">Bestes 1RM</p>
+                <p class="stat-value">${formatNumber(progression.allTime1RM, { maximumFractionDigits: 1 })} <span class="stat-unit">kg</span></p>
               </div>
               <div class="stat-cell">
                 <p class="stat-label">Einheiten</p>
                 <p class="stat-value">${progression.totalSessionsTracked}</p>
-              </div>
-              <div class="stat-cell">
-                <p class="stat-label">Gesamtvolumen</p>
-                <p class="stat-value">${formatNumber(progression.totalLifetimeVolume, { maximumFractionDigits: 0 })} <span class="stat-unit">kg</span></p>
               </div>
             </div>
 
@@ -556,22 +585,46 @@ function renderEmptyMessage() {
   `;
 }
 
-function renderExerciseProgressionChart(container, progression) {
+function renderExerciseProgressionChart(container, progression, activeMetric = selectedProgressionMetric) {
   const canvas = container.querySelector("#exercise-progression-chart");
   if (!window.Chart || !canvas || !progression || !progression.dataPoints.length) return;
 
   const primary = getCssColor("--primary");
   const textSecondary = getCssColor("--text-secondary");
+  const chartProtein = getCssColor("--chart-protein") || getCssColor("--success");
+  const chartCalories = getCssColor("--chart-calories") || getCssColor("--warning");
 
-  const e1rmData = progression.dataPoints.map((d) => ({ x: formatDate(d.date), y: d.estimated1RM }));
-  const topWeightData = progression.dataPoints.map((d) => ({ x: formatDate(d.date), y: d.topWeight }));
+  let datasets = [];
+  let yAxisTitle = "kg";
 
-  const datasets = [
-    lineDataset("Geschätztes 1RM (kg)", e1rmData, primary),
-    lineDataset("Maximalgewicht (kg)", topWeightData, textSecondary, true)
-  ];
+  if (activeMetric === "reps") {
+    yAxisTitle = "Wiederholungen";
+    datasets = [
+      lineDataset("Top-Set Wiederholungen", progression.dataPoints.map((d) => ({ x: formatDate(d.date), y: d.topReps })), chartProtein)
+    ];
+  } else if (activeMetric === "volume") {
+    yAxisTitle = "Volumen (kg)";
+    datasets = [
+      lineDataset("Trainingsvolumen (kg)", progression.dataPoints.map((d) => ({ x: formatDate(d.date), y: d.totalVolume })), chartCalories)
+    ];
+  } else if (activeMetric === "weight") {
+    yAxisTitle = "Gewicht (kg)";
+    datasets = [
+      lineDataset("Zusatz-/Hantellast (kg)", progression.dataPoints.map((d) => ({ x: formatDate(d.date), y: d.topWeight })), primary)
+    ];
+  } else {
+    // default 1RM
+    yAxisTitle = "1RM (kg)";
+    const e1rmLabel = progression.isBodyweight
+      ? `Geschätztes 1RM (inkl. ${Math.round(progression.bodyweightRatio * 100)}% BW)`
+      : "Geschätztes 1RM (kg)";
+    datasets = [
+      lineDataset(e1rmLabel, progression.dataPoints.map((d) => ({ x: formatDate(d.date), y: d.estimated1RM })), primary),
+      lineDataset("Zusatz-/Hantellast (kg)", progression.dataPoints.map((d) => ({ x: formatDate(d.date), y: d.topWeight })), textSecondary, true)
+    ];
+  }
 
-  const options = chartOptions(`${progression.exerciseName} · Progression`);
+  const options = chartOptions(`${progression.exerciseName} · ${yAxisTitle}`);
   createChart(canvas, {
     type: "line",
     data: { datasets },
@@ -586,7 +639,8 @@ function renderExerciseProgressionChart(container, progression) {
               if (idx === undefined) return "";
               const point = progression.dataPoints[idx];
               if (!point) return "";
-              return `Top-Set: ${point.topWeight} kg × ${point.topReps}\nVolumen: ${formatNumber(point.totalVolume, { maximumFractionDigits: 0 })} kg\nPlan: ${point.planName}`;
+              const bwInfo = progression.isBodyweight ? ` (BW: ${point.sessionBodyweight} kg)` : "";
+              return `Top-Set: ${point.topWeight} kg × ${point.topReps}\n1RM: ${formatNumber(point.estimated1RM, { maximumFractionDigits: 1 })} kg${bwInfo}\nVolumen: ${formatNumber(point.totalVolume, { maximumFractionDigits: 0 })} kg\nPlan: ${point.planName}`;
             }
           }
         }
@@ -672,9 +726,9 @@ function renderCharts(container, { dailyEntries, allDailyEntries, bodyFatEntries
   warning.innerHTML = "";
 
   if (workoutSessions && selectedProgressionExerciseId) {
-    const progression = extractExerciseProgression(workoutSessions, selectedProgressionExerciseId);
+    const progression = extractExerciseProgression(workoutSessions, selectedProgressionExerciseId, allDailyEntries || allDailyEntriesCache);
     if (progression) {
-      renderExerciseProgressionChart(container, progression);
+      renderExerciseProgressionChart(container, progression, selectedProgressionMetric);
     }
   }
 
@@ -876,6 +930,8 @@ function tryRenderCharts(container, chartData) {
 
 let currentChartData = null;
 let selectedProgressionExerciseId = null;
+let selectedProgressionMetric = "1rm";
+let allDailyEntriesCache = [];
 let allWorkoutSessions = [];
 
 function updateCurveToggles(container) {
@@ -960,6 +1016,7 @@ async function loadTrends(container, range = "30d") {
       getWorkoutSessions()
     ]);
 
+    allDailyEntriesCache = dailyEntries || [];
     allWorkoutSessions = workoutSessions || [];
     const trackedExercises = getTrackedStrengthExercises(allWorkoutSessions);
     if (!selectedProgressionExerciseId && trackedExercises.length) {
@@ -1025,13 +1082,13 @@ function initializeTrends(container) {
       const card = container.querySelector("[data-exercise-progression-card]");
       if (card) {
         const tempDiv = document.createElement("div");
-        tempDiv.innerHTML = renderExerciseProgressionSection(allWorkoutSessions, selectedProgressionExerciseId);
+        tempDiv.innerHTML = renderExerciseProgressionSection(allWorkoutSessions, selectedProgressionExerciseId, allDailyEntriesCache, selectedProgressionMetric);
         const newCard = tempDiv.firstElementChild;
         if (newCard) {
           card.replaceWith(newCard);
-          const progression = extractExerciseProgression(allWorkoutSessions, selectedProgressionExerciseId);
+          const progression = extractExerciseProgression(allWorkoutSessions, selectedProgressionExerciseId, allDailyEntriesCache);
           if (progression) {
-            renderExerciseProgressionChart(container, progression);
+            renderExerciseProgressionChart(container, progression, selectedProgressionMetric);
           }
         }
       }
@@ -1075,6 +1132,25 @@ function initializeTrends(container) {
   });
 
   container.addEventListener("click", (event) => {
+    const metricBtn = event.target.closest("[data-progression-metric]");
+    if (metricBtn) {
+      selectedProgressionMetric = metricBtn.dataset.progressionMetric;
+      const card = container.querySelector("[data-exercise-progression-card]");
+      if (card) {
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = renderExerciseProgressionSection(allWorkoutSessions, selectedProgressionExerciseId, allDailyEntriesCache, selectedProgressionMetric);
+        const newCard = tempDiv.firstElementChild;
+        if (newCard) {
+          card.replaceWith(newCard);
+          const progression = extractExerciseProgression(allWorkoutSessions, selectedProgressionExerciseId, allDailyEntriesCache);
+          if (progression) {
+            renderExerciseProgressionChart(container, progression, selectedProgressionMetric);
+          }
+        }
+      }
+      return;
+    }
+
     const openFsBtn = event.target.closest("[data-open-fullscreen]");
     if (openFsBtn) {
       const mode = openFsBtn.dataset.openFullscreen || "combined";

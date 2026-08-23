@@ -2190,3 +2190,37 @@ body.has-fullscreen-chart {
   font-size: 0.82rem;
   line-height: 1.35;
 }
+
+/* Progression Metric Selector */
+.progression-metric-selector {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  margin-top: 12px;
+}
+
+.progression-metric-selector .range-button {
+  min-height: 36px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 750;
+  cursor: pointer;
+  padding: 0 6px;
+  white-space: nowrap;
+  text-align: center;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.progression-metric-selector .range-button.active {
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 850;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}

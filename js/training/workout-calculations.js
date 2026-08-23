@@ -32,33 +32,91 @@ export function calculateWorkoutStatistics(sessions = [], referenceDate = new Da
   return { weeklyCount: calculateWeeklyWorkoutCount(completed, referenceDate), monthlyCount: calculateMonthlyWorkoutCount(completed, referenceDate), totalDuration, averageDuration: completed.length ? Math.round(totalDuration / completed.length) : 0, strengthCount: strength.length, stretchingCount: stretching.length, totalSets: strength.reduce((sum,s) => sum + calculateCompletedSetCount(s.exercises),0), totalReps: strength.reduce((sum,s) => sum + calculateTotalReps(s.exercises),0), totalVolume: strength.reduce((sum,s) => sum + calculateWorkoutVolume(s.exercises),0) };
 }
 
-export function estimate1RM(weight, reps) {
-  const w = Number(weight);
+export const BODYWEIGHT_RATIOS = {
+  "push-up": 0.65,
+  "close-grip-push-up": 0.65,
+  "wide-push-up": 0.65,
+  "chest-dip": 0.90,
+  "dip": 0.90,
+  "triceps-dip": 0.90,
+  "pull-up": 1.00,
+  "chin-up": 1.00,
+  "muscle-up": 1.00,
+  "inverted-row": 0.60,
+  "trx-row": 0.60,
+  "bodyweight-squat": 0.75,
+  "jump-squat": 0.75,
+  "handstand-push-up": 0.95,
+  "pike-push-up": 0.80
+};
+
+export function getBodyweightRatio(exerciseId, exerciseName = "") {
+  if (exerciseId && BODYWEIGHT_RATIOS[exerciseId] !== undefined) {
+    return BODYWEIGHT_RATIOS[exerciseId];
+  }
+  const norm = String(exerciseName || "").toLowerCase();
+  if (norm.includes("liegestütz") || norm.includes("push-up") || norm.includes("pushup")) return 0.65;
+  if (norm.includes("klimmzug") || norm.includes("pull-up") || norm.includes("pullup") || norm.includes("chin-up") || norm.includes("chinup")) return 1.0;
+  if (norm.includes("dip")) return 0.90;
+  if (norm.includes("inverted row") || norm.includes("trx")) return 0.60;
+  if (norm.includes("bodyweight squat") || norm.includes("kniebeuge ohne gewicht")) return 0.75;
+  return 0.0;
+}
+
+export function calculateEffectiveWeight(addedWeight, reps, bodyweight = null, bodyweightRatio = 0) {
+  const added = Number(addedWeight) || 0;
+  if (bodyweightRatio > 0 && bodyweight != null && bodyweight > 0) {
+    return added + (Number(bodyweight) * bodyweightRatio);
+  }
+  return added;
+}
+
+export function estimate1RM(weight, reps, bodyweight = null, bodyweightRatio = 0) {
+  let w = Number(weight);
   const r = Number(reps);
-  if (!Number.isFinite(w) || !Number.isFinite(r) || w <= 0 || r <= 0) return 0;
-  if (r === 1) return w;
+  if (!Number.isFinite(r) || r <= 0) return 0;
+
+  if (bodyweightRatio > 0 && bodyweight != null && bodyweight > 0) {
+    w = (Number.isFinite(w) ? w : 0) + (Number(bodyweight) * bodyweightRatio);
+  }
+
+  if (!Number.isFinite(w) || w <= 0) return 0;
+  if (r === 1) return Math.round(w * 10) / 10;
   return Math.round((w * (1 + r / 30)) * 10) / 10;
 }
 
-export function calculateExerciseStats(exercise) {
+export function calculateExerciseStats(exercise, sessionBodyweight = null) {
+  const bwRatio = getBodyweightRatio(exercise.exerciseId, exercise.exerciseNameSnapshot);
   const completedSets = (exercise.sets || []).filter((s) => s.completed && Number(s.actualReps) > 0);
   const totalSets = completedSets.length;
   const totalReps = completedSets.reduce((sum, s) => sum + (Number(s.actualReps) || 0), 0);
-  const totalVolume = completedSets.reduce((sum, s) => sum + calculateSetVolume(s.actualReps, s.actualWeight, true), 0);
+  const maxReps = completedSets.reduce((max, s) => Math.max(max, Number(s.actualReps) || 0), 0);
+  
+  const totalVolume = completedSets.reduce((sum, s) => {
+    const effW = calculateEffectiveWeight(s.actualWeight, s.actualReps, sessionBodyweight, bwRatio);
+    return sum + (effW * Number(s.actualReps));
+  }, 0);
+
   const maxWeight = completedSets.reduce((max, s) => Math.max(max, Number(s.actualWeight) || 0), 0);
-  const best1RM = completedSets.reduce((max, s) => Math.max(max, estimate1RM(s.actualWeight, s.actualReps)), 0);
+  const best1RM = completedSets.reduce((max, s) => {
+    return Math.max(max, estimate1RM(s.actualWeight, s.actualReps, sessionBodyweight, bwRatio));
+  }, 0);
+
   const topSet = completedSets.reduce((best, s) => {
     if (!best) return s;
-    const s1RM = estimate1RM(s.actualWeight, s.actualReps);
-    const best1RMVal = estimate1RM(best.actualWeight, best.actualReps);
-    return s1RM > best1RMVal ? s : (s1RM === best1RMVal && (Number(s.actualWeight) || 0) > (Number(best.actualWeight) || 0) ? s : best);
+    const s1RM = estimate1RM(s.actualWeight, s.actualReps, sessionBodyweight, bwRatio);
+    const best1RMVal = estimate1RM(best.actualWeight, best.actualReps, sessionBodyweight, bwRatio);
+    return s1RM > best1RMVal ? s : (s1RM === best1RMVal && (Number(s.actualReps) || 0) > (Number(best.actualReps) || 0) ? s : best);
   }, null);
 
   return {
     exerciseId: exercise.exerciseId,
     exerciseName: exercise.exerciseNameSnapshot || "Übung",
+    bodyweightRatio: bwRatio,
+    isBodyweightExercise: bwRatio > 0,
     totalSets,
     totalReps,
+    maxReps,
     totalVolume: Math.round(totalVolume * 10) / 10,
     maxWeight: Math.round(maxWeight * 10) / 10,
     best1RM: Math.round(best1RM * 10) / 10,
@@ -233,8 +291,21 @@ export function getTrackedStrengthExercises(sessions = []) {
   return [...exerciseMap.values()].sort((a, b) => b.count - a.count || b.lastTrainedDate.localeCompare(a.lastTrainedDate));
 }
 
-export function extractExerciseProgression(sessions = [], exerciseIdentifier) {
+export function extractExerciseProgression(sessions = [], exerciseIdentifier, dailyEntries = []) {
   if (!exerciseIdentifier) return null;
+
+  const weightEntries = (dailyEntries || [])
+    .filter((e) => e && e.weight != null && e.weight > 0)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const getWeightForDate = (date) => {
+    if (!weightEntries.length) return 80;
+    const exact = weightEntries.find((e) => e.date === date);
+    if (exact) return exact.weight;
+    const priors = weightEntries.filter((e) => e.date <= date);
+    if (priors.length) return priors[priors.length - 1].weight;
+    return weightEntries[0].weight;
+  };
 
   const completed = sessions
     .filter((s) => s.status === WORKOUT_STATUS.COMPLETED && s.workoutType === WORKOUT_TYPES.STRENGTH)
@@ -242,6 +313,8 @@ export function extractExerciseProgression(sessions = [], exerciseIdentifier) {
 
   const dataPoints = [];
   let exerciseName = "";
+  let isBodyweight = false;
+  let bodyweightRatio = 0;
 
   completed.forEach((session) => {
     const foundExercise = (session.exercises || []).find(
@@ -249,19 +322,25 @@ export function extractExerciseProgression(sessions = [], exerciseIdentifier) {
     );
     if (!foundExercise) return;
 
-    const stats = calculateExerciseStats(foundExercise);
+    const sessionBw = getWeightForDate(session.date);
+    const stats = calculateExerciseStats(foundExercise, sessionBw);
     if (stats.totalSets === 0) return;
 
     exerciseName = stats.exerciseName;
+    isBodyweight = stats.isBodyweightExercise;
+    bodyweightRatio = stats.bodyweightRatio;
+
     dataPoints.push({
       date: session.date,
       sessionId: session.id,
       planName: session.planNameSnapshot || "Training",
       estimated1RM: stats.best1RM,
       topWeight: stats.maxWeight,
-      topReps: stats.topSet?.actualReps || 0,
+      topReps: stats.topSet?.reps || stats.maxReps || 0,
       totalVolume: stats.totalVolume,
+      totalReps: stats.totalReps,
       completedSets: stats.totalSets,
+      sessionBodyweight: sessionBw,
       sets: (foundExercise.sets || []).filter((s) => s.completed)
     });
   });
@@ -272,6 +351,7 @@ export function extractExerciseProgression(sessions = [], exerciseIdentifier) {
   const lastPoint = dataPoints[dataPoints.length - 1];
   const allTime1RM = Math.max(...dataPoints.map((d) => d.estimated1RM));
   const allTimeMaxWeight = Math.max(...dataPoints.map((d) => d.topWeight));
+  const allTimeMaxReps = Math.max(...dataPoints.map((d) => d.topReps));
   const totalLifetimeVolume = dataPoints.reduce((sum, d) => sum + d.totalVolume, 0);
 
   const calcProg = (latest, initial) => {
@@ -282,17 +362,22 @@ export function extractExerciseProgression(sessions = [], exerciseIdentifier) {
   return {
     exerciseIdentifier,
     exerciseName,
+    isBodyweight,
+    bodyweightRatio,
     dataPoints,
     firstLoggedDate: firstPoint.date,
     lastLoggedDate: lastPoint.date,
     totalSessionsTracked: dataPoints.length,
     latest1RM: lastPoint.estimated1RM,
     latestTopWeight: lastPoint.topWeight,
+    latestTopReps: lastPoint.topReps,
     allTime1RM,
     allTimeMaxWeight,
+    allTimeMaxReps,
     totalLifetimeVolume,
     progress1RMPercent: calcProg(lastPoint.estimated1RM, firstPoint.estimated1RM),
-    progressWeightPercent: calcProg(lastPoint.topWeight, firstPoint.topWeight)
+    progressWeightPercent: calcProg(lastPoint.topWeight, firstPoint.topWeight),
+    progressRepsPercent: calcProg(lastPoint.topReps, firstPoint.topReps)
   };
 }
 

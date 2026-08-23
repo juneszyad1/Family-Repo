@@ -35,7 +35,16 @@ test("1RM-Berechnung nach Epley-Formel", () => {
   equal(estimate1RM(100, 1), 100, "1 Wdh. muss exakt Gewicht entsprechen");
   equal(estimate1RM(100, 10), 133.3, "10 Wdh. @ 100 kg = 133.3 kg 1RM");
   equal(estimate1RM(80, 8), 101.3, "8 Wdh. @ 80 kg = 101.3 kg 1RM");
-  equal(estimate1RM(0, 10), 0, "0 kg muss 0 ergeben");
+  equal(estimate1RM(0, 10), 0, "0 kg ohne Körpergewicht muss 0 ergeben");
+});
+
+test("Effective Load Model für Bodyweight-Übungen", () => {
+  // Liegestütze: 65% von 80 kg = 52 kg. 20 Wdh. -> 52 * (1 + 20/30) = 86.7 kg e1RM
+  equal(estimate1RM(0, 20, 80, 0.65), 86.7, "20 Liegestütze @ 80 kg BW = 86.7 kg 1RM");
+  // Liegestütze mit +10 kg: 52 + 10 = 62 kg. 6 Wdh. -> 62 * (1 + 6/30) = 74.4 kg e1RM
+  equal(estimate1RM(10, 6, 80, 0.65), 74.4, "6 Liegestütze +10 kg @ 80 kg BW = 74.4 kg 1RM");
+  // Klimmzüge: 100% von 80 kg = 80 kg. 10 Wdh. -> 80 * (1 + 10/30) = 106.7 kg e1RM
+  equal(estimate1RM(0, 10, 80, 1.0), 106.7, "10 Klimmzüge @ 80 kg BW = 106.7 kg 1RM");
 });
 
 test("PR-Erkennung erkennt Maximalgewicht- und 1RM-Steigerungen", () => {
