@@ -961,18 +961,19 @@
 /* Stat Strip System (Seamless Whoop/Apple Fitness style) */
 .stat-strip {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
   border-top: 1px solid var(--border);
-  padding-top: 16px;
-  margin-top: 16px;
+  padding-top: 14px;
+  margin-top: 14px;
 }
 
 .stat-cell {
   display: grid;
-  gap: 3px;
-  padding: 0 12px;
+  gap: 2px;
+  padding: 0 10px;
   border-right: 1px solid var(--border);
+  min-width: 0;
 }
 
 .stat-cell:first-child {
@@ -987,10 +988,13 @@
 .stat-label {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 0.70rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-value {
@@ -1004,20 +1008,24 @@
   display: flex;
   align-items: baseline;
   gap: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-unit {
   color: var(--text-secondary);
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: 0.80rem;
+  font-weight: 650;
   letter-spacing: 0;
 }
 
 .trend-hero-header {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 14px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .result-hero {

@@ -114,6 +114,37 @@
   .section-heading {
     align-items: flex-start;
   }
+
+  .stat-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 14px;
+  }
+
+  .stat-cell {
+    padding: 0;
+    border-right: 0;
+  }
+
+  .stat-cell:nth-child(odd) {
+    border-right: 1px solid var(--border);
+    padding-right: 10px;
+  }
+
+  .progression-metric-selector {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .progression-metric-selector .range-button {
+    min-height: 32px;
+    font-size: 0.76rem;
+  }
+
+  .compact-choice-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
 }
 
 @media (min-width: 700px) {

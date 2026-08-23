@@ -236,53 +236,54 @@ function renderTdeeCard(tdeeData) {
   if (!tdeeData) return "";
 
   if (!tdeeData.hasSufficientData) {
+    const remaining = Math.max(1, tdeeData.requiredDays - tdeeData.trackedDaysWithCalories);
     return `
-      <section class="card tdee-overview-card" aria-label="Reale Energiebilanz & TDEE">
+      <section class="card tdee-overview-card" aria-label="TDEE Energiebilanz">
         <div class="card-body">
           <div class="trend-hero-header">
             <div>
-              <p class="metric-label">Reale Energiebilanz & TDEE (14 Tage)</p>
-              <p class="hero-value">--<span>kcal/Tag</span></p>
+              <p class="metric-label">TDEE (14 Tage)</p>
+              <p class="hero-value">--<span>kcal</span></p>
             </div>
-            <span class="status-pill">${tdeeData.trackedDaysWithCalories}/${tdeeData.requiredDays} Tage erfasst</span>
+            <span class="status-pill">${tdeeData.trackedDaysWithCalories}/${tdeeData.requiredDays} Tage</span>
           </div>
-          <p class="muted settings-note">Erfasse mindestens ${tdeeData.requiredDays} Tage mit Gewicht und Kalorien im 14-Tage-Fenster, um deinen tatsächlichen täglichen Gesamtenergieverbrauch (TDEE) mathematisch exakt zu ermitteln.</p>
+          <p class="muted" style="margin: 8px 0 0; font-size: 0.8rem;">Noch ${remaining} Tag${remaining > 1 ? "e" : ""} mit Gewicht & Kalorien nötig.</p>
         </div>
       </section>
     `;
   }
 
   const deficitText = tdeeData.dailyDeficit >= 0
-    ? `Defizit: ${tdeeData.dailyDeficit} kcal/Tag`
-    : `Überschuss: ${Math.abs(tdeeData.dailyDeficit)} kcal/Tag`;
+    ? `-${tdeeData.dailyDeficit} kcal Defizit`
+    : `+${Math.abs(tdeeData.dailyDeficit)} kcal Überschuss`;
   const weightChangeStr = formatSignedNumber(tdeeData.totalWeightDelta, "kg");
   const weeklyRateStr = formatSignedNumber(tdeeData.weeklyWeightChangeRate, "kg/Wo.");
 
   return `
-    <section class="card tdee-overview-card" aria-label="Reale Energiebilanz & TDEE">
+    <section class="card tdee-overview-card" aria-label="TDEE Energiebilanz">
       <div class="card-body">
         <div class="trend-hero-header">
           <div>
-            <p class="metric-label">Errechneter Gesamtverbrauch (TDEE · 14 Tage)</p>
-            <p class="hero-value">${formatNumber(tdeeData.tdee, { maximumFractionDigits: 0 })}<span>kcal/Tag</span></p>
+            <p class="metric-label">TDEE · 14 Tage</p>
+            <p class="hero-value">${formatNumber(tdeeData.tdee, { maximumFractionDigits: 0 })}<span>kcal</span></p>
           </div>
           <span class="status-pill ${tdeeData.dailyDeficit >= 0 ? "positive" : ""}">${deficitText}</span>
         </div>
         <div class="stat-strip">
           <div class="stat-cell">
-            <p class="stat-label">Ø Aufnahme</p>
+            <p class="stat-label">Ø Intake</p>
             <p class="stat-value">${formatNumber(tdeeData.averageCalories, { maximumFractionDigits: 0 })} <span class="stat-unit">kcal</span></p>
           </div>
           <div class="stat-cell">
-            <p class="stat-label">Trend-Delta</p>
+            <p class="stat-label">Δ Gewicht</p>
             <p class="stat-value">${weightChangeStr}</p>
           </div>
           <div class="stat-cell">
-            <p class="stat-label">Fettänderung</p>
+            <p class="stat-label">Wochendelta</p>
             <p class="stat-value">${weeklyRateStr}</p>
           </div>
           <div class="stat-cell">
-            <p class="stat-label">Datenbasis</p>
+            <p class="stat-label">Basis</p>
             <p class="stat-value">${tdeeData.trackedDaysWithCalories} <span class="stat-unit">Tage</span></p>
           </div>
         </div>
@@ -300,11 +301,11 @@ function renderExerciseProgressionSection(workoutSessions = [], selectedExercise
         <div class="card-body">
           <div class="chart-header">
             <div>
-              <span class="status-pill">Kraftanalyse</span>
-              <h2 class="section-title">Kraftprogression & 1RM-Verlauf</h2>
+              <p class="metric-label">Kraftanalyse</p>
+              <h2 class="section-title">Kraftprogression</h2>
             </div>
           </div>
-          <p class="muted">Schließe deine ersten Krafttrainingseinheiten ab, um hier detaillierte 1RM- und Kraftverlaufskurven zu sehen.</p>
+          <p class="muted" style="font-size: 0.82rem; margin: 4px 0 0;">Sobald Krafttrainingseinheiten erfasst sind, erscheint hier dein 1RM-Verlauf.</p>
         </div>
       </section>
     `;
@@ -313,26 +314,26 @@ function renderExerciseProgressionSection(workoutSessions = [], selectedExercise
   const activeExerciseId = selectedExerciseId || trackedExercises[0]?.id;
   const progression = extractExerciseProgression(workoutSessions, activeExerciseId, allDailyEntriesCache);
 
-  let heroLabel = "All-Time PR (geschätztes 1RM)";
+  let heroLabel = "1RM All-Time PR";
   let heroValue = `${formatNumber(progression?.allTime1RM, { maximumFractionDigits: 1 })}<span>kg</span>`;
-  let heroPill = `${(progression?.progress1RMPercent || 0) >= 0 ? `+${progression?.progress1RMPercent}%` : `${progression?.progress1RMPercent}%`} seit erstem Log`;
+  let heroPill = `${(progression?.progress1RMPercent || 0) >= 0 ? `+${progression?.progress1RMPercent}%` : `${progression?.progress1RMPercent}%`}`;
 
   if (progression?.isBodyweight) {
-    heroLabel = `All-Time PR (${Math.round(progression.bodyweightRatio * 100)}% BW + Zusatz)`;
+    heroLabel = `1RM PR (${Math.round(progression.bodyweightRatio * 100)}% BW + Last)`;
   }
 
   if (selectedProgressionMetric === "reps") {
-    heroLabel = "All-Time Rekord (Top-Set Wdh.)";
+    heroLabel = "Top-Set Rekord";
     heroValue = `${formatNumber(progression?.allTimeMaxReps, { maximumFractionDigits: 0 })}<span>Wdh.</span>`;
-    heroPill = `${(progression?.progressRepsPercent || 0) >= 0 ? `+${progression?.progressRepsPercent}%` : `${progression?.progressRepsPercent}%`} seit erstem Log`;
+    heroPill = `${(progression?.progressRepsPercent || 0) >= 0 ? `+${progression?.progressRepsPercent}%` : `${progression?.progressRepsPercent}%`}`;
   } else if (selectedProgressionMetric === "volume") {
-    heroLabel = "Gesamtvolumen Lifetime";
+    heroLabel = "Lifetime-Volumen";
     heroValue = `${formatNumber(progression?.totalLifetimeVolume, { maximumFractionDigits: 0 })}<span>kg</span>`;
-    heroPill = `${progression?.totalSessionsTracked || 0} Einheiten`;
+    heroPill = `${progression?.totalSessionsTracked || 0} Logs`;
   } else if (selectedProgressionMetric === "weight") {
-    heroLabel = "Maximalgewicht (Zusatz-/Hantellast)";
+    heroLabel = "Top-Last";
     heroValue = `${formatNumber(progression?.allTimeMaxWeight, { maximumFractionDigits: 1 })}<span>kg</span>`;
-    heroPill = `${(progression?.progressWeightPercent || 0) >= 0 ? `+${progression?.progressWeightPercent}%` : `${progression?.progressWeightPercent}%`} seit erstem Log`;
+    heroPill = `${(progression?.progressWeightPercent || 0) >= 0 ? `+${progression?.progressWeightPercent}%` : `${progression?.progressWeightPercent}%`}`;
   }
 
   return `
@@ -341,7 +342,7 @@ function renderExerciseProgressionSection(workoutSessions = [], selectedExercise
         <div class="chart-header">
           <div>
             <p class="metric-label">Kraftanalyse</p>
-            <h2 class="section-title">Kraftprogression & 1RM-Verlauf</h2>
+            <h2 class="section-title">Kraftprogression</h2>
           </div>
         </div>
 
@@ -350,17 +351,17 @@ function renderExerciseProgressionSection(workoutSessions = [], selectedExercise
           <select data-exercise-progression-select>
             ${trackedExercises.map((ex) => `
               <option value="${escapeHtml(ex.id)}" ${ex.id === activeExerciseId ? "selected" : ""}>
-                ${escapeHtml(ex.name)} (${ex.count}× · Max: ${formatNumber(ex.allTimeMaxWeight, { maximumFractionDigits: 1 })} kg · 1RM: ${formatNumber(ex.allTime1RM, { maximumFractionDigits: 1 })} kg)
+                ${escapeHtml(ex.name)} · 1RM: ${formatNumber(ex.allTime1RM, { maximumFractionDigits: 1 })} kg (${ex.count}×)
               </option>
             `).join("")}
           </select>
         </label>
 
         <div class="range-selector progression-metric-selector" role="group" aria-label="Metrik auswählen" style="margin-top: 10px;">
-          <button type="button" class="range-button ${selectedProgressionMetric === '1rm' ? 'active' : ''}" data-progression-metric="1rm">1RM (kg)</button>
-          <button type="button" class="range-button ${selectedProgressionMetric === 'reps' ? 'active' : ''}" data-progression-metric="reps">Max Reps</button>
+          <button type="button" class="range-button ${selectedProgressionMetric === '1rm' ? 'active' : ''}" data-progression-metric="1rm">1RM</button>
+          <button type="button" class="range-button ${selectedProgressionMetric === 'reps' ? 'active' : ''}" data-progression-metric="reps">Reps</button>
           <button type="button" class="range-button ${selectedProgressionMetric === 'volume' ? 'active' : ''}" data-progression-metric="volume">Volumen</button>
-          <button type="button" class="range-button ${selectedProgressionMetric === 'weight' ? 'active' : ''}" data-progression-metric="weight">Last (kg)</button>
+          <button type="button" class="range-button ${selectedProgressionMetric === 'weight' ? 'active' : ''}" data-progression-metric="weight">Last</button>
         </div>
 
         ${progression ? `
@@ -421,10 +422,10 @@ function renderSummary(summary) {
       <div class="card-body">
         <div class="trend-hero-header">
           <div>
-            <p class="metric-label">Gewichtsverlauf im Zeitraum</p>
+            <p class="metric-label">Gewichtsverlauf</p>
             <p class="hero-value">${weightChangeStr}</p>
           </div>
-          <span class="status-pill">${formatNumber(summary.trackedDays, { maximumFractionDigits: 0 })} Tage erfasst</span>
+          <span class="status-pill">${formatNumber(summary.trackedDays, { maximumFractionDigits: 0 })} Tage</span>
         </div>
         <div class="stat-strip">
           <div class="stat-cell">
@@ -455,8 +456,8 @@ function renderCombinedChartShell(range, dailyEntries) {
       <div class="card-body">
         <div class="chart-header">
           <div>
-            <p class="metric-label">Tagesdaten · Multi-Achsen</p>
-            <h2 class="section-title">Übersicht (Tageswerte) · ${getRangeLabel(range)}</h2>
+            <p class="metric-label">Tagesdaten</p>
+            <h2 class="section-title">Multi-Achsen Trend</h2>
           </div>
           <button type="button" class="chart-fullscreen-trigger" data-open-fullscreen="combined" aria-label="Tageswert-Diagramm im Vollbild anzeigen">
             ⛶
@@ -474,7 +475,6 @@ function renderCombinedChartShell(range, dailyEntries) {
         <div class="chart-frame tall-chart-frame">
           <canvas id="combined-chart" aria-label="Kombinierter Trend für ${getRangeLabel(range)}" role="img"></canvas>
         </div>
-        <p class="chart-summary">${dailyEntries.length} erfasste Tage im Zeitraum. Für eine klare Darstellung ist standardmäßig nur Gewicht aktiv.</p>
         ${renderDataAlternative(dailyEntries)}
       </div>
     </section>
@@ -655,14 +655,13 @@ function renderRollingChartShell(range, dailyEntries) {
       <div class="card-body">
         <div class="chart-header">
           <div>
-            <p class="metric-label">Glättung · 1 Woche</p>
-            <h2 class="section-title">Gleitender 7-Tage-Durchschnitt · ${getRangeLabel(range)}</h2>
+            <p class="metric-label">Glättung</p>
+            <h2 class="section-title">7-Tage-Durchschnitt</h2>
           </div>
           <button type="button" class="chart-fullscreen-trigger" data-open-fullscreen="rolling" aria-label="Gleitenden 7-Tage-Durchschnitt im Vollbild anzeigen">
             ⛶
           </button>
         </div>
-        <p class="muted settings-note">Berechnet für jeden Tag den gleitenden Durchschnitt der jeweils vorangegangenen 7 Kalendertage (Tag selbst + 6 Tage vorher), um tägliche Schwankungen sauber herauszufiltern.</p>
         <fieldset class="choice-group compact-choice-group">
           <legend>7-Tage-Kurven</legend>
           ${ROLLING_SERIES.map((series) => `
@@ -675,7 +674,6 @@ function renderRollingChartShell(range, dailyEntries) {
         <div class="chart-frame tall-chart-frame">
           <canvas id="rolling-chart" aria-label="Gleitender 7-Tage-Durchschnitt für ${getRangeLabel(range)}" role="img"></canvas>
         </div>
-        <p class="chart-summary">${dailyEntries.length} Tage im Zeitraum mit täglicher 7-Tage-Mittelwert-Berechnung.</p>
       </div>
     </section>
   `;
@@ -689,9 +687,6 @@ function renderTrendContent({ dailyEntries, bodyFatEntries, circumferenceEntries
   const hasAnyData = filteredDaily.length || filteredBodyFat.length || filteredCircumference.length || (workoutSessions && workoutSessions.length);
   const hasGoals = activeGoals.length > 0;
   const countValues = (entries, key) => entries.filter((entry) => entry[key] !== null && entry[key] !== undefined).length;
-  const bodyFatCount = countValues(filteredBodyFat, "bodyFatPercentage");
-  const circumferenceCount = filteredCircumference.filter((entry) => entry.arm != null || entry.leg != null).length;
-  const skinfoldCount = filteredBodyFat.filter((entry) => entry.skinfoldSum != null).length;
   const hasCombinedData = COMBINED_SERIES.some((series) => countValues(filteredDaily, series.valueKey) > 0);
 
   if (!hasAnyData && !hasGoals) {
@@ -704,7 +699,6 @@ function renderTrendContent({ dailyEntries, bodyFatEntries, circumferenceEntries
     ${renderExerciseProgressionSection(workoutSessions, selectedExerciseId)}
     ${hasCombinedData ? renderRollingChartShell(range, filteredDaily) : ""}
     ${hasCombinedData ? renderCombinedChartShell(range, filteredDaily) : ""}
-    <p class="chart-summary">Zusätzlich im Zeitraum: ${bodyFatCount} KFA-, ${circumferenceCount} Umfang- und ${skinfoldCount} Hautfaltenmessungen.</p>
   `;
 }
 
