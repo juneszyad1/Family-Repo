@@ -174,17 +174,7 @@ export function renderSettings() {
   container.innerHTML = `
     <section class="card">
       <div class="card-body">
-        <h2 class="section-title">Lokale Speicherung</h2>
-        <p class="muted settings-note">Deine Daten liegen nur lokal auf diesem Gerät im Browser-Speicher. GitHub Pages speichert keine Fitnessdaten von dir.</p>
-        <div class="alert warning" role="note">
-          <p>Backup-Erinnerung: Erstelle regelmäßig ein JSON-Backup, besonders vor iOS-Updates, Safari-Datenbereinigung oder bevor du die App vom Home-Bildschirm entfernst.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="card-body">
-        <h2 class="section-title">Persönliche Ziele</h2>
+        <h2 class="section-title">Tagesziele & Darstellung</h2>
         <div data-status></div>
         <form class="form-grid" data-settings-form novalidate>
           <label class="field">
@@ -230,64 +220,48 @@ export function renderSettings() {
 
     <section class="card">
       <div class="card-body">
-        <h2 class="section-title">Mehr Bereiche</h2>
-        <div class="button-row">
-          <a class="button secondary" href="#/goals">Ziele</a>
+        <h2 class="section-title">Datenverwaltung & Backup</h2>
+        <p class="muted settings-note">Alle Daten liegen ausschließlich lokal im Browser-Speicher dieses Geräts. Regelmäßige Backups vor OS-Updates oder Cache-Leerung empfohlen.</p>
+
+        <div class="settings-group">
+          <h3 class="settings-group-title">Export</h3>
+          <div class="button-row">
+            <button class="button" type="button" data-export-json>JSON-Backup erstellen</button>
+            <button class="button secondary" type="button" data-export-csv>CSV Tagesdaten</button>
+          </div>
         </div>
-      </div>
-    </section>
 
-    <section class="card">
-      <div class="card-body">
-        <h2 class="section-title">App & Updates</h2>
-        <p class="muted settings-note">Installierte Version: Fitness Tracker ${APP_VERSION_LABEL}</p>
-        <button class="button secondary" type="button" id="app-update-button">Nach Updates suchen</button>
-      </div>
-    </section>
+        <div class="settings-group">
+          <h3 class="settings-group-title">Import</h3>
+          <div class="form-grid">
+            <label class="field field-full">
+              <span>JSON-Backup auswählen</span>
+              <input type="file" accept="application/json,.json" data-import-file>
+            </label>
 
-    <section class="card">
-      <div class="card-body">
-        <h2 class="section-title">Daten exportieren</h2>
-        <p class="muted settings-note">Das JSON-Backup enthält Tagesdaten, Messungen, Bilder, Ziele, Trainingspläne, eigene Übungen, Favoriten und Trainingseinheiten.</p>
-        <div class="button-row">
-          <button class="button" type="button" data-export-json>JSON-Backup</button>
-          <button class="button secondary" type="button" data-export-csv>CSV Tagesdaten</button>
+            <fieldset class="choice-group field-full">
+              <legend>Importmodus</legend>
+              <label><input type="radio" name="importMode" value="merge" checked> Daten zusammenführen</label>
+              <label><input type="radio" name="importMode" value="replace"> Vorhandene Daten ersetzen</label>
+            </fieldset>
+
+            <fieldset class="choice-group field-full">
+              <legend>Bei doppelten Tagesdaten</legend>
+              <label><input type="radio" name="conflictMode" value="existing" checked> Vorhandenen Eintrag behalten</label>
+              <label><input type="radio" name="conflictMode" value="imported"> Importierten Eintrag übernehmen</label>
+            </fieldset>
+
+            <div class="form-actions field-full">
+              <button class="button" type="button" data-import-json>Import starten</button>
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
 
-    <section class="card">
-      <div class="card-body">
-        <h2 class="section-title">Testdaten</h2>
-        <p class="muted settings-note">Fügt realistische Demo-Daten für 90 Tage Gewicht, 14 KFA-Messungen, 18 Umfangmessungen und mehrere Ziele ein.</p>
-        <button class="button secondary" type="button" data-seed-demo>Testdaten erstellen</button>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="card-body">
-        <h2 class="section-title">Daten importieren</h2>
-        <p class="muted settings-note">Importiere nur Backups, die von dieser App exportiert wurden.</p>
-        <div class="form-grid">
-          <label class="field field-full">
-            <span>JSON-Datei</span>
-            <input type="file" accept="application/json,.json" data-import-file>
-          </label>
-
-          <fieldset class="choice-group field-full">
-            <legend>Importmodus</legend>
-            <label><input type="radio" name="importMode" value="merge" checked> Daten zusammenführen</label>
-            <label><input type="radio" name="importMode" value="replace"> Vorhandene Daten ersetzen</label>
-          </fieldset>
-
-          <fieldset class="choice-group field-full">
-            <legend>Bei doppelten Tagesdaten</legend>
-            <label><input type="radio" name="conflictMode" value="existing" checked> Vorhandenen Eintrag behalten</label>
-            <label><input type="radio" name="conflictMode" value="imported"> Importierten Eintrag übernehmen</label>
-          </fieldset>
-
-          <div class="form-actions field-full">
-            <button class="button" type="button" data-import-json>Import starten</button>
+        <div class="settings-group">
+          <h3 class="settings-group-title">Wartung & Reset</h3>
+          <div class="button-row">
+            <button class="button secondary" type="button" data-seed-demo>Testdaten einfügen</button>
+            <button class="button danger" type="button" data-delete-all>Alle lokalen Daten löschen</button>
           </div>
         </div>
       </div>
@@ -295,12 +269,25 @@ export function renderSettings() {
 
     <section class="card">
       <div class="card-body">
-        <h2 class="section-title">Alle Daten löschen</h2>
-        <p class="muted settings-note">Diese Aktion entfernt alle lokalen Tagesdaten, KFA-Messungen und Einstellungen auf diesem Gerät.</p>
-        <button class="button danger" type="button" data-delete-all>Alles löschen</button>
+        <h2 class="section-title">System & Module</h2>
+        <div class="settings-group">
+          <h3 class="settings-group-title">Bereiche</h3>
+          <div class="button-row">
+            <a class="button secondary" href="#/goals">Ziele verwalten</a>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="settings-meta-row">
+            <div>
+              <h3 class="settings-group-title">App Version</h3>
+              <p class="muted settings-note" style="margin: 0;">Fitness Tracker ${APP_VERSION_LABEL}</p>
+            </div>
+            <button class="button secondary" type="button" id="app-update-button">Updates prüfen</button>
+          </div>
+        </div>
       </div>
     </section>
-
   `;
   fragment.append(container);
   initializeSettings(container);
