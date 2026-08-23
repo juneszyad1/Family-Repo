@@ -135,7 +135,8 @@ export function calculateRolling7DayAverages(allDailyEntries = [], valueKey = "w
     }
 
     const sum = windowEntries.reduce((acc, item) => acc + item[valueKey], 0);
-    const avg = Number((sum / windowEntries.length).toFixed(1));
+    const precision = valueKey === "proteinPerKg" ? 2 : 1;
+    const avg = Number((sum / windowEntries.length).toFixed(precision));
 
     return {
       date: dateStr,
@@ -162,6 +163,8 @@ export function calculateTrendSummary(dailyEntries, bodyFatEntries, circumferenc
     .filter((entry) => entry.leg !== null && entry.leg !== undefined)
     .sort((a, b) => a.date.localeCompare(b.date));
 
+  const proteinPerKgEntries = dailyEntries.filter((entry) => entry.proteinPerKg !== null && entry.proteinPerKg !== undefined);
+
   const average = (entries, key) => {
     if (!entries.length) {
       return null;
@@ -182,6 +185,9 @@ export function calculateTrendSummary(dailyEntries, bodyFatEntries, circumferenc
   return {
     averageCalories: average(calorieEntries, "calories"),
     averageProtein: average(proteinEntries, "protein"),
+    averageProteinPerKg: proteinPerKgEntries.length
+      ? Number((proteinPerKgEntries.reduce((total, e) => total + e.proteinPerKg, 0) / proteinPerKgEntries.length).toFixed(2))
+      : null,
     averageSleep: average(sleepEntries, "sleepHours"),
     weightChange: change(weightEntries, "weight"),
     sleepChange: change(sleepEntries.sort((a, b) => a.date.localeCompare(b.date)), "sleepHours"),

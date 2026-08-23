@@ -73,6 +73,19 @@ test("Header enthält keine permanente Versionsanzeige", async () => {
   assert(!html.includes("id=\"app-update-button\""), "Update-Button steht noch im Header");
 });
 
+test("Protein pro kg Körpergewicht wird berechnet und mit Vortagswerten interpoliert", async () => {
+  const { enrichDailyEntriesWithProteinPerKg } = await import("../js/views/trends.js");
+  const rawEntries = [
+    { date: "2026-08-01", weight: 80, protein: 160 },
+    { date: "2026-08-02", weight: null, protein: 180 }, // Sollte letztes bekanntes Gewicht (80 kg) nutzen
+    { date: "2026-08-03", weight: 82, protein: 164 }
+  ];
+  const enriched = enrichDailyEntriesWithProteinPerKg(rawEntries);
+  equal(enriched[0].proteinPerKg, 2.0, "Tag 1: 160g / 80kg = 2.0 g/kg");
+  equal(enriched[1].proteinPerKg, 2.25, "Tag 2: 180g / 80kg = 2.25 g/kg");
+  equal(enriched[2].proteinPerKg, 2.0, "Tag 3: 164g / 82kg = 2.0 g/kg");
+});
+
 export async function runUiTests() {
   const results = [];
   for (const item of tests) {

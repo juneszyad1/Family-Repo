@@ -16,6 +16,7 @@
   --chart-weight: #f59e0b;
   --chart-calories: #38bdf8;
   --chart-protein: #10b981;
+  --chart-protein-per-kg: #06b6d4;
   --chart-sleep: #818cf8;
   --chart-body-fat: #f43f5e;
   --border: rgba(255, 255, 255, 0.08);
@@ -58,6 +59,7 @@
   --chart-weight: #f59e0b;
   --chart-calories: #38bdf8;
   --chart-protein: #10b981;
+  --chart-protein-per-kg: #06b6d4;
   --chart-sleep: #818cf8;
   --chart-body-fat: #f43f5e;
   --border: rgba(255, 255, 255, 0.08);
@@ -86,6 +88,7 @@
   --chart-weight: #d97706;
   --chart-calories: #0284c7;
   --chart-protein: #059669;
+  --chart-protein-per-kg: #0891b2;
   --chart-sleep: #6366f1;
   --chart-body-fat: #e11d48;
   --border: rgba(11, 15, 25, 0.1);

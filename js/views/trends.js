@@ -15,10 +15,30 @@ const RANGE_OPTIONS = [
 
 const chartInstances = [];
 let fullscreenChartInstance = null;
+export function enrichDailyEntriesWithProteinPerKg(entries = []) {
+  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+  let lastKnownWeight = null;
+  return sorted.map((entry) => {
+    if (entry.weight != null && entry.weight > 0) {
+      lastKnownWeight = entry.weight;
+    }
+    const currentWeight = entry.weight ?? lastKnownWeight;
+    let proteinPerKg = null;
+    if (entry.protein != null && currentWeight != null && currentWeight > 0) {
+      proteinPerKg = Math.round((entry.protein / currentWeight) * 100) / 100;
+    }
+    return {
+      ...entry,
+      proteinPerKg
+    };
+  });
+}
+
 const COMBINED_SERIES = [
   { key: "weight", label: "Gewicht", valueKey: "weight", unit: "kg", axis: "weight", defaultVisible: true },
   { key: "calories", label: "Kalorien", valueKey: "calories", unit: "kcal", axis: "calories", defaultVisible: false },
   { key: "protein", label: "Protein", valueKey: "protein", unit: "g", axis: "protein", defaultVisible: false },
+  { key: "proteinPerKg", label: "Protein / kg", valueKey: "proteinPerKg", unit: "g/kg", axis: "proteinPerKg", defaultVisible: false },
   { key: "sleep", label: "Schlafdauer", valueKey: "sleepHours", unit: "h", axis: "sleep", defaultVisible: false }
 ];
 const selectedCombinedSeries = new Set(COMBINED_SERIES.filter((series) => series.defaultVisible).map((series) => series.key));
@@ -27,6 +47,7 @@ const ROLLING_SERIES = [
   { key: "weight", label: "Ø Gewicht", valueKey: "weight", unit: "kg", axis: "weight", defaultVisible: true },
   { key: "calories", label: "Ø Kalorien", valueKey: "calories", unit: "kcal", axis: "calories", defaultVisible: true },
   { key: "protein", label: "Ø Protein", valueKey: "protein", unit: "g", axis: "protein", defaultVisible: false },
+  { key: "proteinPerKg", label: "Ø Protein / kg", valueKey: "proteinPerKg", unit: "g/kg", axis: "proteinPerKg", defaultVisible: false },
   { key: "sleep", label: "Ø Schlafdauer", valueKey: "sleepHours", unit: "h", axis: "sleep", defaultVisible: false }
 ];
 const selectedRollingSeries = new Set(ROLLING_SERIES.filter((series) => series.defaultVisible).map((series) => series.key));
@@ -132,6 +153,11 @@ function combinedChartOptions(range, isFullscreen = false) {
         grid: { drawOnChartArea: false }
       },
       protein: {
+        type: "linear",
+        position: "right",
+        display: false
+      },
+      proteinPerKg: {
         type: "linear",
         position: "right",
         display: false
@@ -497,12 +523,14 @@ function renderFullscreenChart(container, chartData, mode = activeFullscreenMode
   const chartWeight = getCssColor("--chart-weight") || getCssColor("--primary");
   const chartCalories = getCssColor("--chart-calories") || getCssColor("--warning");
   const chartProtein = getCssColor("--chart-protein") || getCssColor("--success");
+  const chartProteinPerKg = getCssColor("--chart-protein-per-kg") || "#06b6d4";
   const chartSleep = getCssColor("--chart-sleep") || "#818cf8";
 
   const colors = {
     weight: chartWeight,
     calories: chartCalories,
     protein: chartProtein,
+    proteinPerKg: chartProteinPerKg,
     sleep: chartSleep
   };
 
@@ -740,6 +768,7 @@ function renderCharts(container, { dailyEntries, allDailyEntries, bodyFatEntries
   const chartWeight = getCssColor("--chart-weight") || primary;
   const chartCalories = getCssColor("--chart-calories") || warningColor;
   const chartProtein = getCssColor("--chart-protein") || success;
+  const chartProteinPerKg = getCssColor("--chart-protein-per-kg") || "#06b6d4";
   const chartSleep = getCssColor("--chart-sleep") || "#818cf8";
   const chartBodyFat = getCssColor("--chart-body-fat") || danger;
   const today = todayIsoDate();
@@ -750,6 +779,7 @@ function renderCharts(container, { dailyEntries, allDailyEntries, bodyFatEntries
     weight: chartWeight,
     calories: chartCalories,
     protein: chartProtein,
+    proteinPerKg: chartProteinPerKg,
     sleep: chartSleep
   };
 
@@ -1011,20 +1041,21 @@ async function loadTrends(container, range = "30d") {
       getWorkoutSessions()
     ]);
 
-    allDailyEntriesCache = dailyEntries || [];
+    const enrichedDailyEntries = enrichDailyEntriesWithProteinPerKg(dailyEntries || []);
+    allDailyEntriesCache = enrichedDailyEntries;
     allWorkoutSessions = workoutSessions || [];
     const trackedExercises = getTrackedStrengthExercises(allWorkoutSessions);
     if (!selectedProgressionExerciseId && trackedExercises.length) {
       selectedProgressionExerciseId = trackedExercises[0].id;
     }
 
-    const filteredDaily = filterEntriesByRange(dailyEntries, range);
+    const filteredDaily = filterEntriesByRange(enrichedDailyEntries, range);
     const filteredBodyFat = filterEntriesByRange(bodyFatEntries, range);
     const filteredCircumference = filterEntriesByRange(circumferenceEntries, range);
-    const tdeeData = calculateAdaptiveTdee(dailyEntries, 14);
+    const tdeeData = calculateAdaptiveTdee(enrichedDailyEntries, 14);
 
     content.innerHTML = renderTrendContent({
-      dailyEntries,
+      dailyEntries: enrichedDailyEntries,
       bodyFatEntries,
       circumferenceEntries,
       settings,
@@ -1037,7 +1068,7 @@ async function loadTrends(container, range = "30d") {
 
     currentChartData = {
       dailyEntries: filteredDaily,
-      allDailyEntries: dailyEntries,
+      allDailyEntries: enrichedDailyEntries,
       bodyFatEntries: filteredBodyFat,
       circumferenceEntries: filteredCircumference,
       settings,
