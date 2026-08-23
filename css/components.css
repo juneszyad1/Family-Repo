@@ -2199,7 +2199,13 @@ body.has-fullscreen-chart {
   line-height: 1.35;
 }
 
-/* Progression Metric Selector */
+/* Progression Details & Metric Selector */
+.exercise-progression-details {
+  display: grid;
+  gap: 16px;
+  margin-top: 14px;
+}
+
 .progression-metric-selector {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2208,7 +2214,7 @@ body.has-fullscreen-chart {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-pill);
   background: var(--surface-raised);
-  margin-top: 12px;
+  margin: 0;
 }
 
 .progression-metric-selector .range-button {
@@ -2223,6 +2229,9 @@ body.has-fullscreen-chart {
   padding: 0 6px;
   white-space: nowrap;
   text-align: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
   transition: background-color 160ms ease, color 160ms ease;
 }
 

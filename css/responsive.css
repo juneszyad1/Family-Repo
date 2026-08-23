@@ -133,11 +133,13 @@
   .progression-metric-selector {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 4px;
+    border-radius: var(--radius);
   }
 
   .progression-metric-selector .range-button {
-    min-height: 32px;
-    font-size: 0.76rem;
+    min-height: 38px;
+    font-size: 0.80rem;
+    touch-action: manipulation;
   }
 
   .compact-choice-group {

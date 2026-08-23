@@ -357,13 +357,6 @@ function renderExerciseProgressionSection(workoutSessions = [], selectedExercise
           </select>
         </label>
 
-        <div class="range-selector progression-metric-selector" role="group" aria-label="Metrik auswählen" style="margin-top: 10px;">
-          <button type="button" class="range-button ${selectedProgressionMetric === '1rm' ? 'active' : ''}" data-progression-metric="1rm">1RM</button>
-          <button type="button" class="range-button ${selectedProgressionMetric === 'reps' ? 'active' : ''}" data-progression-metric="reps">Reps</button>
-          <button type="button" class="range-button ${selectedProgressionMetric === 'volume' ? 'active' : ''}" data-progression-metric="volume">Volumen</button>
-          <button type="button" class="range-button ${selectedProgressionMetric === 'weight' ? 'active' : ''}" data-progression-metric="weight">Last</button>
-        </div>
-
         ${progression ? `
           <div class="exercise-progression-details" data-exercise-details>
             <div class="trend-hero-header">
@@ -375,6 +368,18 @@ function renderExerciseProgressionSection(workoutSessions = [], selectedExercise
                 ${heroPill}
               </span>
             </div>
+
+            <div class="range-selector progression-metric-selector" role="group" aria-label="Metrik auswählen">
+              <button type="button" class="range-button ${selectedProgressionMetric === '1rm' ? 'active' : ''}" data-progression-metric="1rm">1RM</button>
+              <button type="button" class="range-button ${selectedProgressionMetric === 'reps' ? 'active' : ''}" data-progression-metric="reps">Reps</button>
+              <button type="button" class="range-button ${selectedProgressionMetric === 'volume' ? 'active' : ''}" data-progression-metric="volume">Volumen</button>
+              <button type="button" class="range-button ${selectedProgressionMetric === 'weight' ? 'active' : ''}" data-progression-metric="weight">Last</button>
+            </div>
+
+            <div class="chart-frame tall-chart-frame progression-chart-frame">
+              <canvas id="exercise-progression-chart" aria-label="Kraftprogression für ${escapeHtml(progression.exerciseName)}" role="img"></canvas>
+            </div>
+
             <div class="stat-strip">
               <div class="stat-cell">
                 <p class="stat-label">Max. Reps</p>
@@ -392,10 +397,6 @@ function renderExerciseProgressionSection(workoutSessions = [], selectedExercise
                 <p class="stat-label">Einheiten</p>
                 <p class="stat-value">${progression.totalSessionsTracked}</p>
               </div>
-            </div>
-
-            <div class="chart-frame tall-chart-frame progression-chart-frame">
-              <canvas id="exercise-progression-chart" aria-label="Kraftprogression für ${escapeHtml(progression.exerciseName)}" role="img"></canvas>
             </div>
 
             <h3 class="subsection-title">Letzte Trainings-Top-Sets</h3>
