@@ -1,13 +1,14 @@
 import { WORKOUT_STATUS, WORKOUT_TYPES } from "./training-constants.js";
 
-export function calculateSetVolume(reps, weight, completed = true) {
-  if (!completed || !Number.isFinite(Number(reps)) || !Number.isFinite(Number(weight))) return 0;
+export function calculateSetVolume(reps, weight, completed = true, setType = "normal") {
+  if (!completed || setType === "warmup" || !Number.isFinite(Number(reps)) || !Number.isFinite(Number(weight))) return 0;
   return Math.max(0, Number(reps)) * Math.max(0, Number(weight));
 }
-export function calculateExerciseVolume(sets = []) { return sets.reduce((sum, set) => sum + calculateSetVolume(set.actualReps, set.actualWeight, set.completed), 0); }
+export function calculateExerciseVolume(sets = []) { return sets.reduce((sum, set) => sum + calculateSetVolume(set.actualReps, set.actualWeight, set.completed, set.setType), 0); }
 export function calculateWorkoutVolume(exercises = []) { return exercises.reduce((sum, exercise) => sum + calculateExerciseVolume(exercise.sets), 0); }
-export function calculateCompletedSetCount(exercises = []) { return exercises.reduce((sum, exercise) => sum + (exercise.sets || []).filter((set) => set.completed).length, 0); }
-export function calculateTotalReps(exercises = []) { return exercises.reduce((sum, exercise) => sum + (exercise.sets || []).filter((set) => set.completed).reduce((setSum, set) => setSum + (Number(set.actualReps) || 0), 0), 0); }
+export function calculateCompletedSetCount(exercises = []) { return exercises.reduce((sum, exercise) => sum + (exercise.sets || []).filter((set) => set.completed && set.setType !== "warmup").length, 0); }
+export function calculateCompletedWarmupSetCount(exercises = []) { return exercises.reduce((sum, exercise) => sum + (exercise.sets || []).filter((set) => set.completed && set.setType === "warmup").length, 0); }
+export function calculateTotalReps(exercises = []) { return exercises.reduce((sum, exercise) => sum + (exercise.sets || []).filter((set) => set.completed && set.setType !== "warmup").reduce((setSum, set) => setSum + (Number(set.actualReps) || 0), 0), 0); }
 export function calculateWorkoutDuration(startedAt, completedAt) { return Math.max(0, Math.round((new Date(completedAt) - new Date(startedAt)) / 1000)) || 0; }
 export function calculateStretchPlannedDuration(exercises = []) { return exercises.reduce((sum, item) => sum + (Array.isArray(item.sets) ? item.sets.length : Number(item.sets) || 0) * (Number(item.durationSeconds) || 0), 0); }
 export function calculateWeeklyWorkoutCount(sessions, referenceDate = new Date()) {
@@ -20,7 +21,7 @@ export function calculateMonthlyWorkoutCount(sessions, referenceDate = new Date(
 }
 export function summarizeWorkout(session) {
   const base = { exerciseCount: session.exercises?.length || 0, durationSeconds: session.durationSeconds || 0 };
-  if (session.workoutType === WORKOUT_TYPES.STRENGTH) return { ...base, completedSets: calculateCompletedSetCount(session.exercises), totalReps: calculateTotalReps(session.exercises), totalVolume: calculateWorkoutVolume(session.exercises) };
+  if (session.workoutType === WORKOUT_TYPES.STRENGTH) return { ...base, completedSets: calculateCompletedSetCount(session.exercises), completedWarmupSets: calculateCompletedWarmupSetCount(session.exercises), totalReps: calculateTotalReps(session.exercises), totalVolume: calculateWorkoutVolume(session.exercises) };
   if (session.workoutType === WORKOUT_TYPES.STRETCHING) return { ...base, completedSets: calculateCompletedSetCount(session.exercises), plannedDurationSeconds: calculateStretchPlannedDuration(session.exercises) };
   return base;
 }
@@ -90,21 +91,26 @@ export function estimate1RM(weight, reps, bodyweight = null, bodyweightRatio = 0
 export function calculateExerciseStats(exercise, sessionBodyweight = null) {
   const bwRatio = getBodyweightRatio(exercise.exerciseId, exercise.exerciseNameSnapshot);
   const completedSets = (exercise.sets || []).filter((s) => s.completed && Number(s.actualReps) > 0);
-  const totalSets = completedSets.length;
-  const totalReps = completedSets.reduce((sum, s) => sum + (Number(s.actualReps) || 0), 0);
-  const maxReps = completedSets.reduce((max, s) => Math.max(max, Number(s.actualReps) || 0), 0);
+  const workSets = completedSets.filter((s) => s.setType !== "warmup");
+  const warmupSets = completedSets.filter((s) => s.setType === "warmup");
+
+  const effectiveSetsForMetrics = workSets.length > 0 ? workSets : completedSets;
+  const totalSets = workSets.length;
+  const warmupSetsCount = warmupSets.length;
+  const totalReps = workSets.reduce((sum, s) => sum + (Number(s.actualReps) || 0), 0);
+  const maxReps = effectiveSetsForMetrics.reduce((max, s) => Math.max(max, Number(s.actualReps) || 0), 0);
   
-  const totalVolume = completedSets.reduce((sum, s) => {
+  const totalVolume = workSets.reduce((sum, s) => {
     const effW = calculateEffectiveWeight(s.actualWeight, s.actualReps, sessionBodyweight, bwRatio);
     return sum + (effW * Number(s.actualReps));
   }, 0);
 
-  const maxWeight = completedSets.reduce((max, s) => Math.max(max, Number(s.actualWeight) || 0), 0);
-  const best1RM = completedSets.reduce((max, s) => {
+  const maxWeight = effectiveSetsForMetrics.reduce((max, s) => Math.max(max, Number(s.actualWeight) || 0), 0);
+  const best1RM = effectiveSetsForMetrics.reduce((max, s) => {
     return Math.max(max, estimate1RM(s.actualWeight, s.actualReps, sessionBodyweight, bwRatio, s.actualRir));
   }, 0);
 
-  const topSet = completedSets.reduce((best, s) => {
+  const topSet = effectiveSetsForMetrics.reduce((best, s) => {
     if (!best) return s;
     const s1RM = estimate1RM(s.actualWeight, s.actualReps, sessionBodyweight, bwRatio, s.actualRir);
     const best1RMVal = estimate1RM(best.actualWeight, best.actualReps, sessionBodyweight, bwRatio, best.actualRir);
@@ -117,13 +123,14 @@ export function calculateExerciseStats(exercise, sessionBodyweight = null) {
     bodyweightRatio: bwRatio,
     isBodyweightExercise: bwRatio > 0,
     totalSets,
+    warmupSetsCount,
     totalReps,
     maxReps,
     totalVolume: Math.round(totalVolume * 10) / 10,
     maxWeight: Math.round(maxWeight * 10) / 10,
     best1RM: Math.round(best1RM * 10) / 10,
-    topSet: topSet ? { reps: Number(topSet.actualReps) || 0, weight: Number(topSet.actualWeight) || 0, rir: topSet.actualRir != null ? Number(topSet.actualRir) : null } : null,
-    sets: completedSets.map((s) => ({ reps: Number(s.actualReps) || 0, weight: Number(s.actualWeight) || 0, rir: s.actualRir != null ? Number(s.actualRir) : null }))
+    topSet: topSet ? { reps: Number(topSet.actualReps) || 0, weight: Number(topSet.actualWeight) || 0, rir: topSet.actualRir != null ? Number(topSet.actualRir) : null, setType: topSet.setType || "normal" } : null,
+    sets: completedSets.map((s) => ({ reps: Number(s.actualReps) || 0, weight: Number(s.actualWeight) || 0, rir: s.actualRir != null ? Number(s.actualRir) : null, setType: s.setType || "normal" }))
   };
 }
 
@@ -405,6 +412,7 @@ export function getLastPerformanceForExercise(sessions = [], exerciseIdentifier,
       planName: session.planNameSnapshot || "Training",
       sets: completedSets.map((s, idx) => ({
         setIndex: idx,
+        setType: s.setType || "normal",
         actualReps: Number(s.actualReps) || 0,
         actualWeight: Number(s.actualWeight) || 0,
         actualRir: s.actualRir != null ? Number(s.actualRir) : null

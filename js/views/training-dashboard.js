@@ -11,7 +11,11 @@ import {
   getLastPerformanceForExercise, summarizeWorkout
 } from "../training/workout-calculations.js";
 import { validateCustomExercise, validateWorkoutPlan } from "../training/workout-validation.js";
-import { CATEGORY_LABELS, EQUIPMENT_LABELS, MOVEMENT_PATTERN_LABELS, SIDE_MODE_LABELS, STRETCH_CATEGORY_LABELS, WORKOUT_STATUS, WORKOUT_TYPE_LABELS, WORKOUT_TYPES } from "../training/training-constants.js";
+import {
+  CATEGORY_LABELS, EQUIPMENT_LABELS, MOVEMENT_PATTERN_LABELS, NEXT_SET_TYPE,
+  SET_TYPES, SET_TYPE_BADGES, SET_TYPE_LABELS, SIDE_MODE_LABELS, STRETCH_CATEGORY_LABELS,
+  WORKOUT_STATUS, WORKOUT_TYPE_LABELS, WORKOUT_TYPES
+} from "../training/training-constants.js";
 import { StretchTimer } from "../training/stretch-timer.js";
 import { RestTimer } from "../training/rest-timer.js";
 import { triggerDelight } from "../delight.js";
@@ -99,8 +103,34 @@ function refreshExercisePicker(container) {
 }
 
 function strengthPlanExercise(item, index) {
-  return `<article class="exercise-card" data-plan-exercise="${item.id}"><div class="exercise-header"><div><span class="metric-label">Übung ${index+1}</span><h3>${escapeHtml(exerciseName(item.exerciseId))}</h3></div><div class="compact-actions"><button class="icon-button" data-move="up" aria-label="Nach oben">↑</button><button class="icon-button" data-move="down" aria-label="Nach unten">↓</button><button class="icon-button danger" data-remove-exercise aria-label="Übung entfernen">×</button></div></div>
-    <div class="set-list">${item.sets.map((set,setIndex)=>`<div class="set-row plan-set" data-set="${set.id}"><strong>Satz ${setIndex+1}</strong><label>Wdh.<input type="number" inputmode="numeric" min="0" max="1000" value="${set.targetReps}" data-target-reps></label><label>kg<input type="number" inputmode="decimal" min="0" max="1000" step="0.1" value="${set.targetWeight}" data-target-weight></label><label>RIR<input type="number" inputmode="numeric" min="0" max="10" step="1" value="${set.targetRir ?? ''}" placeholder="–" data-target-rir></label><button class="icon-button danger" data-remove-set aria-label="Satz entfernen">×</button></div>`).join("")}</div>
+  const isSuperset = Boolean(item.supersetId);
+  return `<article class="exercise-card ${isSuperset ? "is-superset-exercise" : ""}" data-plan-exercise="${item.id}">
+    <div class="exercise-header">
+      <div>
+        <span class="metric-label">Übung ${index+1}${isSuperset ? ` · Supersatz ${escapeHtml(item.supersetId)}` : ""}</span>
+        <h3>${escapeHtml(exerciseName(item.exerciseId))}</h3>
+      </div>
+      <div class="compact-actions">
+        <button type="button" class="button secondary compact-button ${isSuperset ? "active-superset-btn" : ""}" data-toggle-plan-superset title="Als Supersatz mit benachbarter Übung koppeln/entkoppeln">
+          ${isSuperset ? `SS: ${escapeHtml(item.supersetId)}` : "+ Supersatz"}
+        </button>
+        <button class="icon-button" data-move="up" aria-label="Nach oben">↑</button>
+        <button class="icon-button" data-move="down" aria-label="Nach unten">↓</button>
+        <button class="icon-button danger" data-remove-exercise aria-label="Übung entfernen">×</button>
+      </div>
+    </div>
+    <div class="set-list">${item.sets.map((set,setIndex)=>{
+      const type = set.setType || "normal";
+      return `<div class="set-row plan-set is-${type}" data-set="${set.id}">
+        <button type="button" class="set-type-pill is-${type}" data-toggle-plan-set-type title="Satz-Typ umschalten: Normal, Warm-up, Drop-Set, Failure">
+          ${type === "normal" ? `Satz ${setIndex + 1}` : `${SET_TYPE_LABELS[type]} (${SET_TYPE_BADGES[type]}${setIndex + 1})`}
+        </button>
+        <label>Wdh.<input type="number" inputmode="numeric" min="0" max="1000" value="${set.targetReps}" data-target-reps></label>
+        <label>kg<input type="number" inputmode="decimal" min="0" max="1000" step="0.1" value="${set.targetWeight}" data-target-weight></label>
+        <label>RIR<input type="number" inputmode="numeric" min="0" max="10" step="1" value="${set.targetRir ?? ''}" placeholder="–" data-target-rir></label>
+        <button class="icon-button danger" data-remove-set aria-label="Satz entfernen">×</button>
+      </div>`;
+    }).join("")}</div>
     <button class="button secondary" data-add-set>Satz hinzufügen</button><label class="field"><span>Übungsnotiz</span><input value="${escapeHtml(item.notes||"")}" data-exercise-notes></label></article>`;
 }
 function stretchPlanExercise(item, index) {
@@ -303,6 +333,7 @@ function sessionView(session) {
 }
 
 function sessionExercise(exercise,index,type,readonly) {
+  const isSuperset = Boolean(exercise.supersetId);
   const firstOpenExercise = state.activeSession?.exercises.find((item) => item.sets.some((set) => !set.completed));
   const firstOpenSet = firstOpenExercise?.sets.find((set) => !set.completed);
   const lastPerf = (!readonly && type === WORKOUT_TYPES.STRENGTH)
@@ -311,15 +342,18 @@ function sessionExercise(exercise,index,type,readonly) {
 
   const setRows = exercise.sets.map((set, i) => {
     if (type === WORKOUT_TYPES.STRENGTH) {
+      const setType = set.setType || "normal";
       const lastSet = lastPerf?.sets?.[i];
       const ghostReps = lastSet ? `z. B. ${lastSet.actualReps}` : "";
       const ghostWeight = lastSet ? `z. B. ${formatNumber(lastSet.actualWeight, { maximumFractionDigits: 1 })}` : "";
       const ghostRir = lastSet?.actualRir != null ? `z. B. ${lastSet.actualRir}` : "";
 
       return `
-        <div class="set-row session-set ${set.completed ? "is-complete" : ""} ${set.id === firstOpenSet?.id ? "is-current" : ""}" data-session-set="${set.id}">
+        <div class="set-row session-set is-${setType} ${set.completed ? "is-complete" : ""} ${set.id === firstOpenSet?.id ? "is-current" : ""}" data-session-set="${set.id}">
           <div class="set-meta-info">
-            <strong>Satz ${i + 1}</strong>
+            <button type="button" class="set-type-pill is-${setType}" ${readonly ? "disabled" : ""} data-toggle-session-set-type title="Satz-Typ wechseln: Normal, Warm-up, Drop-Set, Failure">
+              ${setType === "normal" ? `Satz ${i + 1}` : `${SET_TYPE_LABELS[setType]} (${SET_TYPE_BADGES[setType]}${i + 1})`}
+            </button>
             ${lastSet ? `<span class="ghost-set-pill" title="Letzte Einheit (${formatDate(lastPerf.sessionDate)})">Vorher: ${formatNumber(lastSet.actualWeight, { maximumFractionDigits: 1 })}kg × ${lastSet.actualReps}${lastSet.actualRir != null ? ` @ ${lastSet.actualRir} RIR` : ""}</span>` : ""}
           </div>
           <label>Wdh. · Ziel ${set.plannedReps ?? "–"}
@@ -353,18 +387,25 @@ function sessionExercise(exercise,index,type,readonly) {
   const timerRemaining = exercise.timerState?.endsAt ? Math.max(0,Math.ceil((exercise.timerState.endsAt-Date.now())/1000)) : exercise.timerState?.remainingSeconds ?? exercise.durationSeconds;
 
   return `
-    <article class="exercise-card ${exercise.id===firstOpenExercise?.id?"is-current-exercise":""}" data-session-exercise="${exercise.id}">
+    <article class="exercise-card ${isSuperset ? "is-superset-exercise" : ""} ${exercise.id===firstOpenExercise?.id?"is-current-exercise":""}" data-session-exercise="${exercise.id}">
       <div class="exercise-header">
         <div>
-          <span class="metric-label">Übung ${index+1}${exercise.id===firstOpenExercise?.id?" · Aktuell":""}</span>
+          <span class="metric-label">Übung ${index+1}${isSuperset ? ` · Supersatz ${escapeHtml(exercise.supersetId)}` : ""}${exercise.id===firstOpenExercise?.id?" · Aktuell":""}</span>
           <h3>${escapeHtml(exercise.exerciseNameSnapshot)}</h3>
           ${type===WORKOUT_TYPES.STRETCHING?`<p class="muted">${exercise.durationSeconds} Sekunden · ${SIDE_MODE_LABELS[exercise.sideMode]}</p>`:""}
         </div>
-        ${lastPerf ? `
-          <button type="button" class="button secondary compact-button ghost-autofill-btn" data-autofill-exercise="${exercise.id}" title="Werte aus vorheriger Einheit (${formatDate(lastPerf.sessionDate)}) für alle Sätze übernehmen">
-            Werte aus letzter Einheit
-          </button>
-        ` : ""}
+        <div class="compact-actions">
+          ${!readonly && type===WORKOUT_TYPES.STRENGTH ? `
+            <button type="button" class="button secondary compact-button ${isSuperset ? "active-superset-btn" : ""}" data-toggle-session-superset="${exercise.id}" title="Als Supersatz mit benachbarter Übung koppeln/entkoppeln">
+              ${isSuperset ? `SS: ${escapeHtml(exercise.supersetId)}` : "+ Supersatz"}
+            </button>
+          ` : ""}
+          ${lastPerf ? `
+            <button type="button" class="button secondary compact-button ghost-autofill-btn" data-autofill-exercise="${exercise.id}" title="Werte aus vorheriger Einheit (${formatDate(lastPerf.sessionDate)}) für alle Sätze übernehmen">
+              Letzte Einheit
+            </button>
+          ` : ""}
+        </div>
       </div>
       <div class="set-list">${setRows}</div>
       ${!readonly&&type===WORKOUT_TYPES.STRENGTH?`<button type="button" class="button secondary" data-add-session-set>Satz hinzufügen</button>`:""}
@@ -426,9 +467,68 @@ function bindEvents(container) {
       if(button.hasAttribute("data-discard-session")){if(confirm("Laufendes Training wirklich verwerfen?")){state.activeSession={...state.activeSession,status:WORKOUT_STATUS.CANCELLED,completedAt:new Date().toISOString()};await persistActive(container);state.activeSession=null;renderContent(container);}return;}
       if(button.dataset.addExercise){const id=button.dataset.addExercise;const type=state.editingPlan.workoutType;state.editingPlan.exercises.push(type===WORKOUT_TYPES.STRENGTH?{id:createId("plan-exercise"),exerciseId:id,order:state.editingPlan.exercises.length+1,sets:[{id:createId("set-template"),targetReps:8,targetWeight:0}],notes:""}:{id:createId("plan-stretch"),exerciseId:id,order:state.editingPlan.exercises.length+1,sets:2,durationSeconds:30,sideMode:"both",notes:""});renderContent(container);return;}
       if(button.dataset.favorite){await toggleExerciseFavorite(button.dataset.favorite,state.editingPlan?.workoutType||"strength");state.favorites=await getExerciseFavorites();renderContent(container);return;}
+      if(button.hasAttribute("data-toggle-plan-set-type")){
+        mutatePlanExercise(button,(item)=>{
+          const setEl=button.closest("[data-set]");
+          const set=item.sets?.find((s)=>s.id===setEl?.dataset.set);
+          if(set){set.setType=NEXT_SET_TYPE[set.setType||"normal"]||"normal";triggerHaptic("light");}
+        });
+        renderContent(container);return;
+      }
+      if(button.hasAttribute("data-toggle-session-set-type")){
+        const ex=state.activeSession.exercises.find((x)=>x.id===button.closest("[data-session-exercise]").dataset.sessionExercise);
+        const set=ex?.sets?.find((s)=>s.id===button.closest("[data-session-set]")?.dataset.sessionSet);
+        if(set){set.setType=NEXT_SET_TYPE[set.setType||"normal"]||"normal";triggerHaptic("light");await persistActive(container);renderContent(container);}
+        return;
+      }
+      if(button.hasAttribute("data-toggle-plan-superset")){
+        mutatePlanExercise(button,(item)=>{
+          const planExercises=state.editingPlan.exercises;
+          const currentIndex=planExercises.indexOf(item);
+          if(item.supersetId){
+            const oldId=item.supersetId;
+            item.supersetId=null;
+            const remaining=planExercises.filter((e)=>e.supersetId===oldId);
+            if(remaining.length===1) remaining[0].supersetId=null;
+          } else {
+            const nextEx=planExercises[currentIndex+1];
+            const prevEx=planExercises[currentIndex-1];
+            const pairId=`SS-${currentIndex+1}`;
+            if(nextEx && !nextEx.supersetId){item.supersetId=pairId;nextEx.supersetId=pairId;}
+            else if(prevEx && !prevEx.supersetId){item.supersetId=pairId;prevEx.supersetId=pairId;}
+            else {item.supersetId=pairId;}
+          }
+          triggerHaptic("medium");
+        });
+        renderContent(container);return;
+      }
+      if(button.dataset.toggleSessionSuperset){
+        const ex=state.activeSession.exercises.find((x)=>x.id===button.dataset.toggleSessionSuperset);
+        if(ex){
+          const sessionExercises=state.activeSession.exercises;
+          const currentIndex=sessionExercises.indexOf(ex);
+          if(ex.supersetId){
+            const oldId=ex.supersetId;
+            ex.supersetId=null;
+            const remaining=sessionExercises.filter((e)=>e.supersetId===oldId);
+            if(remaining.length===1) remaining[0].supersetId=null;
+          } else {
+            const nextEx=sessionExercises[currentIndex+1];
+            const prevEx=sessionExercises[currentIndex-1];
+            const pairId=`SS-${currentIndex+1}`;
+            if(nextEx && !nextEx.supersetId){ex.supersetId=pairId;nextEx.supersetId=pairId;}
+            else if(prevEx && !prevEx.supersetId){ex.supersetId=pairId;prevEx.supersetId=pairId;}
+            else {ex.supersetId=pairId;}
+          }
+          triggerHaptic("medium");
+          await persistActive(container);
+          renderContent(container);
+        }
+        return;
+      }
       if(button.hasAttribute("data-remove-exercise")){mutatePlanExercise(button,(item)=>{state.editingPlan.exercises=state.editingPlan.exercises.filter((x)=>x.id!==item.id)});renderContent(container);return;}
       if(button.dataset.move){mutatePlanExercise(button,(item)=>{const i=state.editingPlan.exercises.indexOf(item),j=button.dataset.move==="up"?i-1:i+1;if(j>=0&&j<state.editingPlan.exercises.length)[state.editingPlan.exercises[i],state.editingPlan.exercises[j]]=[state.editingPlan.exercises[j],state.editingPlan.exercises[i]];});renderContent(container);return;}
-      if(button.hasAttribute("data-add-set")){mutatePlanExercise(button,(item)=>item.sets.push({id:createId("set-template"),targetReps:item.sets.at(-1)?.targetReps??8,targetWeight:item.sets.at(-1)?.targetWeight??0,targetRir:item.sets.at(-1)?.targetRir??null}));renderContent(container);return;}
+      if(button.hasAttribute("data-add-set")){mutatePlanExercise(button,(item)=>item.sets.push({id:createId("set-template"),setType:item.sets.at(-1)?.setType??"normal",targetReps:item.sets.at(-1)?.targetReps??8,targetWeight:item.sets.at(-1)?.targetWeight??0,targetRir:item.sets.at(-1)?.targetRir??null}));renderContent(container);return;}
       if(button.hasAttribute("data-remove-set")){mutatePlanExercise(button,(item)=>{if(item.sets.length>1)item.sets=item.sets.filter((s)=>s.id!==button.closest("[data-set]").dataset.set)});renderContent(container);return;}
       if(button.hasAttribute("data-new-custom")){container.querySelector("[data-training-status]").insertAdjacentHTML("afterend",customEditor());return;}
       if(button.dataset.editCustom){const x=state.custom.find((i)=>i.id===button.dataset.editCustom);container.querySelector("[data-training-status]").insertAdjacentHTML("afterend",customEditor(x));return;}
@@ -437,7 +537,7 @@ function bindEvents(container) {
       if(button.dataset.openSession){state.activeSession=structuredClone(state.sessions.find((s)=>s.id===button.dataset.openSession));state.tab="session";renderContent(container);return;}
       if(button.dataset.deleteSession){if(confirm("Trainingseinheit dauerhaft löschen?")){await deleteWorkoutSession(button.dataset.deleteSession);await loadState();renderContent(container);}return;}
       if(button.hasAttribute("data-close-session")){await persistActive(container);state.activeSession=state.sessions.find((s)=>s.status===WORKOUT_STATUS.IN_PROGRESS)||null;state.tab="history";renderContent(container);return;}
-      if(button.hasAttribute("data-add-session-set")){const ex=state.activeSession.exercises.find((x)=>x.id===button.closest("[data-session-exercise]").dataset.sessionExercise);const last=ex.sets.at(-1)||{};ex.sets.push({id:createId("session-set"),plannedReps:last.plannedReps??0,plannedWeight:last.plannedWeight??0,targetRir:last.targetRir??null,actualReps:last.actualReps??0,actualWeight:last.actualWeight??0,actualRir:last.actualRir??null,completed:false});await persistActive(container);renderContent(container);return;}
+      if(button.hasAttribute("data-add-session-set")){const ex=state.activeSession.exercises.find((x)=>x.id===button.closest("[data-session-exercise]").dataset.sessionExercise);const last=ex.sets.at(-1)||{};ex.sets.push({id:createId("session-set"),setType:last.setType??"normal",plannedReps:last.plannedReps??0,plannedWeight:last.plannedWeight??0,targetRir:last.targetRir??null,actualReps:last.actualReps??0,actualWeight:last.actualWeight??0,actualRir:last.actualRir??null,completed:false});await persistActive(container);renderContent(container);return;}
       if(button.hasAttribute("data-remove-session-set")){const ex=state.activeSession.exercises.find((x)=>x.id===button.closest("[data-session-exercise]").dataset.sessionExercise);if(ex.sets.length>1)ex.sets=ex.sets.filter((s)=>s.id!==button.closest("[data-session-set]").dataset.sessionSet);await persistActive(container);renderContent(container);return;}
       if(button.hasAttribute("data-next-exercise")){button.closest("[data-session-exercise]").nextElementSibling?.scrollIntoView({behavior:"smooth",block:"start"});await persistActive(container);return;}
       if(button.dataset.autofillExercise){

@@ -14,3 +14,31 @@ export const STRETCH_CATEGORY_LABELS = { neck: "Nacken", shoulders: "Schultern",
 export const EQUIPMENT_LABELS = { bodyweight: "Körpergewicht", dumbbell: "Kurzhantel", barbell: "Langhantel", cable: "Kabel", machine: "Maschine", kettlebell: "Kettlebell", resistanceBand: "Widerstandsband", pullUpBar: "Klimmzugstange", bench: "Bank", squatRack: "Squat Rack", trx: "TRX", other: "Sonstiges" };
 export const SIDE_MODE_LABELS = { both: "Beidseitig", left: "Links", right: "Rechts", eachSide: "Pro Seite", notApplicable: "Nicht zutreffend" };
 export const MOVEMENT_PATTERN_LABELS = { squat:"Kniebeuge", hinge:"Hüftbeuge", horizontalPush:"Horizontal drücken", horizontalPull:"Horizontal ziehen", verticalPush:"Vertikal drücken", verticalPull:"Vertikal ziehen", lunge:"Ausfallschritt", carry:"Tragen", rotation:"Rotation", antiRotation:"Anti-Rotation", isolation:"Isolation", coreStability:"Core-Stabilität", other:"Sonstiges" };
+
+export const SET_TYPES = Object.freeze({
+  NORMAL: "normal",
+  WARMUP: "warmup",
+  DROPSET: "dropset",
+  FAILURE: "failure"
+});
+
+export const SET_TYPE_LABELS = {
+  normal: "Normal",
+  warmup: "Warm-up",
+  dropset: "Drop-Set",
+  failure: "Failure"
+};
+
+export const SET_TYPE_BADGES = {
+  normal: "",
+  warmup: "W",
+  dropset: "D",
+  failure: "F"
+};
+
+export const NEXT_SET_TYPE = {
+  normal: "warmup",
+  warmup: "dropset",
+  dropset: "failure",
+  failure: "normal"
+};

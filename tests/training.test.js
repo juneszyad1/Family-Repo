@@ -19,9 +19,32 @@ test("Suche ignoriert Großschreibung und Umlaute",()=>{assert(filterExercises(S
 test("Suchfilter nach Ausrüstung und Kategorie",()=>{const result=filterExercises(STRENGTH_EXERCISES,{category:"chest",equipment:"barbell"});assert(result.length>0&&result.every(x=>x.category==="chest"&&x.equipment.includes("barbell")),"Filter falsch")});
 test("Bewegungsmuster- und Favoritenfilter",()=>{const result=filterExercises(STRENGTH_EXERCISES,{movementPattern:"squat",favoriteOnly:true,favoriteIds:new Set(["barbell-back-squat"])});equal(result.length,1,"Kombinierter Filter falsch")});
 test("10 × 50 kg ergeben 500 kg",()=>equal(calculateSetVolume(10,50),500,"Satzvolumen falsch"));
+test("Warmup-Sätze zählen nicht zum Trainingsvolumen", () => {
+  equal(calculateSetVolume(10, 50, true, "warmup"), 0, "Warmup-Satz darf kein Volumen haben");
+  const vol = calculateWorkoutVolume([{
+    sets: [
+      { actualReps: 10, actualWeight: 50, setType: "warmup", completed: true },
+      { actualReps: 8, actualWeight: 80, setType: "normal", completed: true },
+      { actualReps: 6, actualWeight: 70, setType: "dropset", completed: true }
+    ]
+  }]);
+  equal(vol, (8 * 80) + (6 * 70), "Volumen muss nur Normal und Drop-Set enthalten (1060 kg)");
+});
 test("mehrere Sätze ergeben 1400 kg",()=>equal(calculateWorkoutVolume([{sets:[{actualReps:10,actualWeight:50,completed:true},{actualReps:8,actualWeight:60,completed:true},{actualReps:6,actualWeight:70,completed:true}]}]),1400,"Volumen falsch"));
 test("offene, fehlende und Null-Sätze zählen nicht zum Volumen",()=>equal(calculateWorkoutVolume([{sets:[{actualReps:10,actualWeight:50,completed:false},{actualReps:10,actualWeight:null,completed:true},{actualReps:0,actualWeight:100,completed:true}]}]),0,"Randfall falsch"));
 test("teilweise Einheit zählt nur abgeschlossene Sätze",()=>{const ex=[{sets:[{actualReps:8,actualWeight:50,completed:true},{actualReps:9,actualWeight:50,completed:false}]}];equal(calculateCompletedSetCount(ex),1,"Satzanzahl falsch");equal(calculateTotalReps(ex),8,"Wiederholungen falsch")});
+test("Warmup-Sätze verfälschen nicht Arbeitssatz-Zählung und -Wiederholungen", () => {
+  const ex = [{
+    sets: [
+      { actualReps: 15, actualWeight: 20, setType: "warmup", completed: true },
+      { actualReps: 10, actualWeight: 50, setType: "warmup", completed: true },
+      { actualReps: 8, actualWeight: 80, setType: "normal", completed: true },
+      { actualReps: 6, actualWeight: 85, setType: "normal", completed: true }
+    ]
+  }];
+  equal(calculateCompletedSetCount(ex), 2, "Es dürfen nur 2 Arbeitssätze gezählt werden");
+  equal(calculateTotalReps(ex), 14, "Wiederholungen nur von Arbeitssätzen (8 + 6 = 14)");
+});
 test("Training über Mitternacht berechnet Dauer",()=>equal(calculateWorkoutDuration("2026-07-16T23:50:00Z","2026-07-17T00:10:00Z"),1200,"Dauer falsch"));
 test("Stretch-Gesamtdauer",()=>equal(calculateStretchPlannedDuration([{sets:2,durationSeconds:30},{sets:3,durationSeconds:20}]),120,"Stretchdauer falsch"));
 test("Stretch-Gesamtdauer funktioniert auch in einer laufenden Einheit",()=>equal(calculateStretchPlannedDuration([{sets:[{completed:true},{completed:false}],durationSeconds:30}]),60,"Session-Stretchdauer falsch"));

@@ -1557,6 +1557,71 @@
   font-weight: 800;
 }
 
+.set-type-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  user-select: none;
+}
+
+.set-type-pill:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+
+.set-type-pill.is-warmup {
+  background: rgba(142, 150, 167, 0.12);
+  color: var(--text-secondary);
+  border-color: rgba(142, 150, 167, 0.3);
+}
+
+.set-type-pill.is-dropset {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.set-type-pill.is-failure {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.set-row.is-warmup {
+  opacity: 0.85;
+  border-left: 3px solid var(--text-tertiary);
+}
+
+.set-row.is-dropset {
+  border-left: 3px solid var(--warning);
+}
+
+.set-row.is-failure {
+  border-left: 3px solid var(--danger);
+}
+
+.is-superset-exercise {
+  border-left: 3px solid var(--primary) !important;
+  background: color-mix(in srgb, var(--surface-raised) 95%, var(--primary));
+}
+
+.active-superset-btn {
+  background: var(--primary) !important;
+  color: var(--on-primary) !important;
+  font-weight: 800;
+  border-color: var(--primary) !important;
+}
+
 .set-check input, .check-field input {
   width: 26px;
   height: 26px;

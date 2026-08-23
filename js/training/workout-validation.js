@@ -11,6 +11,7 @@ export function validateWorkoutPlan(plan, validExerciseIds = null) {
     item.sets?.forEach((set) => {
       if (!inRange(set.targetReps, 0, 1000) || !inRange(set.targetWeight, 0, 1000)) errors.push("Wiederholungen und Gewicht liegen außerhalb des erlaubten Bereichs.");
       if (set.targetRir != null && set.targetRir !== "" && !inRange(set.targetRir, 0, 10)) errors.push("RIR muss zwischen 0 und 10 liegen.");
+      if (set.setType && !["normal", "warmup", "dropset", "failure"].includes(set.setType)) errors.push("Ungültiger Satz-Typ.");
     });
   });
   if (plan.workoutType === WORKOUT_TYPES.STRETCHING) plan.exercises?.forEach((item) => {
