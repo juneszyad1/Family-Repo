@@ -71,9 +71,10 @@ export function calculateEffectiveWeight(addedWeight, reps, bodyweight = null, b
   return added;
 }
 
-export function estimate1RM(weight, reps, bodyweight = null, bodyweightRatio = 0) {
+export function estimate1RM(weight, reps, bodyweight = null, bodyweightRatio = 0, rir = 0) {
   let w = Number(weight);
   const r = Number(reps);
+  const rirVal = Math.max(0, Number(rir) || 0);
   if (!Number.isFinite(r) || r <= 0) return 0;
 
   if (bodyweightRatio > 0 && bodyweight != null && bodyweight > 0) {
@@ -81,8 +82,9 @@ export function estimate1RM(weight, reps, bodyweight = null, bodyweightRatio = 0
   }
 
   if (!Number.isFinite(w) || w <= 0) return 0;
-  if (r === 1) return Math.round(w * 10) / 10;
-  return Math.round((w * (1 + r / 30)) * 10) / 10;
+  const effectiveReps = r + rirVal;
+  if (effectiveReps === 1) return Math.round(w * 10) / 10;
+  return Math.round((w * (1 + effectiveReps / 30)) * 10) / 10;
 }
 
 export function calculateExerciseStats(exercise, sessionBodyweight = null) {
@@ -99,13 +101,13 @@ export function calculateExerciseStats(exercise, sessionBodyweight = null) {
 
   const maxWeight = completedSets.reduce((max, s) => Math.max(max, Number(s.actualWeight) || 0), 0);
   const best1RM = completedSets.reduce((max, s) => {
-    return Math.max(max, estimate1RM(s.actualWeight, s.actualReps, sessionBodyweight, bwRatio));
+    return Math.max(max, estimate1RM(s.actualWeight, s.actualReps, sessionBodyweight, bwRatio, s.actualRir));
   }, 0);
 
   const topSet = completedSets.reduce((best, s) => {
     if (!best) return s;
-    const s1RM = estimate1RM(s.actualWeight, s.actualReps, sessionBodyweight, bwRatio);
-    const best1RMVal = estimate1RM(best.actualWeight, best.actualReps, sessionBodyweight, bwRatio);
+    const s1RM = estimate1RM(s.actualWeight, s.actualReps, sessionBodyweight, bwRatio, s.actualRir);
+    const best1RMVal = estimate1RM(best.actualWeight, best.actualReps, sessionBodyweight, bwRatio, best.actualRir);
     return s1RM > best1RMVal ? s : (s1RM === best1RMVal && (Number(s.actualReps) || 0) > (Number(best.actualReps) || 0) ? s : best);
   }, null);
 
@@ -120,8 +122,8 @@ export function calculateExerciseStats(exercise, sessionBodyweight = null) {
     totalVolume: Math.round(totalVolume * 10) / 10,
     maxWeight: Math.round(maxWeight * 10) / 10,
     best1RM: Math.round(best1RM * 10) / 10,
-    topSet: topSet ? { reps: Number(topSet.actualReps) || 0, weight: Number(topSet.actualWeight) || 0 } : null,
-    sets: completedSets.map((s) => ({ reps: Number(s.actualReps) || 0, weight: Number(s.actualWeight) || 0 }))
+    topSet: topSet ? { reps: Number(topSet.actualReps) || 0, weight: Number(topSet.actualWeight) || 0, rir: topSet.actualRir != null ? Number(topSet.actualRir) : null } : null,
+    sets: completedSets.map((s) => ({ reps: Number(s.actualReps) || 0, weight: Number(s.actualWeight) || 0, rir: s.actualRir != null ? Number(s.actualRir) : null }))
   };
 }
 
@@ -337,6 +339,7 @@ export function extractExerciseProgression(sessions = [], exerciseIdentifier, da
       estimated1RM: stats.best1RM,
       topWeight: stats.maxWeight,
       topReps: stats.topSet?.reps || stats.maxReps || 0,
+      topRir: stats.topSet?.rir ?? null,
       totalVolume: stats.totalVolume,
       totalReps: stats.totalReps,
       completedSets: stats.totalSets,
@@ -403,7 +406,8 @@ export function getLastPerformanceForExercise(sessions = [], exerciseIdentifier,
       sets: completedSets.map((s, idx) => ({
         setIndex: idx,
         actualReps: Number(s.actualReps) || 0,
-        actualWeight: Number(s.actualWeight) || 0
+        actualWeight: Number(s.actualWeight) || 0,
+        actualRir: s.actualRir != null ? Number(s.actualRir) : null
       }))
     };
   }

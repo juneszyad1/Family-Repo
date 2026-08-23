@@ -103,7 +103,7 @@
   }
 
   .set-row.session-set {
-    grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.75fr);
   }
 
   .session-set .set-check,

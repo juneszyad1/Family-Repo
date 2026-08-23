@@ -100,7 +100,7 @@ function refreshExercisePicker(container) {
 
 function strengthPlanExercise(item, index) {
   return `<article class="exercise-card" data-plan-exercise="${item.id}"><div class="exercise-header"><div><span class="metric-label">Übung ${index+1}</span><h3>${escapeHtml(exerciseName(item.exerciseId))}</h3></div><div class="compact-actions"><button class="icon-button" data-move="up" aria-label="Nach oben">↑</button><button class="icon-button" data-move="down" aria-label="Nach unten">↓</button><button class="icon-button danger" data-remove-exercise aria-label="Übung entfernen">×</button></div></div>
-    <div class="set-list">${item.sets.map((set,setIndex)=>`<div class="set-row" data-set="${set.id}"><strong>Satz ${setIndex+1}</strong><label>Wdh.<input type="number" inputmode="numeric" min="0" max="1000" value="${set.targetReps}" data-target-reps></label><label>kg<input type="number" inputmode="decimal" min="0" max="1000" step="0.1" value="${set.targetWeight}" data-target-weight></label><button class="icon-button danger" data-remove-set aria-label="Satz entfernen">×</button></div>`).join("")}</div>
+    <div class="set-list">${item.sets.map((set,setIndex)=>`<div class="set-row plan-set" data-set="${set.id}"><strong>Satz ${setIndex+1}</strong><label>Wdh.<input type="number" inputmode="numeric" min="0" max="1000" value="${set.targetReps}" data-target-reps></label><label>kg<input type="number" inputmode="decimal" min="0" max="1000" step="0.1" value="${set.targetWeight}" data-target-weight></label><label>RIR<input type="number" inputmode="numeric" min="0" max="10" step="1" value="${set.targetRir ?? ''}" placeholder="–" data-target-rir></label><button class="icon-button danger" data-remove-set aria-label="Satz entfernen">×</button></div>`).join("")}</div>
     <button class="button secondary" data-add-set>Satz hinzufügen</button><label class="field"><span>Übungsnotiz</span><input value="${escapeHtml(item.notes||"")}" data-exercise-notes></label></article>`;
 }
 function stretchPlanExercise(item, index) {
@@ -314,18 +314,22 @@ function sessionExercise(exercise,index,type,readonly) {
       const lastSet = lastPerf?.sets?.[i];
       const ghostReps = lastSet ? `z. B. ${lastSet.actualReps}` : "";
       const ghostWeight = lastSet ? `z. B. ${formatNumber(lastSet.actualWeight, { maximumFractionDigits: 1 })}` : "";
+      const ghostRir = lastSet?.actualRir != null ? `z. B. ${lastSet.actualRir}` : "";
 
       return `
         <div class="set-row session-set ${set.completed ? "is-complete" : ""} ${set.id === firstOpenSet?.id ? "is-current" : ""}" data-session-set="${set.id}">
           <div class="set-meta-info">
             <strong>Satz ${i + 1}</strong>
-            ${lastSet ? `<span class="ghost-set-pill" title="Letzte Einheit (${formatDate(lastPerf.sessionDate)})">Vorher: ${formatNumber(lastSet.actualWeight, { maximumFractionDigits: 1 })}kg × ${lastSet.actualReps}</span>` : ""}
+            ${lastSet ? `<span class="ghost-set-pill" title="Letzte Einheit (${formatDate(lastPerf.sessionDate)})">Vorher: ${formatNumber(lastSet.actualWeight, { maximumFractionDigits: 1 })}kg × ${lastSet.actualReps}${lastSet.actualRir != null ? ` @ ${lastSet.actualRir} RIR` : ""}</span>` : ""}
           </div>
           <label>Wdh. · Ziel ${set.plannedReps ?? "–"}
             <input type="number" inputmode="numeric" min="0" max="1000" value="${set.actualReps ?? ""}" placeholder="${ghostReps}" data-actual-reps>
           </label>
           <label>kg · Ziel ${formatNumber(set.plannedWeight, { maximumFractionDigits: 1 })}
             <input type="number" inputmode="decimal" min="0" max="1000" step="0.1" value="${set.actualWeight ?? ""}" placeholder="${ghostWeight}" data-actual-weight>
+          </label>
+          <label>RIR · Ziel ${set.targetRir ?? "–"}
+            <input type="number" inputmode="numeric" min="0" max="10" step="1" value="${set.actualRir ?? ""}" placeholder="${ghostRir}" data-actual-rir>
           </label>
           <label class="set-check">
             <input type="checkbox" data-set-completed ${set.completed ? "checked" : ""}>
@@ -424,7 +428,7 @@ function bindEvents(container) {
       if(button.dataset.favorite){await toggleExerciseFavorite(button.dataset.favorite,state.editingPlan?.workoutType||"strength");state.favorites=await getExerciseFavorites();renderContent(container);return;}
       if(button.hasAttribute("data-remove-exercise")){mutatePlanExercise(button,(item)=>{state.editingPlan.exercises=state.editingPlan.exercises.filter((x)=>x.id!==item.id)});renderContent(container);return;}
       if(button.dataset.move){mutatePlanExercise(button,(item)=>{const i=state.editingPlan.exercises.indexOf(item),j=button.dataset.move==="up"?i-1:i+1;if(j>=0&&j<state.editingPlan.exercises.length)[state.editingPlan.exercises[i],state.editingPlan.exercises[j]]=[state.editingPlan.exercises[j],state.editingPlan.exercises[i]];});renderContent(container);return;}
-      if(button.hasAttribute("data-add-set")){mutatePlanExercise(button,(item)=>item.sets.push({id:createId("set-template"),targetReps:item.sets.at(-1)?.targetReps??8,targetWeight:item.sets.at(-1)?.targetWeight??0}));renderContent(container);return;}
+      if(button.hasAttribute("data-add-set")){mutatePlanExercise(button,(item)=>item.sets.push({id:createId("set-template"),targetReps:item.sets.at(-1)?.targetReps??8,targetWeight:item.sets.at(-1)?.targetWeight??0,targetRir:item.sets.at(-1)?.targetRir??null}));renderContent(container);return;}
       if(button.hasAttribute("data-remove-set")){mutatePlanExercise(button,(item)=>{if(item.sets.length>1)item.sets=item.sets.filter((s)=>s.id!==button.closest("[data-set]").dataset.set)});renderContent(container);return;}
       if(button.hasAttribute("data-new-custom")){container.querySelector("[data-training-status]").insertAdjacentHTML("afterend",customEditor());return;}
       if(button.dataset.editCustom){const x=state.custom.find((i)=>i.id===button.dataset.editCustom);container.querySelector("[data-training-status]").insertAdjacentHTML("afterend",customEditor(x));return;}
@@ -433,7 +437,7 @@ function bindEvents(container) {
       if(button.dataset.openSession){state.activeSession=structuredClone(state.sessions.find((s)=>s.id===button.dataset.openSession));state.tab="session";renderContent(container);return;}
       if(button.dataset.deleteSession){if(confirm("Trainingseinheit dauerhaft löschen?")){await deleteWorkoutSession(button.dataset.deleteSession);await loadState();renderContent(container);}return;}
       if(button.hasAttribute("data-close-session")){await persistActive(container);state.activeSession=state.sessions.find((s)=>s.status===WORKOUT_STATUS.IN_PROGRESS)||null;state.tab="history";renderContent(container);return;}
-      if(button.hasAttribute("data-add-session-set")){const ex=state.activeSession.exercises.find((x)=>x.id===button.closest("[data-session-exercise]").dataset.sessionExercise);const last=ex.sets.at(-1)||{};ex.sets.push({id:createId("session-set"),plannedReps:last.plannedReps??0,plannedWeight:last.plannedWeight??0,actualReps:last.actualReps??0,actualWeight:last.actualWeight??0,completed:false});await persistActive(container);renderContent(container);return;}
+      if(button.hasAttribute("data-add-session-set")){const ex=state.activeSession.exercises.find((x)=>x.id===button.closest("[data-session-exercise]").dataset.sessionExercise);const last=ex.sets.at(-1)||{};ex.sets.push({id:createId("session-set"),plannedReps:last.plannedReps??0,plannedWeight:last.plannedWeight??0,targetRir:last.targetRir??null,actualReps:last.actualReps??0,actualWeight:last.actualWeight??0,actualRir:last.actualRir??null,completed:false});await persistActive(container);renderContent(container);return;}
       if(button.hasAttribute("data-remove-session-set")){const ex=state.activeSession.exercises.find((x)=>x.id===button.closest("[data-session-exercise]").dataset.sessionExercise);if(ex.sets.length>1)ex.sets=ex.sets.filter((s)=>s.id!==button.closest("[data-session-set]").dataset.sessionSet);await persistActive(container);renderContent(container);return;}
       if(button.hasAttribute("data-next-exercise")){button.closest("[data-session-exercise]").nextElementSibling?.scrollIntoView({behavior:"smooth",block:"start"});await persistActive(container);return;}
       if(button.dataset.autofillExercise){
@@ -446,6 +450,7 @@ function bindEvents(container) {
               if(prev){
                 set.actualReps=prev.actualReps;
                 set.actualWeight=prev.actualWeight;
+                set.actualRir=prev.actualRir ?? null;
               }
             });
             triggerHaptic("medium");
@@ -498,8 +503,8 @@ function bindEvents(container) {
     if(t.matches("[data-picker-query]")){state.picker.query=t.value;refreshExercisePicker(container);return;}
     if(state.editingPlan&&t.name==="name")state.editingPlan.name=t.value;
     if(state.editingPlan&&t.name==="description")state.editingPlan.description=t.value;
-    if(state.editingPlan){mutatePlanExercise(t,(item)=>{const setEl=t.closest("[data-set]");const set=item.sets?.find?.((s)=>s.id===setEl?.dataset.set);if(t.hasAttribute("data-target-reps"))set.targetReps=Number(t.value);if(t.hasAttribute("data-target-weight"))set.targetWeight=Number(t.value);if(t.hasAttribute("data-stretch-sets"))item.sets=Number(t.value);if(t.hasAttribute("data-stretch-duration"))item.durationSeconds=Number(t.value);if(t.hasAttribute("data-exercise-notes"))item.notes=t.value;});}
-    if(state.activeSession&&t.closest("[data-session-exercise]")){const ex=state.activeSession.exercises.find((x)=>x.id===t.closest("[data-session-exercise]").dataset.sessionExercise),set=ex.sets.find((s)=>s.id===t.closest("[data-session-set]")?.dataset.sessionSet);if(t.hasAttribute("data-actual-reps"))set.actualReps=Number(t.value);if(t.hasAttribute("data-actual-weight"))set.actualWeight=Number(t.value);if(t.hasAttribute("data-session-exercise-notes"))ex.notes=t.value;await persistActive(container);}
+    if(state.editingPlan){mutatePlanExercise(t,(item)=>{const setEl=t.closest("[data-set]");const set=item.sets?.find?.((s)=>s.id===setEl?.dataset.set);if(t.hasAttribute("data-target-reps"))set.targetReps=Number(t.value);if(t.hasAttribute("data-target-weight"))set.targetWeight=Number(t.value);if(t.hasAttribute("data-target-rir"))set.targetRir=t.value===""?null:Number(t.value);if(t.hasAttribute("data-stretch-sets"))item.sets=Number(t.value);if(t.hasAttribute("data-stretch-duration"))item.durationSeconds=Number(t.value);if(t.hasAttribute("data-exercise-notes"))item.notes=t.value;});}
+    if(state.activeSession&&t.closest("[data-session-exercise]")){const ex=state.activeSession.exercises.find((x)=>x.id===t.closest("[data-session-exercise]").dataset.sessionExercise),set=ex.sets.find((s)=>s.id===t.closest("[data-session-set]")?.dataset.sessionSet);if(t.hasAttribute("data-actual-reps"))set.actualReps=Number(t.value);if(t.hasAttribute("data-actual-weight"))set.actualWeight=Number(t.value);if(t.hasAttribute("data-actual-rir"))set.actualRir=t.value===""?null:Number(t.value);if(t.hasAttribute("data-session-exercise-notes"))ex.notes=t.value;await persistActive(container);}
     if(state.activeSession&&t.name==="notes"){state.activeSession.notes=t.value;await persistActive(container);}
   });
   container.addEventListener("change",async(event)=>{const t=event.target;

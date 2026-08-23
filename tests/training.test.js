@@ -47,6 +47,17 @@ test("Effective Load Model für Bodyweight-Übungen", () => {
   equal(estimate1RM(0, 10, 80, 1.0), 106.7, "10 Klimmzüge @ 80 kg BW = 106.7 kg 1RM");
 });
 
+test("1RM-Berechnung mit RIR (Reps in Reserve)", () => {
+  // 100 kg x 8 Wdh. @ 0 RIR -> 100 * (1 + 8/30) = 126.7 kg 1RM
+  equal(estimate1RM(100, 8, null, 0, 0), 126.7, "8 Wdh. @ 0 RIR = 126.7 kg 1RM");
+  // 100 kg x 8 Wdh. @ 2 RIR -> 100 * (1 + (8+2)/30) = 100 * (1 + 10/30) = 133.3 kg 1RM
+  equal(estimate1RM(100, 8, null, 0, 2), 133.3, "8 Wdh. @ 2 RIR = 133.3 kg 1RM");
+  // 100 kg x 1 Wdh. @ 0 RIR -> 100 kg
+  equal(estimate1RM(100, 1, null, 0, 0), 100, "1 Wdh. @ 0 RIR = 100 kg");
+  // 100 kg x 1 Wdh. @ 1 RIR -> 100 * (1 + 2/30) = 106.7 kg
+  equal(estimate1RM(100, 1, null, 0, 1), 106.7, "1 Wdh. @ 1 RIR = 106.7 kg");
+});
+
 test("PR-Erkennung erkennt Maximalgewicht- und 1RM-Steigerungen", () => {
   const session1 = {
     id: "s1",

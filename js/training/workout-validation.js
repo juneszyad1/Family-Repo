@@ -8,7 +8,10 @@ export function validateWorkoutPlan(plan, validExerciseIds = null) {
   if (validExerciseIds && plan.exercises?.some((item) => !validExerciseIds.has(item.exerciseId))) errors.push("Der Plan enthält eine ungültige Übung.");
   if (plan.workoutType === WORKOUT_TYPES.STRENGTH) plan.exercises?.forEach((item) => {
     if (!inRange(item.sets?.length, 1, 20)) errors.push("Pro Übung sind 1 bis 20 Sätze erlaubt.");
-    item.sets?.forEach((set) => { if (!inRange(set.targetReps, 0, 1000) || !inRange(set.targetWeight, 0, 1000)) errors.push("Wiederholungen und Gewicht liegen außerhalb des erlaubten Bereichs."); });
+    item.sets?.forEach((set) => {
+      if (!inRange(set.targetReps, 0, 1000) || !inRange(set.targetWeight, 0, 1000)) errors.push("Wiederholungen und Gewicht liegen außerhalb des erlaubten Bereichs.");
+      if (set.targetRir != null && set.targetRir !== "" && !inRange(set.targetRir, 0, 10)) errors.push("RIR muss zwischen 0 und 10 liegen.");
+    });
   });
   if (plan.workoutType === WORKOUT_TYPES.STRETCHING) plan.exercises?.forEach((item) => {
     if (!inRange(item.sets, 1, 20) || !inRange(item.durationSeconds, 5, 3600)) errors.push("Durchgänge oder Dauer liegen außerhalb des erlaubten Bereichs.");
