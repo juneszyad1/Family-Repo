@@ -172,25 +172,6 @@ export function renderSettings() {
   const container = document.createElement("section");
   container.className = "view-stack";
   container.innerHTML = `
-    <div class="card template-demo-card">
-      <p class="subtitle">It's now or never</p>
-      <h1 class="title">Come on , Join us!</h1>
-
-      <form class="form-container" onsubmit="event.preventDefault();">
-        <div class="input-group">
-          <span class="step-badge">1</span>
-          <input type="text" placeholder="Name" />
-        </div>
-
-        <div class="input-group">
-          <span class="step-badge">2</span>
-          <input type="password" placeholder="Password" />
-        </div>
-
-        <button type="submit" class="submit-btn">Submit</button>
-      </form>
-    </div>
-
     <section class="card">
       <div class="card-body">
         <h2 class="section-title">Tagesziele & Darstellung</h2>
