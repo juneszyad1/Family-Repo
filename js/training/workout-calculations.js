@@ -203,9 +203,9 @@ export function detectWorkoutPRs(currentSession, allHistoricalSessions = []) {
 }
 
 export function compareWorkoutWithPrevious(currentSession, allHistoricalSessions = []) {
-  const priorSessions = allHistoricalSessions
-    .filter((s) => s.id !== currentSession.id && s.status === WORKOUT_STATUS.COMPLETED && s.workoutType === currentSession.workoutType)
-    .sort((a, b) => (b.completedAt || b.date).localeCompare(a.completedAt || a.date));
+  const priorSessions = (allHistoricalSessions || [])
+    .filter((s) => s && s.id !== currentSession.id && s.status === WORKOUT_STATUS.COMPLETED && s.workoutType === currentSession.workoutType)
+    .sort((a, b) => String(b.completedAt || b.date || "").localeCompare(String(a.completedAt || a.date || "")));
 
   const prevSession = (currentSession.planId ? priorSessions.find((s) => s.planId === currentSession.planId) : null) || priorSessions[0] || null;
 
@@ -297,7 +297,7 @@ export function getTrackedStrengthExercises(sessions = []) {
     });
   });
 
-  return [...exerciseMap.values()].sort((a, b) => b.count - a.count || b.lastTrainedDate.localeCompare(a.lastTrainedDate));
+  return [...exerciseMap.values()].sort((a, b) => b.count - a.count || String(b.lastTrainedDate || "").localeCompare(String(a.lastTrainedDate || "")));
 }
 
 export function extractExerciseProgression(sessions = [], exerciseIdentifier, dailyEntries = []) {
@@ -305,7 +305,7 @@ export function extractExerciseProgression(sessions = [], exerciseIdentifier, da
 
   const weightEntries = (dailyEntries || [])
     .filter((e) => e && e.weight != null && e.weight > 0)
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
 
   const getWeightForDate = (date) => {
     if (!weightEntries.length) return 80;
@@ -316,9 +316,9 @@ export function extractExerciseProgression(sessions = [], exerciseIdentifier, da
     return weightEntries[0].weight;
   };
 
-  const completed = sessions
-    .filter((s) => s.status === WORKOUT_STATUS.COMPLETED && s.workoutType === WORKOUT_TYPES.STRENGTH)
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const completed = (sessions || [])
+    .filter((s) => s && s.status === WORKOUT_STATUS.COMPLETED && s.workoutType === WORKOUT_TYPES.STRENGTH)
+    .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
 
   const dataPoints = [];
   let exerciseName = "";
@@ -387,6 +387,7 @@ export function extractExerciseProgression(sessions = [], exerciseIdentifier, da
     totalLifetimeVolume,
     progress1RMPercent: calcProg(lastPoint.estimated1RM, firstPoint.estimated1RM),
     progressWeightPercent: calcProg(lastPoint.topWeight, firstPoint.topWeight),
+    progressVolumePercent: calcProg(lastPoint.totalVolume, firstPoint.totalVolume),
     progressRepsPercent: calcProg(lastPoint.topReps, firstPoint.topReps)
   };
 }
@@ -394,9 +395,9 @@ export function extractExerciseProgression(sessions = [], exerciseIdentifier, da
 export function getLastPerformanceForExercise(sessions = [], exerciseIdentifier, currentSessionId = null) {
   if (!exerciseIdentifier) return null;
 
-  const completed = sessions
-    .filter((s) => s.status === WORKOUT_STATUS.COMPLETED && s.workoutType === WORKOUT_TYPES.STRENGTH && s.id !== currentSessionId)
-    .sort((a, b) => b.date.localeCompare(a.date));
+  const completed = (sessions || [])
+    .filter((s) => s && s.status === WORKOUT_STATUS.COMPLETED && s.workoutType === WORKOUT_TYPES.STRENGTH && s.id !== currentSessionId)
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
 
   for (const session of completed) {
     const foundExercise = (session.exercises || []).find(

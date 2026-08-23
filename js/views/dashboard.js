@@ -117,7 +117,7 @@ function renderGoalSummaries(activeGoals, dailyEntries, bodyFatEntries) {
 }
 
 function renderTrainingSummary(sessions, plans) {
-  const completed = sessions.filter((s) => s.status === WORKOUT_STATUS.COMPLETED).sort((a,b)=>(b.completedAt||b.updatedAt).localeCompare(a.completedAt||a.updatedAt));
+  const completed = (sessions || []).filter((s) => s.status === WORKOUT_STATUS.COMPLETED).sort((a,b)=>String(b.completedAt||b.updatedAt||b.date||"").localeCompare(String(a.completedAt||a.updatedAt||a.date||"")));
   const last = completed[0];
   const counts = completed.filter((s) => { const d=new Date(`${s.date}T12:00:00`); const start=new Date(); start.setDate(start.getDate()-6); start.setHours(0,0,0,0); return d>=start; }).reduce((acc,s)=>({...acc,[s.workoutType]:(acc[s.workoutType]||0)+1}),{});
   const week = Array.from({length:7},(_,index)=>{const date=new Date();date.setHours(12,0,0,0);date.setDate(date.getDate()-6+index);const iso=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;const daySessions=completed.filter((s)=>s.date===iso);return `<li class="${daySessions.length?"has-training":""}"><strong>${new Intl.DateTimeFormat("de-DE",{weekday:"short"}).format(date)}</strong><span>${daySessions.length?daySessions.map((s)=>WORKOUT_TYPE_LABELS[s.workoutType]).join(", "):"Kein Training"}</span></li>`}).join("");

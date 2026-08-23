@@ -17,10 +17,9 @@ import { WORKOUT_STATUS, WORKOUT_TYPES } from "./training-constants.js";
 export function analyzeExerciseProgression(exerciseIdentifier, sessions = [], currentExercise = null) {
   if (!exerciseIdentifier || !Array.isArray(sessions)) return null;
 
-  // Filter completed strength sessions containing this exercise, sorted newest first
   const relevantSessions = sessions
-    .filter((s) => s.status === WORKOUT_STATUS.COMPLETED && s.workoutType === WORKOUT_TYPES.STRENGTH)
-    .sort((a, b) => b.date.localeCompare(a.date));
+    .filter((s) => s && s.status === WORKOUT_STATUS.COMPLETED && s.workoutType === WORKOUT_TYPES.STRENGTH)
+    .sort((a, b) => String(b.date || b.completedAt || "").localeCompare(String(a.date || a.completedAt || "")));
 
   const history = [];
   for (const session of relevantSessions) {
