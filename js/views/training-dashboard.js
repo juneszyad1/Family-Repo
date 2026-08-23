@@ -19,6 +19,7 @@ import {
 import { StretchTimer } from "../training/stretch-timer.js";
 import { RestTimer } from "../training/rest-timer.js";
 import { calculatePlates, calculateWarmupSets, PLATE_COLORS, STANDARD_BAR_WEIGHTS } from "../training/plate-calculator.js";
+import { analyzeExerciseProgression } from "../training/overload-engine.js";
 import { triggerDelight } from "../delight.js";
 
 const state = {
@@ -106,6 +107,8 @@ function refreshExercisePicker(container) {
 
 function strengthPlanExercise(item, index) {
   const isSuperset = Boolean(item.supersetId);
+  const suggestion = analyzeExerciseProgression(item.exerciseId, state.sessions, item);
+
   return `<article class="exercise-card ${isSuperset ? "is-superset-exercise" : ""}" data-plan-exercise="${item.id}">
     <div class="exercise-header">
       <div>
@@ -122,6 +125,13 @@ function strengthPlanExercise(item, index) {
         <button class="icon-button danger" data-remove-exercise aria-label="Übung entfernen">×</button>
       </div>
     </div>
+    ${suggestion ? `
+      <div class="overload-suggestion-pill ${suggestion.suggestionType}">
+        <span class="overload-badge">${escapeHtml(suggestion.badgeText)}</span>
+        <span class="overload-reason">${escapeHtml(suggestion.reasonText)}</span>
+        <button type="button" class="button secondary compact-button" data-apply-plan-overload="${item.id}" data-suggested-weight="${suggestion.suggestedWeight}" data-suggested-reps="${suggestion.suggestedReps}">Übernehmen</button>
+      </div>
+    ` : ""}
     <div class="set-list">${item.sets.map((set,setIndex)=>{
       const type = set.setType || "normal";
       return `<div class="set-row plan-set is-${type}" data-set="${set.id}">
@@ -425,6 +435,9 @@ function sessionExercise(exercise,index,type,readonly) {
   const lastPerf = (!readonly && type === WORKOUT_TYPES.STRENGTH)
     ? getLastPerformanceForExercise(state.sessions, exercise.exerciseId || exercise.exerciseNameSnapshot, state.activeSession?.id)
     : null;
+  const suggestion = (!readonly && type === WORKOUT_TYPES.STRENGTH)
+    ? analyzeExerciseProgression(exercise.exerciseId || exercise.exerciseNameSnapshot, state.sessions, exercise)
+    : null;
 
   const setRows = exercise.sets.map((set, i) => {
     if (type === WORKOUT_TYPES.STRENGTH) {
@@ -449,7 +462,7 @@ function sessionExercise(exercise,index,type,readonly) {
             <input type="number" inputmode="decimal" min="0" max="1000" step="0.1" value="${set.actualWeight ?? ""}" placeholder="${ghostWeight}" data-actual-weight>
           </label>
           <label>RIR · Ziel ${set.targetRir ?? "–"}
-            <input type="number" inputmode="numeric" min="0" max="10" step="1" value="${set.actualRir ?? ""}" placeholder="${ghostRir}" data-actual-rir>
+            <input type="number" inputmode="numeric" min="0" max="1000" step="1" value="${set.actualRir ?? ""}" placeholder="${ghostRir}" data-actual-rir>
           </label>
           <button type="button" class="icon-button compact-button" data-open-plate-calc="${set.actualWeight || set.plannedWeight || 20}" data-target-set-id="${set.id}" title="Hantelscheiben berechnen">⚖</button>
           <label class="set-check">
@@ -495,6 +508,15 @@ function sessionExercise(exercise,index,type,readonly) {
           ` : ""}
         </div>
       </div>
+      ${suggestion ? `
+        <div class="overload-suggestion-pill ${suggestion.suggestionType}">
+          <span class="overload-badge">${escapeHtml(suggestion.badgeText)}</span>
+          <span class="overload-reason">${escapeHtml(suggestion.reasonText)}</span>
+          ${!readonly ? `
+            <button type="button" class="button secondary compact-button" data-apply-session-overload="${exercise.id}" data-suggested-weight="${suggestion.suggestedWeight}" data-suggested-reps="${suggestion.suggestedReps}">Übernehmen</button>
+          ` : ""}
+        </div>
+      ` : ""}
       <div class="set-list">${setRows}</div>
       ${!readonly&&type===WORKOUT_TYPES.STRENGTH?`<button type="button" class="button secondary" data-add-session-set>Satz hinzufügen</button>`:""}
       ${!readonly&&type===WORKOUT_TYPES.STRETCHING?`<div class="timer" data-timer><strong data-timer-time>${timerRemaining}</strong><span data-timer-status>${timerRemaining===0?"Zeit abgelaufen":exercise.timerState?.status==="paused"?"Pausiert":"Bereit"}</span><div class="compact-actions"><button type="button" class="button" data-timer-start>Start/Fortsetzen</button><button type="button" class="button secondary" data-timer-pause>Pause</button><button type="button" class="button secondary" data-timer-reset>Zurücksetzen</button></div></div>`:""}
@@ -713,6 +735,42 @@ function bindEvents(container) {
           triggerHaptic("medium");
           await persistActive(container);
           renderContent(container);
+        }
+        return;
+      }
+      if(button.dataset.applyPlanOverload){
+        const targetWeight = Number(button.dataset.suggestedWeight);
+        const targetReps = Number(button.dataset.suggestedReps);
+        mutatePlanExercise(button,(item)=>{
+          (item.sets || []).filter((s)=>s.setType!=="warmup").forEach((s)=>{
+            if(Number.isFinite(targetWeight)) s.targetWeight = targetWeight;
+            if(Number.isFinite(targetReps) && targetReps > 0) s.targetReps = targetReps;
+          });
+          triggerHaptic("medium");
+        });
+        renderContent(container);
+        statusMessage(container,"Progressions-Werte in den Plan übernommen.");
+        return;
+      }
+      if(button.dataset.applySessionOverload){
+        const targetWeight = Number(button.dataset.suggestedWeight);
+        const targetReps = Number(button.dataset.suggestedReps);
+        const ex = state.activeSession?.exercises.find((x)=>x.id===button.dataset.applySessionOverload);
+        if(ex){
+          (ex.sets || []).filter((s)=>s.setType!=="warmup").forEach((s)=>{
+            if(Number.isFinite(targetWeight)) {
+              s.plannedWeight = targetWeight;
+              if(!s.completed) s.actualWeight = targetWeight;
+            }
+            if(Number.isFinite(targetReps) && targetReps > 0) {
+              s.plannedReps = targetReps;
+              if(!s.completed) s.actualReps = targetReps;
+            }
+          });
+          triggerHaptic("medium");
+          await persistActive(container);
+          renderContent(container);
+          statusMessage(container,"Progressions-Vorschlag übernommen.");
         }
         return;
       }

@@ -7,6 +7,7 @@ import { validateCustomExercise, validateWorkoutPlan } from "../js/training/work
 import { completeSession, createSessionFromPlan } from "../js/training/workout-sessions.js";
 import { RestTimer } from "../js/training/rest-timer.js";
 import { calculatePlates, calculateWarmupSets } from "../js/training/plate-calculator.js";
+import { analyzeExerciseProgression } from "../js/training/overload-engine.js";
 
 const tests=[]; const test=(name,fn)=>tests.push({name,fn});
 const assert=(condition,message)=>{if(!condition)throw new Error(message)};
@@ -307,6 +308,78 @@ test("Warmup-Generator erstellt strukturierte Pyramide", () => {
   const warmups20 = calculateWarmupSets(20, 20);
   equal(warmups20.length, 1, "Nur 1 Stangensatz");
   equal(warmups20[0].plannedWeight, 20, "Stange 20 kg");
+});
+
+test("Progressive Overload Engine schlägt Gewichtserhöhung bei Zielerreichung vor", () => {
+  const sessions = [
+    {
+      id: "s1",
+      date: "2026-08-15",
+      status: "completed",
+      workoutType: "strength",
+      exercises: [
+        {
+          exerciseId: "barbell-bench-press",
+          sets: [
+            { plannedReps: 8, actualReps: 8, plannedWeight: 80, actualWeight: 80, completed: true },
+            { plannedReps: 8, actualReps: 8, plannedWeight: 80, actualWeight: 80, completed: true },
+            { plannedReps: 8, actualReps: 8, plannedWeight: 80, actualWeight: 80, completed: true }
+          ]
+        }
+      ]
+    }
+  ];
+
+  const sug = analyzeExerciseProgression("barbell-bench-press", sessions);
+  assert(sug !== null, "Vorschlag muss generiert werden");
+  equal(sug.suggestionType, "increase_weight", "Muss Steigerung vorschlagen");
+  equal(sug.suggestedWeight, 82.5, "Muss +2.5 kg auf 82.5 kg vorschlagen");
+});
+
+test("Progressive Overload Engine erkennt Plateau über 3 Einheiten und schlägt Deload vor", () => {
+  const sessions = [
+    {
+      id: "s3",
+      date: "2026-08-20",
+      status: "completed",
+      workoutType: "strength",
+      exercises: [
+        {
+          exerciseId: "barbell-squat",
+          sets: [{ plannedReps: 8, actualReps: 5, actualWeight: 100, completed: true }]
+        }
+      ]
+    },
+    {
+      id: "s2",
+      date: "2026-08-15",
+      status: "completed",
+      workoutType: "strength",
+      exercises: [
+        {
+          exerciseId: "barbell-squat",
+          sets: [{ plannedReps: 8, actualReps: 6, actualWeight: 100, completed: true }]
+        }
+      ]
+    },
+    {
+      id: "s1",
+      date: "2026-08-10",
+      status: "completed",
+      workoutType: "strength",
+      exercises: [
+        {
+          exerciseId: "barbell-squat",
+          sets: [{ plannedReps: 8, actualReps: 6, actualWeight: 100, completed: true }]
+        }
+      ]
+    }
+  ];
+
+  const sug = analyzeExerciseProgression("barbell-squat", sessions);
+  assert(sug !== null, "Vorschlag muss generiert werden");
+  equal(sug.suggestionType, "deload", "Muss Deload vorschlagen");
+  equal(sug.suggestedWeight, 90, "10% Deload von 100 kg = 90 kg");
 });
 
 export async function runTrainingTests(){const results=[];for(const item of tests){try{await item.fn();results.push({name:item.name,passed:true})}catch(error){results.push({name:item.name,passed:false,error})}}return results;}

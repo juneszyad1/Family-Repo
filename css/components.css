@@ -2438,3 +2438,69 @@ body.has-fullscreen-chart {
   padding-left: 8px;
   white-space: nowrap;
 }
+
+/* Progressive Overload & Deload Suggestion Pill */
+.overload-suggestion-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  margin: 6px 0 10px 0;
+  border-radius: var(--radius-small);
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  font-size: 0.8rem;
+}
+
+.overload-suggestion-pill.increase_weight {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: color-mix(in srgb, var(--surface-raised) 92%, #10b981);
+}
+
+.overload-suggestion-pill.deload {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: color-mix(in srgb, var(--surface-raised) 92%, #f59e0b);
+}
+
+.overload-suggestion-pill.maintain {
+  border-color: rgba(59, 130, 246, 0.3);
+  background: color-mix(in srgb, var(--surface-raised) 94%, #3b82f6);
+}
+
+.overload-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  font-size: 0.68rem;
+  font-weight: 850;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--primary);
+  color: var(--on-primary);
+  flex-shrink: 0;
+}
+
+.overload-suggestion-pill.increase_weight .overload-badge {
+  background: #10b981;
+  color: #000000;
+}
+
+.overload-suggestion-pill.deload .overload-badge {
+  background: #f59e0b;
+  color: #000000;
+}
+
+.overload-suggestion-pill.maintain .overload-badge {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.overload-reason {
+  flex: 1 1 200px;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
