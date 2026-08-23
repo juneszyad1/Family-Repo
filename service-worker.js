@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "fitness-tracker-";
-const CACHE_NAME = `${CACHE_PREFIX}v52`;
+const CACHE_NAME = `${CACHE_PREFIX}v53`;
 const APP_ASSETS = [
   "./",
   "./index.html",

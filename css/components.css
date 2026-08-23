@@ -184,13 +184,13 @@
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 0 16px;
+  padding: 0 20px;
   border: 1px solid transparent;
-  border-radius: var(--radius-small);
+  border-radius: var(--radius-pill);
   background: var(--primary);
   color: var(--on-primary);
-  font-weight: 700;
-  font-size: 0.9rem;
+  font-weight: 750;
+  font-size: 0.92rem;
   letter-spacing: -0.01em;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   transition: transform 120ms ease, filter 120ms ease, background-color 120ms ease;
@@ -250,17 +250,30 @@
 }
 
 .field input,
-.field textarea,
 .field select {
   width: 100%;
   min-width: 0;
-  min-height: 52px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-small);
-  background: var(--surface-muted);
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
   color: var(--text-primary);
-  padding: 10px 12px;
+  padding: 10px 18px;
   font-weight: 650;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.field textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 104px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  padding: 12px 16px;
+  font-weight: 650;
+  resize: vertical;
   transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
 }
 
@@ -269,7 +282,7 @@
 .field select:focus {
   border-color: color-mix(in srgb, var(--primary) 58%, var(--border));
   background: var(--surface);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 12%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
   outline: none;
 }
 
@@ -759,11 +772,15 @@
 
 .icon-button {
   min-height: 40px;
+  padding: 0 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-small);
-  background: var(--surface);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
   color: var(--text-primary);
-  font-weight: 800;
+  font-weight: 750;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
 }
 
 .empty-state {
@@ -1303,7 +1320,7 @@
   background: var(--primary);
   color: var(--on-primary);
   font-weight: 850;
-  box-shadow: 0 2px 10px rgba(204, 255, 0, 0.35);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .training-heading, .exercise-header, .plan-row {
@@ -1466,13 +1483,14 @@
   width: 100%;
   min-width: 0;
   min-height: 44px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
   background: var(--surface-muted);
   color: var(--text-primary);
-  padding: 8px 10px;
+  padding: 8px 14px;
   font-weight: 750;
   font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .session-set {
