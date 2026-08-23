@@ -464,16 +464,16 @@ function renderFullscreenChart(container, chartData, mode = activeFullscreenMode
   const chartDates = Array.from(new Set(sortedDailyEntries.map((d) => d.date))).sort();
   const chartLabels = chartDates.map(formatDate);
 
-  const primary = getCssColor("--primary");
-  const success = getCssColor("--success");
-  const warningColor = getCssColor("--warning");
-  const violet = getCssColor("--primary-strong");
+  const chartWeight = getCssColor("--chart-weight") || getCssColor("--primary");
+  const chartCalories = getCssColor("--chart-calories") || getCssColor("--warning");
+  const chartProtein = getCssColor("--chart-protein") || getCssColor("--success");
+  const chartSleep = getCssColor("--chart-sleep") || "#818cf8";
 
   const colors = {
-    weight: primary,
-    calories: warningColor,
-    protein: success,
-    sleep: violet
+    weight: chartWeight,
+    calories: chartCalories,
+    protein: chartProtein,
+    sleep: chartSleep
   };
 
   let datasets = [];
@@ -688,16 +688,20 @@ function renderCharts(container, { dailyEntries, allDailyEntries, bodyFatEntries
   const warningColor = getCssColor("--warning");
   const danger = getCssColor("--danger");
   const textSecondary = getCssColor("--text-secondary");
-  const violet = getCssColor("--primary-strong");
+  const chartWeight = getCssColor("--chart-weight") || primary;
+  const chartCalories = getCssColor("--chart-calories") || warningColor;
+  const chartProtein = getCssColor("--chart-protein") || success;
+  const chartSleep = getCssColor("--chart-sleep") || "#818cf8";
+  const chartBodyFat = getCssColor("--chart-body-fat") || danger;
   const today = todayIsoDate();
   const weightGoal = activeGoals.find((goal) => goal.type === GOAL_TYPES.WEIGHT);
   const bodyFatGoal = activeGoals.find((goal) => goal.type === GOAL_TYPES.BODY_FAT);
 
   const combinedColors = {
-    weight: primary,
-    calories: warningColor,
-    protein: success,
-    sleep: violet
+    weight: chartWeight,
+    calories: chartCalories,
+    protein: chartProtein,
+    sleep: chartSleep
   };
 
   const chartDates = Array.from(new Set(sortedDailyEntries.map((d) => d.date))).sort();
@@ -783,7 +787,7 @@ function renderCharts(container, { dailyEntries, allDailyEntries, bodyFatEntries
 
   const bodyFat = entriesForValue(sortedBodyFatEntries, "bodyFatPercentage");
   const bodyFatDatasets = [
-    lineDataset("KFA", bodyFat.map((entry) => ({ x: formatDate(entry.date), y: entry.bodyFatPercentage })), danger)
+    lineDataset("KFA", bodyFat.map((entry) => ({ x: formatDate(entry.date), y: entry.bodyFatPercentage })), chartBodyFat)
   ];
 
   if (bodyFatGoal) {

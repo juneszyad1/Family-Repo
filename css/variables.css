@@ -13,6 +13,11 @@
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
+  --chart-weight: #f59e0b;
+  --chart-calories: #38bdf8;
+  --chart-protein: #10b981;
+  --chart-sleep: #818cf8;
+  --chart-body-fat: #f43f5e;
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.16);
   --specular: inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -49,6 +54,11 @@
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
+  --chart-weight: #f59e0b;
+  --chart-calories: #38bdf8;
+  --chart-protein: #10b981;
+  --chart-sleep: #818cf8;
+  --chart-body-fat: #f43f5e;
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.16);
   --specular: inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -72,6 +82,11 @@
   --success: #059669;
   --warning: #d97706;
   --danger: #dc2626;
+  --chart-weight: #d97706;
+  --chart-calories: #0284c7;
+  --chart-protein: #059669;
+  --chart-sleep: #6366f1;
+  --chart-body-fat: #e11d48;
   --border: rgba(11, 15, 25, 0.1);
   --border-strong: rgba(11, 15, 25, 0.18);
   --specular: inset 0 1px 0 rgba(255, 255, 255, 0.9);

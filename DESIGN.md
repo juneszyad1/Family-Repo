@@ -24,9 +24,17 @@
 | `--success` | `#10b981` | Emerald green (completed sets, targets hit) |
 | `--warning` | `#f59e0b` | Amber (caution, rest timer active) |
 | `--danger` | `#ef4444` | Crimson (delete, discard, over-limit) |
-| `--border` | `rgba(255, 255, 255, 0.08)` | Crisp 1px hairline border |
 | `--border-strong` | `rgba(255, 255, 255, 0.16)` | Active / focused element border |
 | `--hairline` | `1px solid var(--border)` | Canonical divider |
+
+### Telemetry & Chart Channels (`/colorize`)
+| Metric Channel | Token | Value (Dark) | Character & Logic |
+| :--- | :--- | :--- | :--- |
+| **Weight** | `--chart-weight` | `#f59e0b` | Electric Amber (Primary anchor metric) |
+| **Calories** | `--chart-calories` | `#38bdf8` | Precision Sky Blue (Energy flux telemetry) |
+| **Protein** | `--chart-protein` | `#10b981` | Emerald Green (Nutrient & macro targets) |
+| **Sleep** | `--chart-sleep` | `#818cf8` | Indigo Violet (Recovery / circadian rest) |
+| **Body Fat** | `--chart-body-fat` | `#f43f5e` | Rose Crimson (Body composition / cut delta) |
 
 ### Geometry & Radii
 | Token | Value | Rationale |

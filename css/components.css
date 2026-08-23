@@ -1181,10 +1181,10 @@
   flex-shrink: 0;
 }
 
-.dot-primary { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
-.dot-warning { background: var(--warning); box-shadow: 0 0 8px var(--warning); }
-.dot-success { background: var(--success); box-shadow: 0 0 8px var(--success); }
-.dot-violet { background: #a78bfa; box-shadow: 0 0 8px #a78bfa; }
+.dot-primary { background: var(--chart-weight, var(--primary)); }
+.dot-warning { background: var(--chart-calories, var(--warning)); }
+.dot-success { background: var(--chart-protein, var(--success)); }
+.dot-violet { background: var(--chart-sleep, #818cf8); }
 
 .grouped-input-control {
   display: flex;
