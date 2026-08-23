@@ -2087,102 +2087,119 @@ body.has-fullscreen-chart {
   .sticky-action { grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); }
 }
 
-/* Template Card Styling */
+/* Template Card Styling (User Template) */
 .template-demo-card {
-  padding: clamp(18px, 4vw, 24px);
+  background-color: #2b1b2d !important;
+  padding: 40px clamp(20px, 6vw, 60px) !important;
+  border-radius: 4px !important;
+  text-align: center;
+  color: #ffffff !important;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  border: 1px solid #4a2d48 !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4) !important;
 }
 
 .template-demo-card .subtitle {
-  margin: 0 0 4px;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-style: italic;
+  font-family: 'Georgia', serif;
+  color: #c4b0c7;
+  margin: 0 0 5px 0;
+  font-size: 1.1rem;
 }
 
 .template-demo-card .title {
-  margin: 0 0 16px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 1.35rem;
-  font-weight: 850;
-  letter-spacing: -0.025em;
-  color: var(--text-primary);
+  margin: 0 0 35px 0;
+  font-size: 1.8rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-.form-container {
-  display: grid;
-  gap: 12px;
+.template-demo-card .form-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
 }
 
-.input-group {
+.template-demo-card .form-container::before {
+  content: '';
+  position: absolute;
+  left: 20px;
+  top: 24px;
+  height: 68px;
+  width: 2px;
+  background-color: #4a2d48;
+  z-index: 1;
+}
+
+.template-demo-card .input-group {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 4px 10px 4px 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-small);
-  background: var(--surface-raised);
-  transition: border-color 140ms ease;
-}
-
-.input-group:focus-within {
-  border-color: var(--primary);
-}
-
-.step-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-xs);
-  background: var(--primary);
-  color: var(--on-primary);
-  font-size: 0.75rem;
-  font-weight: 800;
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.input-group input {
-  flex: 1 1 auto;
-  min-width: 0;
-  min-height: 40px;
-  border: 0;
+  gap: 16px;
+  width: 100%;
+  position: relative;
+  z-index: 2;
+  border: none;
   background: transparent;
-  color: var(--text-primary);
-  font-size: 0.95rem;
-  font-weight: 600;
-  outline: none;
+  padding: 0;
 }
 
-.input-group input::placeholder {
-  color: var(--text-tertiary);
-}
-
-.submit-btn {
-  display: inline-flex;
-  align-items: center;
+.template-demo-card .step-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background-color: #2b1b2d;
+  border: 2px solid #4a2d48;
+  display: flex;
   justify-content: center;
-  min-height: 44px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: var(--radius-small);
-  background: var(--primary);
-  color: var(--on-primary);
-  font-weight: 750;
-  font-size: 0.92rem;
-  letter-spacing: -0.01em;
-  cursor: pointer;
-  transition: filter 140ms ease, transform 140ms ease;
+  align-items: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #e5d7e5;
+  flex-shrink: 0;
 }
 
-.submit-btn:hover {
-  filter: brightness(1.08);
+.template-demo-card input {
+  flex-grow: 1;
+  padding: 12px 20px;
+  border-radius: 50px;
+  border: none;
+  outline: none;
+  font-size: 1rem;
+  color: #333333;
+  background-color: #ffffff;
+  width: 100%;
+  min-height: 44px;
+}
+
+.template-demo-card input::placeholder {
+  color: #a0a0a0;
+}
+
+.template-demo-card .submit-btn {
+  margin-top: 15px;
+  padding: 10px 32px;
+  border-radius: 50px;
+  border: none;
+  background: linear-gradient(180deg, #68264d 0%, #4a1a36 100%);
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.template-demo-card .submit-btn:hover {
+  background: linear-gradient(180deg, #7c2e5c 0%, #582041 100%);
   transform: translateY(-1px);
 }
 
-.submit-btn:active {
-  transform: translateY(0) scale(0.98);
+.template-demo-card .submit-btn:active {
+  transform: translateY(1px);
 }
