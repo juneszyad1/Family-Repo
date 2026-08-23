@@ -11,13 +11,13 @@
 ### Dark Mode (Primary Default)
 | Token | Value | Purpose |
 | :--- | :--- | :--- |
-| `--background` | `#08090c` | Deep space obsidian canvas |
-| `--surface` | `#101217` | Primary card / component background |
-| `--surface-raised` | `#161920` | Elevated inputs, active rows |
-| `--surface-muted` | `#1c202a` | Secondary action tiles, chip surfaces |
-| `--text-primary` | `#f1f3f7` | Crisp high-contrast chalk white text |
-| `--text-secondary` | `#8b93a4` | Technical slate secondary labels |
-| `--text-tertiary` | `#586072` | Dimmed metadata / unit descriptors |
+| `--background` | `#000000` | Pure OLED pitch black canvas |
+| `--surface` | `#090b10` | Ultra-deep primary card surface |
+| `--surface-raised` | `#11141c` | Elevated inputs, active set rows |
+| `--surface-muted` | `#171b26` | Secondary action tiles, chip surfaces |
+| `--text-primary` | `#f8fafc` | Crisp high-contrast chalk white text |
+| `--text-secondary` | `#8e96a7` | Technical slate secondary labels |
+| `--text-tertiary` | `#5b6477` | Dimmed metadata / unit descriptors |
 | `--primary` | `#f59e0b` | High-visibility Electric Amber (action / focus) |
 | `--primary-strong` | `#fbbf24` | Hover / active state for primary |
 | `--on-primary` | `#08090c` | Text on primary accent |

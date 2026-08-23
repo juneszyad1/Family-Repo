@@ -1,15 +1,15 @@
 :root {
   color-scheme: dark;
-  --background: #08090c;
-  --surface: #101217;
-  --surface-raised: #161920;
-  --surface-muted: #1c202a;
-  --text-primary: #f1f3f7;
-  --text-secondary: #8b93a4;
-  --text-tertiary: #586072;
+  --background: #000000;
+  --surface: #090b10;
+  --surface-raised: #11141c;
+  --surface-muted: #171b26;
+  --text-primary: #f8fafc;
+  --text-secondary: #8e96a7;
+  --text-tertiary: #5b6477;
   --primary: #f59e0b;
   --primary-strong: #fbbf24;
-  --on-primary: #08090c;
+  --on-primary: #000000;
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
@@ -22,8 +22,8 @@
   --border-strong: rgba(255, 255, 255, 0.16);
   --specular: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   --specular-strong: inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  --shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-  --shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.2);
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.3);
   --radius: 8px;
   --radius-small: 6px;
   --radius-xs: 4px;
@@ -41,16 +41,16 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --background: #08090c;
-  --surface: #101217;
-  --surface-raised: #161920;
-  --surface-muted: #1c202a;
-  --text-primary: #f1f3f7;
-  --text-secondary: #8b93a4;
-  --text-tertiary: #586072;
+  --background: #000000;
+  --surface: #090b10;
+  --surface-raised: #11141c;
+  --surface-muted: #171b26;
+  --text-primary: #f8fafc;
+  --text-secondary: #8e96a7;
+  --text-tertiary: #5b6477;
   --primary: #f59e0b;
   --primary-strong: #fbbf24;
-  --on-primary: #08090c;
+  --on-primary: #000000;
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
@@ -63,8 +63,8 @@
   --border-strong: rgba(255, 255, 255, 0.16);
   --specular: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   --specular-strong: inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  --shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-  --shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.2);
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-soft: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 :root[data-theme="light"] {
