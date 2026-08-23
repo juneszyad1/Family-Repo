@@ -18,6 +18,7 @@ import {
 } from "../training/training-constants.js";
 import { StretchTimer } from "../training/stretch-timer.js";
 import { RestTimer } from "../training/rest-timer.js";
+import { calculatePlates, calculateWarmupSets, PLATE_COLORS, STANDARD_BAR_WEIGHTS } from "../training/plate-calculator.js";
 import { triggerDelight } from "../delight.js";
 
 const state = {
@@ -29,6 +30,7 @@ const state = {
   editingPlan: null,
   activeSession: null,
   workoutSummary: null,
+  plateCalc: null,
   historyType: "all",
   picker: { query: "", category: "", equipment: "", movementPattern: "", favorites: false, custom: false, recent: false },
   timers: new Map(),
@@ -111,6 +113,7 @@ function strengthPlanExercise(item, index) {
         <h3>${escapeHtml(exerciseName(item.exerciseId))}</h3>
       </div>
       <div class="compact-actions">
+        <button type="button" class="button secondary compact-button" data-generate-plan-warmup title="Aufwärm-Pyramide vor den Arbeitssätzen generieren">+ Warm-up</button>
         <button type="button" class="button secondary compact-button ${isSuperset ? "active-superset-btn" : ""}" data-toggle-plan-superset title="Als Supersatz mit benachbarter Übung koppeln/entkoppeln">
           ${isSuperset ? `SS: ${escapeHtml(item.supersetId)}` : "+ Supersatz"}
         </button>
@@ -128,6 +131,7 @@ function strengthPlanExercise(item, index) {
         <label>Wdh.<input type="number" inputmode="numeric" min="0" max="1000" value="${set.targetReps}" data-target-reps></label>
         <label>kg<input type="number" inputmode="decimal" min="0" max="1000" step="0.1" value="${set.targetWeight}" data-target-weight></label>
         <label>RIR<input type="number" inputmode="numeric" min="0" max="10" step="1" value="${set.targetRir ?? ''}" placeholder="–" data-target-rir></label>
+        <button type="button" class="icon-button compact-button" data-open-plate-calc="${set.targetWeight}" data-target-set-id="${set.id}" title="Hantelscheiben berechnen">⚖</button>
         <button class="icon-button danger" data-remove-set aria-label="Satz entfernen">×</button>
       </div>`;
     }).join("")}</div>
@@ -278,6 +282,88 @@ function workoutCompletionModal(summary) {
   `;
 }
 
+function plateCalculatorModal(plateCalc) {
+  if (!plateCalc || !plateCalc.isOpen) return "";
+  const { targetWeight, barWeight, targetSetId } = plateCalc;
+  const result = calculatePlates(targetWeight, barWeight);
+
+  return `
+    <div class="completion-celebration" data-plate-calc-overlay>
+      <div class="celebration-modal plate-calc-modal" role="dialog" aria-modal="true" aria-labelledby="plate-calc-title">
+        <div class="celebration-banner">
+          <div class="celebration-icon">⚖</div>
+          <h2 id="plate-calc-title" class="celebration-title">Hantelscheiben-Rechner</h2>
+          <p class="celebration-subtitle">Optimales Stecken pro Seite</p>
+        </div>
+
+        <div class="plate-calc-hero">
+          <div class="plate-calc-target-display">
+            <span class="metric-label">Gesamtgewicht</span>
+            <p class="hero-value">${formatNumber(result.targetWeight, { maximumFractionDigits: 1 })}<span>kg</span></p>
+          </div>
+          <div class="plate-calc-side-display">
+            <span class="metric-label">Pro Seite</span>
+            <p class="hero-value" style="font-size: 1.6rem;">${formatNumber(result.weightPerSide, { maximumFractionDigits: 2 })}<span>kg</span></p>
+          </div>
+        </div>
+
+        <div class="plate-calc-controls">
+          <div class="plate-calc-adjusters">
+            <button type="button" class="button secondary compact-button" data-adjust-plate-target="-5">-5 kg</button>
+            <button type="button" class="button secondary compact-button" data-adjust-plate-target="-2.5">-2.5 kg</button>
+            <button type="button" class="button secondary compact-button" data-adjust-plate-target="+2.5">+2.5 kg</button>
+            <button type="button" class="button secondary compact-button" data-adjust-plate-target="+5">+5 kg</button>
+          </div>
+          
+          <label class="field" style="margin-top: 8px;">
+            <span>Stangengewicht</span>
+            <select data-plate-bar-select>
+              ${STANDARD_BAR_WEIGHTS.map((b) => `
+                <option value="${b.value}" ${b.value === barWeight ? "selected" : ""}>${b.label}</option>
+              `).join("")}
+            </select>
+          </label>
+        </div>
+
+        <div class="barbell-visual-wrap">
+          <div class="barbell-visual">
+            <div class="barbell-collar"></div>
+            <div class="barbell-sleeve">
+              ${result.platesPerSide.map((p) => {
+                const color = PLATE_COLORS[p.plate] || "#64748b";
+                return Array.from({ length: p.count }).map(() => `
+                  <div class="barbell-plate plate-${String(p.plate).replace('.', '-')}" style="--plate-color: ${color};" title="${p.plate} kg">
+                    <span>${p.plate}</span>
+                  </div>
+                `).join("");
+              }).join("")}
+              ${!result.platesPerSide.length ? `<span class="empty-sleeve-hint">Nur Stange (${barWeight} kg)</span>` : ""}
+            </div>
+          </div>
+        </div>
+
+        <div class="plate-breakdown-list">
+          ${result.platesPerSide.length ? `
+            <div class="stat-strip">
+              ${result.platesPerSide.map((p) => `
+                <div class="stat-cell">
+                  <p class="stat-label">${p.plate} kg</p>
+                  <p class="stat-value">${p.count}× <span class="stat-unit">/ Seite</span></p>
+                </div>
+              `).join("")}
+            </div>
+          ` : `<p class="muted text-center" style="font-size: 0.85rem; margin: 8px 0;">Keine Scheiben nötig. Nutze nur die Stange (${barWeight} kg).</p>`}
+        </div>
+
+        <div class="form-actions field-full" style="margin-top: 14px;">
+          ${targetSetId ? `<button type="button" class="button" data-apply-plate-weight="${result.targetWeight}" data-target-set-id="${targetSetId}">Gewicht übernehmen (${result.targetWeight} kg)</button>` : ""}
+          <button type="button" class="button secondary" data-close-plate-calc>Schließen</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function historyView() {
   const items = state.sessions.filter((s)=>s.status!==WORKOUT_STATUS.IN_PROGRESS && (state.historyType==="all"||s.workoutType===state.historyType)).sort((a,b)=>(b.completedAt||b.updatedAt).localeCompare(a.completedAt||a.updatedAt));
   return `<section class="view-stack"><section class="card"><div class="card-body"><label class="field"><span>Historie filtern</span><select data-history-filter><option value="all">Alle</option>${typeOptions}</select></label></div></section>${items.length?`<div class="entry-list">${items.map((s)=>{const sum=summarizeWorkout(s);return `<article class="card"><div class="card-body plan-row"><div><span class="status-pill">${WORKOUT_TYPE_LABELS[s.workoutType]}</span><h3>${escapeHtml(s.planNameSnapshot)}</h3><p class="muted">${formatDate(s.date)} · ${duration(s.durationSeconds)} · ${sum.exerciseCount} Übungen · ${s.status==="completed"?"Abgeschlossen":"Abgebrochen"}</p></div><div class="entry-actions"><button class="button secondary" data-show-summary="${s.id}">Zusammenfassung</button><button class="button secondary" data-open-session="${s.id}">Öffnen</button><button class="button danger" data-delete-session="${s.id}">Löschen</button></div></div></article>`}).join("")}</div>`:`<section class="card empty-state"><h2>Noch keine Einheiten</h2><p>Abgeschlossene Trainings erscheinen hier.</p></section>`}</section>`;
@@ -365,6 +451,7 @@ function sessionExercise(exercise,index,type,readonly) {
           <label>RIR · Ziel ${set.targetRir ?? "–"}
             <input type="number" inputmode="numeric" min="0" max="10" step="1" value="${set.actualRir ?? ""}" placeholder="${ghostRir}" data-actual-rir>
           </label>
+          <button type="button" class="icon-button compact-button" data-open-plate-calc="${set.actualWeight || set.plannedWeight || 20}" data-target-set-id="${set.id}" title="Hantelscheiben berechnen">⚖</button>
           <label class="set-check">
             <input type="checkbox" data-set-completed ${set.completed ? "checked" : ""}>
             <span>${set.completed ? "Erledigt" : "Satz abschließen"}</span>
@@ -396,6 +483,7 @@ function sessionExercise(exercise,index,type,readonly) {
         </div>
         <div class="compact-actions">
           ${!readonly && type===WORKOUT_TYPES.STRENGTH ? `
+            <button type="button" class="button secondary compact-button" data-generate-session-warmup="${exercise.id}" title="Aufwärm-Pyramide vor den Arbeitssätzen generieren">+ Warm-up</button>
             <button type="button" class="button secondary compact-button ${isSuperset ? "active-superset-btn" : ""}" data-toggle-session-superset="${exercise.id}" title="Als Supersatz mit benachbarter Übung koppeln/entkoppeln">
               ${isSuperset ? `SS: ${escapeHtml(exercise.supersetId)}` : "+ Supersatz"}
             </button>
@@ -444,7 +532,7 @@ function renderContent(container) {
   document.body.classList.toggle("workout-focus", Boolean(isSession && state.activeSession.status === WORKOUT_STATUS.IN_PROGRESS));
   const activeTab = TRAINING_TABS.some(([id]) => id === state.tab) ? state.tab : "plans";
   const tabPanels = TRAINING_TABS.map(([id]) => `<div role="tabpanel" id="training-panel-${id}" aria-labelledby="training-tab-${id}" tabindex="0" ${id===activeTab?"":"hidden"}>${id===activeTab?`${resumePanel()}${content}`:""}</div>`).join("");
-  container.innerHTML = `<div data-training-status aria-live="polite"></div>${isSession?"":navigation()}${isSession?content:tabPanels}${workoutCompletionModal(state.workoutSummary)}`;
+  container.innerHTML = `<div data-training-status aria-live="polite"></div>${isSession?"":navigation()}${isSession?content:tabPanels}${workoutCompletionModal(state.workoutSummary)}${plateCalculatorModal(state.plateCalc)}`;
 }
 function mutatePlanExercise(target, callback) { const el=target.closest("[data-plan-exercise]"); const item=state.editingPlan.exercises.find((x)=>x.id===el?.dataset.planExercise); if(item) callback(item,el); }
 async function persistActive(container) { if (!state.activeSession) return; await saveWorkoutSession(state.activeSession); state.sessions=await getWorkoutSessions(); }
@@ -539,6 +627,95 @@ function bindEvents(container) {
       if(button.hasAttribute("data-close-session")){await persistActive(container);state.activeSession=state.sessions.find((s)=>s.status===WORKOUT_STATUS.IN_PROGRESS)||null;state.tab="history";renderContent(container);return;}
       if(button.hasAttribute("data-add-session-set")){const ex=state.activeSession.exercises.find((x)=>x.id===button.closest("[data-session-exercise]").dataset.sessionExercise);const last=ex.sets.at(-1)||{};ex.sets.push({id:createId("session-set"),setType:last.setType??"normal",plannedReps:last.plannedReps??0,plannedWeight:last.plannedWeight??0,targetRir:last.targetRir??null,actualReps:last.actualReps??0,actualWeight:last.actualWeight??0,actualRir:last.actualRir??null,completed:false});await persistActive(container);renderContent(container);return;}
       if(button.hasAttribute("data-remove-session-set")){const ex=state.activeSession.exercises.find((x)=>x.id===button.closest("[data-session-exercise]").dataset.sessionExercise);if(ex.sets.length>1)ex.sets=ex.sets.filter((s)=>s.id!==button.closest("[data-session-set]").dataset.sessionSet);await persistActive(container);renderContent(container);return;}
+      if(button.hasAttribute("data-open-plate-calc")){
+        const weight = Number(button.dataset.openPlateCalc) || 20;
+        const targetSetId = button.dataset.targetSetId || null;
+        state.plateCalc = {
+          isOpen: true,
+          targetWeight: Math.max(20, weight),
+          barWeight: 20,
+          targetSetId
+        };
+        triggerHaptic("light");
+        renderContent(container);
+        return;
+      }
+      if(button.hasAttribute("data-close-plate-calc")){
+        state.plateCalc = null;
+        renderContent(container);
+        return;
+      }
+      if(button.dataset.adjustPlateTarget){
+        const delta = parseFloat(button.dataset.adjustPlateTarget) || 0;
+        if(state.plateCalc){
+          state.plateCalc.targetWeight = Math.max(state.plateCalc.barWeight, Number((state.plateCalc.targetWeight + delta).toFixed(2)));
+          triggerHaptic("light");
+          renderContent(container);
+        }
+        return;
+      }
+      if(button.hasAttribute("data-apply-plate-weight")){
+        const newWeight = Number(button.dataset.applyPlateWeight) || 0;
+        const setId = button.dataset.targetSetId;
+        if(state.editingPlan){
+          for(const ex of state.editingPlan.exercises){
+            const s = (ex.sets || []).find((st) => st.id === setId);
+            if(s){ s.targetWeight = newWeight; break; }
+          }
+        } else if(state.activeSession){
+          for(const ex of state.activeSession.exercises){
+            const s = (ex.sets || []).find((st) => st.id === setId);
+            if(s){ s.actualWeight = newWeight; break; }
+          }
+          await persistActive(container);
+        }
+        state.plateCalc = null;
+        triggerHaptic("medium");
+        renderContent(container);
+        return;
+      }
+      if(button.hasAttribute("data-generate-plan-warmup")){
+        mutatePlanExercise(button,(item)=>{
+          const firstWorkSet = item.sets.find((s)=>s.setType!=="warmup") || item.sets[0];
+          const workWeight = Number(firstWorkSet?.targetWeight) || 60;
+          const warmupSets = calculateWarmupSets(workWeight).map((ws)=>({
+            id: createId("set-template"),
+            setType: "warmup",
+            targetReps: ws.plannedReps,
+            targetWeight: ws.plannedWeight,
+            targetRir: null
+          }));
+          const workSets = item.sets.filter((s)=>s.setType!=="warmup");
+          item.sets = [...warmupSets, ...workSets];
+          triggerHaptic("medium");
+        });
+        renderContent(container);
+        return;
+      }
+      if(button.dataset.generateSessionWarmup){
+        const ex = state.activeSession.exercises.find((x)=>x.id===button.dataset.generateSessionWarmup);
+        if(ex){
+          const firstWorkSet = ex.sets.find((s)=>s.setType!=="warmup") || ex.sets[0];
+          const workWeight = Number(firstWorkSet?.actualWeight || firstWorkSet?.plannedWeight) || 60;
+          const warmupSets = calculateWarmupSets(workWeight).map((ws)=>({
+            id: createId("session-set"),
+            setType: "warmup",
+            plannedReps: ws.plannedReps,
+            plannedWeight: ws.plannedWeight,
+            targetRir: null,
+            actualReps: ws.plannedReps,
+            actualWeight: ws.plannedWeight,
+            actualRir: null,
+            completed: false
+          }));
+          const workSets = ex.sets.filter((s)=>s.setType!=="warmup");
+          ex.sets = [...warmupSets, ...workSets];
+          triggerHaptic("medium");
+          await persistActive(container);
+          renderContent(container);
+        }
+        return;
+      }
       if(button.hasAttribute("data-next-exercise")){button.closest("[data-session-exercise]").nextElementSibling?.scrollIntoView({behavior:"smooth",block:"start"});await persistActive(container);return;}
       if(button.dataset.autofillExercise){
         const ex=state.activeSession.exercises.find((x)=>x.id===button.dataset.autofillExercise);
@@ -608,6 +785,16 @@ function bindEvents(container) {
     if(state.activeSession&&t.name==="notes"){state.activeSession.notes=t.value;await persistActive(container);}
   });
   container.addEventListener("change",async(event)=>{const t=event.target;
+    if(t.hasAttribute("data-plate-bar-select")){
+      if(state.plateCalc){
+        state.plateCalc.barWeight=Number(t.value)||20;
+        if(state.plateCalc.targetWeight<state.plateCalc.barWeight){
+          state.plateCalc.targetWeight=state.plateCalc.barWeight;
+        }
+        renderContent(container);
+      }
+      return;
+    }
     if(t.matches("[name='workoutType']")&&state.editingPlan&&!state.editingPlan.exercises.length){state.editingPlan.workoutType=t.value;renderContent(container);return;}
     if(t.hasAttribute("data-picker-category")){state.picker.category=t.value;renderContent(container);return;}if(t.hasAttribute("data-picker-equipment")){state.picker.equipment=t.value;renderContent(container);return;}if(t.hasAttribute("data-picker-movement")){state.picker.movementPattern=t.value;renderContent(container);return;}if(t.hasAttribute("data-picker-favorites")){state.picker.favorites=t.checked;renderContent(container);return;}if(t.hasAttribute("data-picker-custom")){state.picker.custom=t.checked;renderContent(container);return;}if(t.hasAttribute("data-picker-recent")){state.picker.recent=t.checked;renderContent(container);return;}
     if(t.hasAttribute("data-side-mode"))mutatePlanExercise(t,(item)=>item.sideMode=t.value);

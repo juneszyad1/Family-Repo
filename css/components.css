@@ -2340,3 +2340,101 @@ body.has-fullscreen-chart {
   font-weight: 850;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
+
+/* Plate Calculator Modal & Visual Barbell */
+.plate-calc-modal {
+  max-width: 480px;
+}
+
+.plate-calc-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 12px 0;
+  text-align: center;
+}
+
+.plate-calc-target-display, .plate-calc-side-display {
+  padding: 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+}
+
+.plate-calc-adjusters {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.barbell-visual-wrap {
+  margin: 16px 0;
+  padding: 18px 12px;
+  background: color-mix(in srgb, var(--surface-raised) 80%, #000000);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.barbell-visual {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 100px;
+  padding-left: 20px;
+}
+
+.barbell-collar {
+  width: 14px;
+  height: 48px;
+  background: #94a3b8;
+  border-radius: 2px;
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.5);
+  flex-shrink: 0;
+}
+
+.barbell-sleeve {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  min-width: 220px;
+  background: linear-gradient(180deg, #cbd5e1 0%, #64748b 100%);
+  border-radius: 0 4px 4px 0;
+  padding: 0 10px;
+  position: relative;
+}
+
+.barbell-plate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  background: var(--plate-color, #64748b);
+  color: #000000;
+  border: 1.5px solid rgba(0, 0, 0, 0.4);
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: 900;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.barbell-plate.plate-25 { height: 96px; min-width: 26px; }
+.barbell-plate.plate-20 { height: 90px; min-width: 24px; }
+.barbell-plate.plate-15 { height: 76px; min-width: 22px; }
+.barbell-plate.plate-10 { height: 64px; min-width: 20px; }
+.barbell-plate.plate-5 { height: 52px; min-width: 18px; color: #000; }
+.barbell-plate.plate-2-5 { height: 42px; min-width: 16px; color: #fff; }
+.barbell-plate.plate-1-25 { height: 34px; min-width: 14px; color: #fff; }
+.barbell-plate.plate-0-5 { height: 28px; min-width: 12px; color: #000; }
+
+.empty-sleeve-hint {
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding-left: 8px;
+  white-space: nowrap;
+}

@@ -6,6 +6,7 @@ import { calculateSetVolume, calculateStretchPlannedDuration, calculateWorkoutDu
 import { validateCustomExercise, validateWorkoutPlan } from "../js/training/workout-validation.js";
 import { completeSession, createSessionFromPlan } from "../js/training/workout-sessions.js";
 import { RestTimer } from "../js/training/rest-timer.js";
+import { calculatePlates, calculateWarmupSets } from "../js/training/plate-calculator.js";
 
 const tests=[]; const test=(name,fn)=>tests.push({name,fn});
 const assert=(condition,message)=>{if(!condition)throw new Error(message)};
@@ -262,6 +263,50 @@ test("RestTimer startet, pausiert und passt Restzeit an", () => {
   equal(timer.status, "ready", "Reset muss status ready herstellen");
   equal(timer.remainingSeconds, 90, "Reset muss 90s herstellen");
   timer.destroy();
+});
+
+test("Plate Calculator berechnet Hantelscheiben pro Seite exakt", () => {
+  // 100 kg mit 20 kg Stange = 40 kg pro Seite (1x 20 kg + 1x 20 kg oder 1x 25 kg + 1x 15 kg)
+  // Mit Standard-Platten [25, 20, 15, 10, 5, 2.5, 1.25, 0.5]:
+  // 40 kg = 1x 25 kg + 1x 15 kg
+  const p100 = calculatePlates(100, 20);
+  equal(p100.weightPerSide, 40, "40 kg pro Seite bei 100 kg");
+  equal(p100.totalAchieved, 100, "100 kg gesamt");
+  equal(p100.isExact, true, "Exakt erreicht");
+
+  // 60 kg mit 20 kg Stange = 20 kg pro Seite (1x 20 kg)
+  const p60 = calculatePlates(60, 20);
+  equal(p60.weightPerSide, 20, "20 kg pro Seite bei 60 kg");
+  equal(p60.platesPerSide.length, 1, "1 Scheibe pro Seite");
+  equal(p60.platesPerSide[0].plate, 20, "20 kg Scheibe");
+
+  // 92.5 kg mit 20 kg Stange = 36.25 kg pro Seite (25 + 10 + 1.25 = 36.25)
+  const p92_5 = calculatePlates(92.5, 20);
+  equal(p92_5.weightPerSide, 36.25, "36.25 kg pro Seite bei 92.5 kg");
+  equal(p92_5.totalAchieved, 92.5, "92.5 kg gesamt");
+
+  // 20 kg mit 20 kg Stange = nur Stange
+  const p20 = calculatePlates(20, 20);
+  equal(p20.weightPerSide, 0, "0 kg pro Seite");
+  equal(p20.platesPerSide.length, 0, "Keine Scheiben");
+});
+
+test("Warmup-Generator erstellt strukturierte Pyramide", () => {
+  // Ziel: 100 kg
+  // 1. 20 kg x 10 Wdh.
+  // 2. 50% = 50 kg x 5 Wdh.
+  // 3. 70% = 70 kg x 3 Wdh.
+  // 4. 88% = 87.5 kg x 1 Wdh.
+  const warmups100 = calculateWarmupSets(100, 20);
+  assert(warmups100.length >= 3, "Mindestens 3 Warmup-Sätze bei 100 kg");
+  equal(warmups100[0].plannedWeight, 20, "1. Satz Stange 20 kg");
+  equal(warmups100[0].plannedReps, 10, "10 Wdh. mit Stange");
+  equal(warmups100.every(s => s.setType === "warmup"), true, "Alle müssen als warmup markiert sein");
+
+  // Bei nur Stange (20 kg)
+  const warmups20 = calculateWarmupSets(20, 20);
+  equal(warmups20.length, 1, "Nur 1 Stangensatz");
+  equal(warmups20[0].plannedWeight, 20, "Stange 20 kg");
 });
 
 export async function runTrainingTests(){const results=[];for(const item of tests){try{await item.fn();results.push({name:item.name,passed:true})}catch(error){results.push({name:item.name,passed:false,error})}}return results;}
