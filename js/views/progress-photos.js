@@ -168,6 +168,7 @@ export function renderProgressPhotos() {
   container.innerHTML = `
     <section class="card">
       <div class="card-body">
+        <p class="metric-label">Visuelle Dokumentation</p>
         <h2 class="section-title">Fortschrittsbild hochladen</h2>
         <p class="muted settings-note">Bilder werden lokal auf diesem Gerät gespeichert und im JSON-Backup mitgesichert.</p>
         <div data-errors></div>

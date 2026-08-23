@@ -12,10 +12,11 @@
 .section-title {
   margin: 0 0 12px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 1.15rem;
-  font-weight: 750;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
 }
 
 .muted {
@@ -44,9 +45,9 @@
 .metric-label {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 750;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
 }
 
@@ -60,11 +61,12 @@
 .metric-value {
   margin: 4px 0 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 1.65rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: 1.85rem;
+  font-weight: 850;
+  letter-spacing: -0.035em;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
 
 .metric .muted {
@@ -834,20 +836,21 @@
 }
 
 .hero-value {
-  margin: 8px 0 12px;
-  font-size: clamp(2.8rem, 8vw, 4.2rem);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  margin: 6px 0 10px;
+  font-size: clamp(2.6rem, 7vw, 3.8rem);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-weight: 850;
   line-height: 0.95;
   letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
 }
 
 .hero-value span {
-  margin-left: 8px;
-  color: var(--text-secondary);
-  font-size: 0.35em;
-  font-weight: 700;
+  margin-left: 6px;
+  color: var(--text-tertiary);
+  font-size: 0.38em;
+  font-weight: 650;
   letter-spacing: 0;
 }
 

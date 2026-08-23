@@ -100,6 +100,7 @@ function renderHistory(entries, expanded = false) {
   return `
     <section class="card">
       <div class="card-body">
+        <p class="metric-label">Tagesdaten-Historie</p>
         <h2 class="section-title">Letzte Einträge</h2>
         <div class="entry-list">
           ${visibleEntries
@@ -146,6 +147,7 @@ function renderCircumferenceHistory(entries, expanded = false) {
   return `
     <section class="card">
       <div class="card-body">
+        <p class="metric-label">Umfang-Historie</p>
         <h2 class="section-title">Letzte Umfangmessungen</h2>
         <div class="entry-list">
           ${visibleEntries

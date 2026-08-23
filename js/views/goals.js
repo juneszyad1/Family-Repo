@@ -657,6 +657,7 @@ export function renderGoals() {
   container.innerHTML = `
     <section class="card">
       <div class="card-body">
+        <p class="metric-label">Zielplanung</p>
         <h2 class="section-title" data-form-title>Ziel erstellen</h2>
         <div data-status></div>
         <form class="form-grid" data-goal-form>

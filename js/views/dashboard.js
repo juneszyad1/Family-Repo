@@ -107,7 +107,10 @@ function renderGoalSummaries(activeGoals, dailyEntries, bodyFatEntries) {
 
   return `
     <section class="view-stack">
-      <h2 class="section-title dashboard-section-title">Aktive Ziele</h2>
+      <div>
+        <p class="metric-label">Ziel-Tracking</p>
+        <h2 class="section-title dashboard-section-title">Aktive Ziele</h2>
+      </div>
       ${activeGoals.map((goal) => renderGoalSummary(goal, dailyEntries, bodyFatEntries)).join("")}
     </section>
   `;

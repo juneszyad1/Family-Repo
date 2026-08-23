@@ -87,6 +87,7 @@ function renderHistory(entries) {
   return `
     <section class="card">
       <div class="card-body">
+        <p class="metric-label">KFA-Historie</p>
         <h2 class="section-title">Letzte Messungen</h2>
         <div class="entry-list">
           ${sortByDateDesc(entries)
@@ -252,6 +253,7 @@ export function renderBodyFat() {
   container.innerHTML = `
     <section class="card">
       <div class="card-body">
+        <p class="metric-label">3-Falten-Methode (Jackson/Pollock)</p>
         <h2 class="section-title" data-form-mode>Neue KFA-Messung</h2>
         <div data-errors></div>
         <div data-status></div>

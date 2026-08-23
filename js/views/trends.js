@@ -318,7 +318,7 @@ function renderExerciseProgressionSection(workoutSessions = [], selectedExercise
       <div class="card-body">
         <div class="chart-header">
           <div>
-            <span class="status-pill">Kraftanalyse</span>
+            <p class="metric-label">Kraftanalyse</p>
             <h2 class="section-title">Kraftprogression & 1RM-Verlauf</h2>
           </div>
         </div>
@@ -425,7 +425,10 @@ function renderCombinedChartShell(range, dailyEntries) {
     <section class="card">
       <div class="card-body">
         <div class="chart-header">
-          <h2 class="section-title">Übersicht (Tageswerte) · ${getRangeLabel(range)}</h2>
+          <div>
+            <p class="metric-label">Tagesdaten · Multi-Achsen</p>
+            <h2 class="section-title">Übersicht (Tageswerte) · ${getRangeLabel(range)}</h2>
+          </div>
           <button type="button" class="chart-fullscreen-trigger" data-open-fullscreen="combined" aria-label="Tageswert-Diagramm im Vollbild anzeigen">
             ⛶
           </button>
@@ -598,7 +601,7 @@ function renderRollingChartShell(range, dailyEntries) {
       <div class="card-body">
         <div class="chart-header">
           <div>
-            <span class="status-pill">Glättung · 1 Woche</span>
+            <p class="metric-label">Glättung · 1 Woche</p>
             <h2 class="section-title">Gleitender 7-Tage-Durchschnitt · ${getRangeLabel(range)}</h2>
           </div>
           <button type="button" class="chart-fullscreen-trigger" data-open-fullscreen="rolling" aria-label="Gleitenden 7-Tage-Durchschnitt im Vollbild anzeigen">
