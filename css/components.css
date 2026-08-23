@@ -1,21 +1,21 @@
 .card {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, rgba(255, 255, 255, 0) 100%), var(--surface);
-  box-shadow: var(--specular), var(--shadow-soft);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
 }
 
 .card-body {
-  padding: clamp(16px, 4vw, 22px);
+  padding: clamp(14px, 3.5vw, 20px);
 }
 
 .section-title {
   margin: 0 0 12px;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
-  font-size: 1.2rem;
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
 }
 
 .muted {
@@ -30,24 +30,23 @@
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .metric {
-  min-height: 104px;
-  padding: 16px;
+  min-height: 96px;
+  padding: 14px;
   border-radius: var(--radius);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 100%), var(--surface-raised);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
-  box-shadow: var(--specular);
 }
 
 .metric-label {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -59,28 +58,28 @@
 }
 
 .metric-value {
-  margin: 6px 0 0;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
-  font-size: 1.75rem;
-  font-weight: 850;
-  letter-spacing: -0.03em;
+  margin: 4px 0 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 1.65rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
 .metric .muted {
-  margin: 6px 0 0;
-  font-size: 0.82rem;
+  margin: 4px 0 0;
+  font-size: 0.8rem;
 }
 
 .progress-stack {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 
 .progress-block {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .progress-header {
@@ -89,21 +88,22 @@
   justify-content: space-between;
   gap: 12px;
   color: var(--text-secondary);
-  font-size: 0.88rem;
-  font-weight: 750;
+  font-size: 0.85rem;
+  font-weight: 650;
 }
 
 .progress-header strong {
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .progress-track {
   position: relative;
-  height: 8px;
+  height: 6px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--radius-xs);
   background: var(--surface-muted);
 }
 
@@ -112,24 +112,23 @@
   inset: 0 auto 0 0;
   border-radius: inherit;
   background: var(--primary);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--primary) 50%, transparent);
   transform-origin: left;
-  animation: progress-in 480ms ease-out both;
+  animation: progress-in 400ms ease-out both;
 }
 
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .compact-metric {
-  min-height: 88px;
-  padding: 14px;
+  min-height: 80px;
+  padding: 12px;
 }
 
 .compact-metric .metric-value {
-  font-size: 1.45rem;
+  font-size: 1.35rem;
 }
 
 .chart-frame {
@@ -172,7 +171,6 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-raised);
-  box-shadow: var(--specular);
 }
 
 .inline-action-panel p {
@@ -183,24 +181,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
-  padding: 0 20px;
+  min-height: 44px;
+  padding: 0 16px;
   border: 1px solid transparent;
   border-radius: var(--radius-small);
   background: var(--primary);
   color: var(--on-primary);
-  font-weight: 850;
-  font-size: 0.92rem;
+  font-weight: 700;
+  font-size: 0.9rem;
   letter-spacing: -0.01em;
-  box-shadow: 0 4px 18px rgba(204, 255, 0, 0.22), var(--specular-strong);
-  transition: transform 140ms ease, filter 140ms ease, box-shadow 140ms ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 120ms ease, filter 120ms ease, background-color 120ms ease;
   cursor: pointer;
 }
 
 .button:hover {
   filter: brightness(1.08);
   transform: translateY(-1px);
-  box-shadow: 0 6px 22px rgba(204, 255, 0, 0.3), var(--specular-strong);
 }
 
 .button:active {
@@ -210,13 +207,13 @@
 .button.secondary {
   border: 1px solid var(--border-strong);
   background: var(--surface-raised);
-  box-shadow: var(--specular);
   color: var(--text-primary);
+  box-shadow: none;
 }
 
 .button.secondary:hover {
   background: var(--surface-muted);
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.22);
   filter: none;
 }
 
@@ -358,15 +355,16 @@
 .status-pill {
   display: inline-flex;
   width: fit-content;
-  min-height: 30px;
+  min-height: 24px;
   align-items: center;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
-  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+  border-radius: var(--radius-xs);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface));
   color: var(--primary-strong);
-  padding: 4px 10px;
-  font-size: 0.8rem;
-  font-weight: 850;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .goal-facts {
@@ -1382,18 +1380,18 @@
 
 .exercise-card {
   display: grid;
-  gap: 14px;
-  padding: 16px;
+  gap: 12px;
+  padding: 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0) 100%), var(--surface);
-  box-shadow: var(--specular), var(--shadow-soft);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
   scroll-margin-top: 90px;
 }
 
 .exercise-card.is-current-exercise {
-  border-color: color-mix(in srgb, var(--primary) 60%, var(--border));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 40%, transparent), var(--specular);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
 }
 
 .compact-actions {
@@ -1403,12 +1401,12 @@
 }
 
 .compact-actions .icon-button {
-  min-width: 44px;
+  min-width: 40px;
 }
 
 .set-list {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .set-row {
@@ -1416,11 +1414,10 @@
   grid-template-columns: auto minmax(62px, 1fr) minmax(62px, 1fr) auto;
   align-items: end;
   gap: 7px;
-  padding: 10px;
+  padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-small);
   background: var(--surface-raised);
-  box-shadow: var(--specular);
 }
 
 .set-row label {

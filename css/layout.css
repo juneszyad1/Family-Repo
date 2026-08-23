@@ -152,7 +152,6 @@ body {
 
 .nav-item[aria-current="page"] .nav-icon svg {
   stroke: var(--primary);
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--primary) 60%, transparent));
 }
 
 .route-context-link {
@@ -177,7 +176,7 @@ body {
     width: 76px;
     min-height: 0;
     flex-direction: column;
-    border-radius: 24px;
+    border-radius: var(--radius);
     transform: translateY(-50%);
   }
 
@@ -195,7 +194,6 @@ body {
   height: 4px;
   border-radius: 50%;
   background: var(--primary);
-  box-shadow: 0 0 8px var(--primary);
   opacity: 0;
   transform: scale(0);
   transition: opacity 160ms ease, transform 160ms ease;

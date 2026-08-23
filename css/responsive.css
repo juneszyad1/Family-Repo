@@ -79,17 +79,10 @@
   }
 
   .dashboard-intro .compact-button {
-    width: 46px;
-    overflow: hidden;
-    padding: 0;
-    color: transparent;
-    font-size: 0;
-  }
-
-  .dashboard-intro .compact-button::before {
-    content: "+";
-    color: var(--on-primary);
-    font-size: 1.35rem;
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    white-space: nowrap;
   }
 
   .dashboard-vitals article {

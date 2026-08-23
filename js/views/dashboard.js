@@ -175,36 +175,6 @@ function renderDashboardContent({ dailyEntries, bodyFatEntries, circumferenceEnt
     ${renderTrainingSummary(workoutSessions, workoutPlans)}
 
     ${renderGoalSummaries(activeGoals, dailyEntries, bodyFatEntries)}
-
-    ${
-      hasNutritionToday
-        ? `
-          <section class="card empty-state">
-            <h2>Heute ist erfasst</h2>
-            <p>${formatNumber(caloriesToday, { maximumFractionDigits: 0 })} kcal und ${formatNumber(proteinToday, { maximumFractionDigits: 0 })} g Protein gespeichert.</p>
-          </section>
-        `
-        : hasPartialNutritionToday
-          ? `
-            <section class="card empty-state">
-              <h2>Heute ist teilweise erfasst</h2>
-              <p>${hasCaloriesToday ? `${formatNumber(caloriesToday, { maximumFractionDigits: 0 })} kcal gespeichert.` : "Kalorien fehlen noch."} ${hasProteinToday ? `${formatNumber(proteinToday, { maximumFractionDigits: 0 })} g Protein gespeichert.` : "Protein fehlt noch."}</p>
-            </section>
-          `
-          : todayEntry
-            ? `
-              <section class="card empty-state">
-                <h2>Gewicht ist erfasst</h2>
-                <p>Kalorien und Protein fehlen für heute noch.</p>
-              </section>
-            `
-        : `
-          <section class="card empty-state">
-            <h2>Heute fehlen noch Daten</h2>
-            <p>Trage deinen Tagesdatensatz ein, damit Kalorien und Protein hier auftauchen.</p>
-          </section>
-        `
-    }
   `;
 }
 
