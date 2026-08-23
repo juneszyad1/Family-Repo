@@ -1,6 +1,7 @@
 import {
   deleteCircumferenceEntry,
   deleteDailyEntry,
+  getActiveGoals,
   getCircumferenceEntries,
   getDailyEntries,
   saveCircumferenceEntry,
@@ -8,6 +9,8 @@ import {
 } from "../database.js";
 import { hasErrors, sanitizeNumericInputValue, validateCircumferenceForm, validateDailyEntryForm } from "../validation.js";
 import { escapeHtml, formatDate, formatNumber, sortByDateDesc, toNumberOrNull, todayIsoDate } from "../utils.js";
+import { evaluateGoalDelight } from "../delight.js";
+import { GOAL_TYPES } from "../goals.js";
 
 function getFormValues(form) {
   const formData = new FormData(form);
@@ -305,6 +308,16 @@ async function initializeDailyView(container) {
       clearFormErrors(form, errorSlot);
       entries = await refreshHistory(container, historyExpanded);
       showStatus(container, "Tagesdaten gespeichert.");
+
+      if (savedEntry.weight !== null && savedEntry.weight !== undefined) {
+        try {
+          const activeGoals = await getActiveGoals();
+          const prevEntry = entries.find((e) => e.weight != null && e.date !== savedEntry.date);
+          evaluateGoalDelight(activeGoals, savedEntry.weight, GOAL_TYPES.WEIGHT, prevEntry?.weight);
+        } catch (delightErr) {
+          console.warn("Delight evaluation warning:", delightErr);
+        }
+      }
     } catch (error) {
       console.error(error);
       showStatus(container, "Die Tagesdaten konnten nicht gespeichert werden.", "danger");

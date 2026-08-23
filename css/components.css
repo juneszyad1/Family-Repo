@@ -2105,3 +2105,70 @@ body.has-fullscreen-chart {
   .session-set { grid-template-columns:auto minmax(70px,1fr) minmax(70px,1fr) auto auto; }
   .sticky-action { grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); }
 }
+
+/* Delight Celebration Banner */
+.delight-banner {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top, 16px));
+  left: 50%;
+  transform: translateX(-50%) translateY(-24px) scale(0.95);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 100000;
+  width: min(calc(100vw - 32px), 440px);
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface-raised) 92%, #000000);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 20px color-mix(in srgb, var(--primary) 15%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 260ms ease;
+}
+
+.delight-banner.is-visible {
+  transform: translateX(-50%) translateY(0) scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.delight-banner-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.delight-banner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 0.65rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  padding: 3px 7px;
+  border-radius: var(--radius-xs);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.delight-banner-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.delight-banner-text strong {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.delight-banner-text p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}

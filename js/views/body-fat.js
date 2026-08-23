@@ -1,7 +1,9 @@
-import { deleteBodyFatEntry, getBodyFatEntries, saveBodyFatEntry } from "../database.js";
+import { deleteBodyFatEntry, getActiveGoals, getBodyFatEntries, saveBodyFatEntry } from "../database.js";
 import { calculateJacksonPollock3 } from "../calculations.js";
 import { hasErrors, validateBodyFatForm } from "../validation.js";
 import { formatDate, formatNumber, sortByDateDesc, toNumberOrNull, todayIsoDate } from "../utils.js";
+import { evaluateGoalDelight } from "../delight.js";
+import { GOAL_TYPES } from "../goals.js";
 
 function getFormValues(form) {
   const formData = new FormData(form);
@@ -191,6 +193,16 @@ async function initializeBodyFatView(container) {
       resetForm(form);
       entries = await refreshHistory(container);
       showStatus(container, "KFA-Messung gespeichert.");
+
+      if (savedEntry.bodyFatPercentage !== null && savedEntry.bodyFatPercentage !== undefined) {
+        try {
+          const activeGoals = await getActiveGoals();
+          const prevEntry = entries.find((e) => e.bodyFatPercentage != null && e.id !== savedEntry.id);
+          evaluateGoalDelight(activeGoals, savedEntry.bodyFatPercentage, GOAL_TYPES.BODY_FAT, prevEntry?.bodyFatPercentage);
+        } catch (delightErr) {
+          console.warn("Delight evaluation warning:", delightErr);
+        }
+      }
     } catch (error) {
       console.error(error);
       showStatus(container, "Die KFA-Messung konnte nicht gespeichert werden.", "danger");
