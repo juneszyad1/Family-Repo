@@ -23,7 +23,7 @@ export const routes = {
   "body-fat": {
     title: "KFA-Messung",
     parentNav: "daily",
-    parentLabel: "Eintragen",
+    parentLabel: "Log",
     render: renderBodyFat
   },
   trends: {
@@ -39,7 +39,7 @@ export const routes = {
   goals: {
     title: "Ziele",
     parentNav: "settings",
-    parentLabel: "Mehr",
+    parentLabel: "More",
     render: renderGoals
   },
   settings: {
